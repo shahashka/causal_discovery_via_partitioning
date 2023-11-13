@@ -20,45 +20,44 @@ def pc(data, alpha, outdir, num_cores=8):
 
                Parameters:
                        data (numpy ndarray): Observational data with dimensions n x p
-                       outdir (str): Another decimal integer
+                       alpha (float): significance threshold to trim edges
+                       outdir (str): directory to save adjacency matrix to 
+                       num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm 
 
                Returns:
                        np.ndarray representing the adjancency matrix for the cpdag with dimensions p x p
                        np.ndarray representing the signifance level of each edge with dimensions p x p
        '''
-    if os.path.exists("Skeleton.so"):
-        print("Running GPU implementation of PC algorithm")
-        cu_pc(data, alpha, outdir)
-    else:
-        print("Running multicore CPU implementation of PC algorithm")
-        ro.r.assign("data", data)
-        rcode = 'cor(data)'
-        corMat = ro.r(rcode)
-        ro.r.assign("corrolationMatrix", corMat)
 
-        p = data.shape[1]
-        ro.r.assign("p",p)
+    print("Running multicore CPU implementation of PC algorithm")
+    ro.r.assign("data", data)
+    rcode = 'cor(data)'
+    corMat = ro.r(rcode)
+    ro.r.assign("corrolationMatrix", corMat)
 
-        rcode = 'list(C = corrolationMatrix, n = nrow(data))'
-        suffStat = ro.r(rcode)
-        ro.r.assign("suffStat", suffStat)
+    p = data.shape[1]
+    ro.r.assign("p",p)
 
-        ro.r.assign("alpha", alpha)
-        ro.r.assign("num_cores", num_cores)
-        rcode = 'pc(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
-        pc_fit = ro.r(rcode)
-        ro.r.assign("pc_fit", pc_fit)
+    rcode = 'list(C = corrolationMatrix, n = nrow(data))'
+    suffStat = ro.r(rcode)
+    ro.r.assign("suffStat", suffStat)
 
-        rcode = 'as(pc_fit@graph, "matrix")'
-        pdag = ro.r(rcode)
-        ro.r.assign("pdag", pdag)
-        
-        rcode = 'pc_fit@pMax'
-        p_values = ro.r(rcode)
+    ro.r.assign("alpha", alpha)
+    ro.r.assign("num_cores", num_cores)
+    rcode = 'pc(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    pc_fit = ro.r(rcode)
+    ro.r.assign("pc_fit", pc_fit)
 
-        rcode = "write.csv(pdag,row.names = FALSE, file = paste('{}/', 'pc-adj_mat.csv',sep = ''))".format(outdir)
-        ro.r(rcode)
-        return pdag, p_values 
+    rcode = 'as(pc_fit@graph, "matrix")'
+    pdag = ro.r(rcode)
+    ro.r.assign("pdag", pdag)
+    
+    rcode = 'pc_fit@pMax'
+    p_values = ro.r(rcode)
+
+    rcode = "write.csv(pdag,row.names = FALSE, file = paste('{}/', 'pc-adj_mat.csv',sep = ''))".format(outdir)
+    ro.r(rcode)
+    return pdag, p_values 
 
 def cu_pc(data, alpha, outdir):
     '''
@@ -66,11 +65,14 @@ def cu_pc(data, alpha, outdir):
 
                Parameters:
                        data (numpy ndarray): Observational data with dimensions n x p
-                       outdir (str): Another decimal integer
-
+                       alpha (float): significance threshold to trim edges
+                       outdir (str): directory to save adjacency matrix to 
                Returns:
-                       np.ndarray representing the adjancency matrix for skeleton (CPDAG) with dimensions p x p
-       '''
+                       np.ndarray representing the adjancency matrix for the cpdag with dimensions p x p
+                       np.ndarray representing the signifance level of each edge with dimensions p x p    
+    '''
+    
+    print("Running GPU implementation of PC algorithm")
     with open("./cupc/cuPC.R") as file:
         string = ''.join(file.readlines())
     cupc = SignatureTranslatedAnonymousPackage(string, "cupc")
@@ -89,11 +91,11 @@ def cu_pc(data, alpha, outdir):
     cuPC_fit = cupc.cu_pc(ro.r['suffStat'],p=ro.r['p'],alpha=alpha, u2pd='rand')
     ro.r.assign("cuPC_fit", cuPC_fit)
 
-    rcode = 'as(cuPC_fit[[1]], "matrix")'
+    rcode = 'as(cuPC_fit@graph, "matrix")'
     skel = ro.r(rcode)
     ro.r.assign("skel", skel)
     
-    rcode = 'as(cuPC_fit[[2]], "matrix")'
+    rcode = 'as(cuPC_fit@pMax, "matrix")'
     p_values = ro.r(rcode)
 
     rcode = "write.csv(skel,row.names = FALSE, file = paste('{}/', 'cupc-adj_mat.csv',sep = ''))".format(outdir)
