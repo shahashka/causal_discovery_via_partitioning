@@ -1,0 +1,1 @@
+# Run superstructure creation, partition, local discovery and screening for a base case network with assumed community structure
