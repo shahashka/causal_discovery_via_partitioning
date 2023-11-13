@@ -97,6 +97,7 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
             else :
                 tpr_fpr= [0,0]
             print("{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(name, shd, sid, auc, tpr_fpr))
+        return shd, sid, auc, tpr_fpr 
 
 # Create a random gaussian DAG and correposning observational and interventional dataset.
 # Save a data.csv file containing the observational and interventional data samples and target vector
@@ -119,17 +120,14 @@ def get_random_graph_data(graph_type, n, nsamples, iv_samples, p, k, seed=42, sa
     bn = GaussDAG(nodes= nodes_inds, arcs=dag.arcs, biases=bias,variances=var)
     data = bn.sample(nsamples)
 
-    nodes = ["G{}".format(d+1) for d in nodes_inds]
-    arcs = [("G{}".format(i+1),"G{}".format(j+1))  for i,j in dag.arcs]
-
-    df = pd.DataFrame(data=data, columns=nodes)
+    df = pd.DataFrame(data=data, columns=nodes_inds)
     df['target'] = np.zeros(data.shape[0])
 
     if iv_samples > 0:
         i_data = []
         for ind, i in enumerate(nodes_inds):
             samples = bn.sample_interventional(cd.Intervention({i: cd.ConstantIntervention(val=0)}), iv_samples)
-            samples = pd.DataFrame(samples, columns=nodes)
+            samples = pd.DataFrame(samples, columns=nodes_inds)
             samples['target'] = ind + 1
             i_data.append(samples)
         df_int = pd.concat(i_data)
@@ -139,9 +137,9 @@ def get_random_graph_data(graph_type, n, nsamples, iv_samples, p, k, seed=42, sa
             os.makedirs(outdir)
         df.to_csv("{}/data.csv".format(outdir), index=False)
         with open("{}/ground.txt".format(outdir), "w") as f:
-            for edge in arcs:
+            for edge in dag.arcs:
                 f.write(str(edge) +"\n")
-    return (arcs, nodes, bias, var), df
+    return (dag.arcs, nodes_inds, bias, var), df
 
 # Get data set from a predefined graph
 # Save a data.csv file containing the observational and interventional data samples and target vector
@@ -151,9 +149,6 @@ def get_data_from_graph(nodes, edges, nsamples, iv_samples, save=False, outdir=N
     var = np.abs(np.random.normal(0,1,size=len(nodes)))
     bn = GaussDAG(nodes= nodes, arcs=edges, biases=bias,variances=var)
     data = bn.sample(nsamples)
-
-    nodes = ["G{}".format(d+1) for d in nodes]
-    edges = [("G{}".format(i+1),"G{}".format(j+1))  for i,j in edges]
 
     df = pd.DataFrame(data=data, columns=nodes)
     df['target'] = np.zeros(data.shape[0])
