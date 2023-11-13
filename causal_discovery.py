@@ -14,7 +14,7 @@ import os
 import itertools
 pcalg = importr('pcalg')
 base = importr('base')
-
+GPU_AVAILABLE = os.path.exists("Skeleton.so")
 def pc(data, alpha, outdir, num_cores=8):
     '''
       Python wrapper for PC.
@@ -72,7 +72,9 @@ def cu_pc(data, alpha, outdir):
                        np.ndarray representing the adjancency matrix for the cpdag with dimensions p x p
                        np.ndarray representing the signifance level of each edge with dimensions p x p    
     '''
-    
+    if not GPU_AVAILABLE: 
+        print("No compiled Skeleton.so file")
+        return
     print("Running GPU implementation of PC algorithm")
     with open("./cupc/cuPC.R") as file:
         string = ''.join(file.readlines())
@@ -104,7 +106,7 @@ def cu_pc(data, alpha, outdir):
     return skel, p_values
 
 
-def sp_gies(data, outdir, skel=None, pc=True,  target_map=None, multifactor_targets=None, adaptive=True):
+def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True,  target_map=None, multifactor_targets=None, adaptive=True):
     '''
       Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
 
@@ -139,7 +141,7 @@ def sp_gies(data, outdir, skel=None, pc=True,  target_map=None, multifactor_targ
         obs_data = obs_data.drop(columns=['target'])
         obs_data = obs_data.to_numpy(dtype=float)
         if pc:
-            skel = pc(obs_data, outdir)
+            skel = pc(obs_data, alpha, outdir, num_cores=8) #cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
         else:
             skel = np.ones((data.shape[1], data.shape[1]))
     fixed_gaps = np.array((skel == 0), dtype=int)
