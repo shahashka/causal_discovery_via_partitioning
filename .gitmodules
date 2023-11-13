@@ -1,0 +1,3 @@
+[submodule "cupc"]
+	path = cupc
+	url = https://github.com/LIS-Laboratory/cupc.git
