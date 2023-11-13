@@ -11,6 +11,7 @@ import logging
 rpy2_logger.setLevel(logging.ERROR)   # will display errors, but not warnings
 rpy2.robjects.numpy2ri.activate()
 import os
+import itertools
 pcalg = importr('pcalg')
 base = importr('base')
 
@@ -191,3 +192,23 @@ def sp_gies(data, outdir, skel=None, pc=True,  target_map=None, multifactor_targ
             ' file = paste("{}/", "sp-gies-adj_mat.csv", sep=""))'.format(outdir)
     ro.r(rcode)
     return adj_mat
+
+def weight_colliders(adj_mat, weight=1):
+    weighted_adj_mat = adj_mat
+    for col in np.arange(adj_mat.shape[1]):
+        incident_nodes = np.argwhere(adj_mat[:,col]==1).flatten()
+        # For all edges incident on the node corresponding to this column
+        pairs = itertools.combinations(incident_nodes, 2)
+        for (i,j) in itertools.combinations(incident_nodes, 2):
+            # Filter for directed edges
+            if adj_mat[col, i] == 0 and adj_mat[col,j] == 0:
+                # Check if a pair of source nodes is connected
+                if adj_mat[i,j] == 0 and adj_mat[j,i] == 0:
+                    # If not then this is a collider
+                    weighted_adj_mat[i,col] = weight
+                    weighted_adj_mat[j,col] = weight
+    return weighted_adj_mat
+
+                
+        
+        

@@ -1,4 +1,4 @@
-from causal_discovery import pc, cu_pc
+from causal_discovery import pc, cu_pc, weight_colliders
 from utils import get_data_from_graph, get_scores, edge_to_adj
 import numpy as np
 import itertools
@@ -16,16 +16,31 @@ pdag, p_values = pc(obs_data, alpha=0.001, outdir="./tests")
 colliders = [(0,5), (1,5), (1,8), (2,8)]
 for (row,col) in itertools.product(np.arange(pdag.shape[0]), np.arange(pdag.shape[1])):
     if (row, col) in edges:
-        assert(pdag[row,col] == 1)
-        if (row,col) not in colliders:
-            assert(pdag[col, row] == 1)
-        else:
+        if (row,col) in colliders:
+            assert(pdag[row,col] == 1)
             assert(pdag[col, row] == 0)
+        else:
+            assert(pdag[row, col] == 1)
+            assert(pdag[col, row] == 1)
+    elif (col, row) not in edges:
+        assert(pdag[row,col]==0)
 
 # Check metrics 
 shd, sid, auc, tpr_fpr = get_scores(["PC"], [pdag], edge_to_adj(arcs, list(np.arange(10))))
-print(shd, sid, auc, tpr_fpr)
 assert(shd == 5 and tpr_fpr[0] == 1)
+
+W = 10
+weighted_pdag = weight_colliders(pdag, weight=W)
+for (row,col) in itertools.product(np.arange(pdag.shape[0]), np.arange(pdag.shape[1])):
+    if (row, col) in edges:
+        if (row,col) in colliders:
+            assert(pdag[row,col] == W)
+            assert(pdag[col, row] == 0)
+        else:
+            assert(pdag[row, col] == 1)
+            assert(pdag[col, row] == 1)
+    elif (col, row) not in edges:
+        assert(pdag[row,col]==0)
 
 # Make sure GPU implementation is aligned with original pcalg version 
 # Currently this fails! Skeleton is right but orientation is wrong 
