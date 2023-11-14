@@ -3,7 +3,14 @@ from utils import get_data_from_graph, get_scores, edge_to_adj
 import numpy as np
 import itertools
 
-# Create a simple 10 node graph with 2 colliders 
+'''
+    Create a simple 10 node graph with 2 colliders 
+    Make sure the PC algorithm finds the skeleton + colliders
+    Check the metrics corresponding to the estimated PDAG
+    Finally check that the CPU and GPU implementations render the same results (NOTE this currently is failing)
+    
+'''
+
 nodes = np.arange(10)
 edges = [(0, 3), (0, 4), (0, 5), (1, 5), 
             (1, 6),  (1, 7), (1, 8),  (2,8), (2, 9)]
