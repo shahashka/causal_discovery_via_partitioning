@@ -32,7 +32,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     """
 
     # Create a random 'base' network 
-    (arcs, nodes, _, _), _ = get_random_graph_data(graph_type, n=n, nsamples=0, 
+    (arcs, nodes, _, _), _ = get_random_graph_data(graph_type, num_nodes=n, nsamples=0, 
                                                    iv_samples=0, p=p, k=k, save=False)
     net = nx.DiGraph()
     net.add_edges_from(arcs)
@@ -40,7 +40,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     
     # Create a tiled network with community structure, save to dataset directory
     nodes = np.arange(n*ncommunities)
-    tiled_net = _construct_tiling('base_case', net, num_tiles=ncommunities)
+    tiled_net = _construct_tiling( net, num_tiles=ncommunities)
     df_edges = pd.DataFrame(list(tiled_net.edges))
     df_edges.to_csv("{}/edges_dag.dat".format(outdir),sep='\t', header=None, index=None)
     adj_mat = nx.adjacency_matrix(tiled_net, nodelist=nodes).toarray()
@@ -58,7 +58,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     superstructure, p_values = pc(data, alpha=alpha, outdir=outdir) 
     superstructure = weight_colliders(superstructure, weight=collider_weight)
     weights = np.multiply(superstructure, p_values)
-    superstructure_net = nx.from_numpy_matrix(weights, create_using=nx.Graph)
+    superstructure_net = nx.from_numpy_array(weights, create_using=nx.Graph)
     
     # Save the super structure edges and weighted superstructure edges               
     df_edges = pd.DataFrame(list(superstructure_net.edges))

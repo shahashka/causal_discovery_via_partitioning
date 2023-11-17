@@ -256,3 +256,64 @@ def get_data_from_graph(nodes, edges, nsamples, iv_samples, save=False, outdir=N
             for edge in edges:
                 f.write(str(edge) +"\n")
     return (edges, nodes, bias, var), df
+
+
+# Partitions is a dictionary with key,values <partition id>: <list of nodes in partition>
+# From this paper https://arxiv.org/abs/0910.5072
+# Ranges from 1 to -1. Positive values are better, 1 indicates fully connected graph 
+def _modularity_overlapping(partitions, nodes, A):
+    def mod_cluster(part, nodes, A, S, D, n_edges, n_nodes):
+        part_nodes = part[1]
+        node_mod = np.zeros(len(part_nodes))
+        for ind, i in enumerate(part_nodes):
+            within_cluster = np.sum([A[i,j] for j in part_nodes if j!=i])
+            intra_cluster = np.sum([A[i,j] for j in nodes if j not in part_nodes])
+            d_i = D[i]
+            s_i = S[i]
+            node_mod[ind] += (within_cluster - intra_cluster)/(d_i*s_i) if d_i !=0 else 0
+        return n_edges/(itertools.comb(n_nodes,2)*n_nodes) * sum(node_mod)
+    
+    K = len(partitions)
+    # S is the number of clusters each node i belongs to
+    S = np.zeros(len(nodes))
+    
+    # D is the degree of each node in the graph
+    D = np.zeros(len(nodes))
+    for i in nodes:
+        S[i] = sum([1 for p in partitions.values() if i in p])
+        D[i] = np.sum(A[i]) + np.sum(A[:,i]) - 2
+    n_nodes = [len(p) for p in partitions.values()]
+    p_inds = [np.array(list(p), dtype=int) for p in partitions.values()]
+    n_edges = [np.sum(A[p][:,p]) for p in p_inds]
+    
+    mod_by_cluster = np.zeros(K)
+    for i, part in enumerate(partitions.items()):
+        mod_by_cluster[i] = mod_cluster(part, nodes, A, S, D, n_edges[i], n_nodes[i])
+        
+    return 1/K* sum(mod_by_cluster)
+
+def evaluate_partition(partition, G, nodes, df):
+    """Evaluate the partition over a graph with the edge coverage and overlapping
+    modularity scores
+
+    Args:
+        partition (dict): keys are community ids, values are lists of nodes 
+        G (nx.DiGraph): _description_
+        nodes (list): list of nodes in order of adjacency matrix
+        df (pandas DataFrame): dataframe of sampled values
+    """
+    # Edge coverage
+    covered = 0
+    for e in list(G.edges):
+        is_covered = False
+        for _,p in partition.items():
+            if e[0] in p and e[1] in p:
+                is_covered = True
+        covered += 1 if is_covered else 0
+    print("Percent of edges covered by partition: {}".format(covered/len(G.edges)))
+    
+    # Modularity of partitions
+    mod_overlap = _modularity_overlapping(partition, nodes, nx.adjacency_matrix(G, nodelist=nodes))
+    print("Modularity for Overlapping partitions: {}".format(mod_overlap))
+    
+    
