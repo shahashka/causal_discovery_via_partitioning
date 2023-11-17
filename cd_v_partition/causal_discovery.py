@@ -14,7 +14,7 @@ import os
 import itertools
 pcalg = importr('pcalg')
 base = importr('base')
-GPU_AVAILABLE = os.path.exists("Skeleton.so")
+GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 def pc(data, alpha, outdir, num_cores=8):
     '''
       Python wrapper for PC.

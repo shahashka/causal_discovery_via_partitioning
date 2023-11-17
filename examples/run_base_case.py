@@ -1,9 +1,9 @@
 # Run superstructure creation, partition, local discovery and screening 
 # for a base case network with assumed community structure
-from utils import get_random_graph_data, get_data_from_graph, evaluate_partition
-from causal_discovery import pc, weight_colliders
-from overlapping_partition import oslom_algorithm
-from vis_partition import create_partition_plot
+from cd_v_partition.utils import get_random_graph_data, get_data_from_graph, evaluate_partition
+from cd_v_partition.causal_discovery import pc, weight_colliders
+from cd_v_partition.overlapping_partition import oslom_algorithm
+from cd_v_partition.vis_partition import create_partition_plot
 import networkx as nx
 import numpy as np
 import pandas as pd

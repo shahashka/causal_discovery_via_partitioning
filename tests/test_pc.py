@@ -1,5 +1,5 @@
-from causal_discovery import pc, cu_pc, weight_colliders
-from utils import get_data_from_graph, get_scores, edge_to_adj
+from cd_v_partition.causal_discovery import pc, cu_pc, weight_colliders
+from cd_v_partition.utils import get_data_from_graph, get_scores, edge_to_adj
 import numpy as np
 import itertools
 
