@@ -8,7 +8,7 @@ import causaldag as cd
 import pandas as pd
 import os
 from sklearn.metrics import roc_curve
-
+import math
 
 def adj_to_edge(adj, nodes, ignore_weights=False):
     '''
@@ -262,6 +262,7 @@ def get_data_from_graph(nodes, edges, nsamples, iv_samples, save=False, outdir=N
 # From this paper https://arxiv.org/abs/0910.5072
 # Ranges from 1 to -1. Positive values are better, 1 indicates fully connected graph 
 def _modularity_overlapping(partitions, nodes, A):
+    A = A.todense() # Sparse matrix indexing support is poor 
     def mod_cluster(part, nodes, A, S, D, n_edges, n_nodes):
         part_nodes = part[1]
         node_mod = np.zeros(len(part_nodes))
@@ -271,7 +272,7 @@ def _modularity_overlapping(partitions, nodes, A):
             d_i = D[i]
             s_i = S[i]
             node_mod[ind] += (within_cluster - intra_cluster)/(d_i*s_i) if d_i !=0 else 0
-        return n_edges/(itertools.comb(n_nodes,2)*n_nodes) * sum(node_mod)
+        return n_edges/(math.comb(n_nodes,2)*n_nodes) * sum(node_mod)
     
     K = len(partitions)
     # S is the number of clusters each node i belongs to
@@ -281,7 +282,7 @@ def _modularity_overlapping(partitions, nodes, A):
     D = np.zeros(len(nodes))
     for i in nodes:
         S[i] = sum([1 for p in partitions.values() if i in p])
-        D[i] = np.sum(A[i]) + np.sum(A[:,i]) - 2
+        D[i] = np.sum(A[i]) + np.sum(A[:,[i]]) - 2
     n_nodes = [len(p) for p in partitions.values()]
     p_inds = [np.array(list(p), dtype=int) for p in partitions.values()]
     n_edges = [np.sum(A[p][:,p]) for p in p_inds]

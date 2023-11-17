@@ -1,13 +1,47 @@
 # Run superstructure creation, partition, local discovery and screening 
 # for a base case network with assumed community structure
-from utils import get_random_graph_data, get_data_from_graph
+from utils import get_random_graph_data, get_data_from_graph, evaluate_partition
 from causal_discovery import pc, weight_colliders
+from overlapping_partition import oslom_algorithm
+from vis_partition import create_partition_plot
 import networkx as nx
 import numpy as np
 import pandas as pd
+import argparse
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--create', action='store_true', help='Flag to toggle base case dataset creation')
+    return parser.parse_args()
 
 def run_base_case(algorithm, structure_type, data_dir):
-    print("TODO")               
+    """Run a partitioning algorithm on a base case example. Specify whether to partition the DAG, superstructure or 
+    weighted superstructure
+
+    Args:
+        algorithm (str): currently only supports 'oslom'
+        structure_type (str): 'dag', 'superstructure', or 'superstructre_weighted'
+        data_dir (str): folder where the dataset, adjacency matrix and edge list files are stored (see create_base_case for details )
+    """
+    if algorithm == 'oslom':
+        # Load information from data directory 
+        df = pd.read_csv("{}/data.csv".format(data_dir), header=0)
+        adj = pd.read_csv("{}/tiled.csv".format(data_dir), header=0)
+        nodes = adj.columns.to_numpy(dtype=int)
+        G = nx.DiGraph(adj.to_numpy())
+        
+        # Run OSLOM using the correct edge.dat file corersponding to the specified structure
+        oslom_partition = oslom_algorithm(data_dir, "./OSLOM2/", structure_type)
+        
+        # Evalute the partition 
+        evaluate_partition(oslom_partition, G, nodes, df)
+        
+        # Create a visualization of the partition 
+        create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
+    else:
+        NotImplementedError()
+        
+                    
 def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weight, nsamples, outdir):
     """Create a base case network to use for evaluation. This network is comprised of a base random graph that is
        tiled to construct a network with community structure.  Also generates a superstructure
@@ -57,7 +91,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     data = data.to_numpy()
     superstructure, p_values = pc(data, alpha=alpha, outdir=outdir) 
     superstructure = weight_colliders(superstructure, weight=collider_weight)
-    weights = np.multiply(superstructure, p_values)
+    weights = np.multiply(superstructure, np.abs(p_values)) # p_values are negative? pc algorithm pMax matrix is confusing, for now take absolute value 
     superstructure_net = nx.from_numpy_array(weights, create_using=nx.Graph)
     
     # Save the super structure edges and weighted superstructure edges               
@@ -153,6 +187,11 @@ def _check_superstructure(S, G):
                 assert(S[row,col]>0)
                 
 if __name__ == '__main__':
-    create_base_case_net('scale_free', n=10, p=0.9, k=5, ncommunities=5, 
-                         alpha=0.5, collider_weight=10, nsamples=int(1e5),
-                         outdir="./datasets/base_case/")
+    args = get_args()
+    if args.create:
+        create_base_case_net('scale_free', n=10, p=0.9, k=5, ncommunities=5, 
+                            alpha=0.5, collider_weight=10, nsamples=int(1e5),
+                            outdir="./datasets/base_case/")
+    st_types = ['dag', 'superstructure', 'superstructure_weighted']
+    for t in st_types:
+        run_base_case('oslom', t, './datasets/base_case/')

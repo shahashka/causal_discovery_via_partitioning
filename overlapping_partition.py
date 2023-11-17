@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import subprocess
 
 
@@ -18,9 +17,9 @@ def oslom_algorithm(data_dir, oslom_dir, structure_type='dag'):
         dict: the estimated partition as a dictionary {comm_id : [nodes]}
     """
     # Run the OSLOM code externally
-    weight_flag = "-w" if structure_type.contains("weight") else "-uw"
-    subprocess.call(".{}/oslom_undir".format(oslom_dir), "-f", 
-                    "{}/edges_{}.dat".format(data_dir, structure_type),"{}".format(weight_flag))
+    weight_flag = "-w" if "weight" in structure_type else "-uw"
+    subprocess.run(["{}/oslom_undir".format(oslom_dir), "-f", 
+                    "{}/edges_{}.dat".format(data_dir, structure_type),"{}".format(weight_flag)])
     
     # Read the output partition file and return the partition as a dictionary 
     partition_file = "{}/edges_{}.dat_oslo_files/tp".format(data_dir, structure_type)
