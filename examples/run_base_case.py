@@ -8,6 +8,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import argparse
+import itertools
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -73,6 +74,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     net.add_nodes_from(nodes)
     
     # Create a tiled network with community structure, save to dataset directory
+    print("Creating tiled net")
     nodes = np.arange(n*ncommunities)
     tiled_net = _construct_tiling( net, num_tiles=ncommunities)
     df_edges = pd.DataFrame(list(tiled_net.edges))
@@ -81,6 +83,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     df = pd.DataFrame(adj_mat)
     df.to_csv("{}/tiled.csv".format(outdir), index=False)
     
+    print("Generate data")
     # Generate data from the tiled network
     (arcs, nodes, _, _), df = get_data_from_graph( nodes, list(tiled_net.edges()),
                                                   nsamples=nsamples, iv_samples=0, save=True, 
@@ -91,7 +94,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     data = data.to_numpy()
     superstructure, p_values = pc(data, alpha=alpha, outdir=outdir) 
     superstructure = weight_colliders(superstructure, weight=collider_weight)
-    weights = np.multiply(superstructure, np.abs(p_values)) # p_values are negative? pc algorithm pMax matrix is confusing, for now take absolute value 
+    weights = superstructure #np.multiply(superstructure, np.abs(p_values)) # p_values are negative? pc algorithm pMax matrix is confusing, for now take absolute value 
     superstructure_net = nx.from_numpy_array(weights, create_using=nx.Graph)
     
     # Save the super structure edges and weighted superstructure edges               
@@ -103,7 +106,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     
     # Checks for sanity 
     print("Number of colliders: {}".format(_count_colliders(tiled_net)))
-    #check_superstructure(superstructure, nx.adjacency_matrix(tiled_net, nodelist=np.arange(len(nodes))))
+    _check_superstructure(superstructure, nx.adjacency_matrix(tiled_net, nodelist=np.arange(len(nodes))))
 
     return superstructure_net, df
 
@@ -161,18 +164,23 @@ def _count_colliders(G):
         int: number of collider sets in the graph
     """
     num_colliders = 0
-    collider_nodes = []
+    non_colliders = 0
+    
     # Find all triples x-y-z
-    for (x,y,z) in nx.all_triplets(G):
+    for (x,y,z) in itertools.permutations(G.nodes, 3):
         if G.has_edge(x,y) and G.has_edge(z,y):
             num_colliders += 1
-            collider_nodes.append(y)
-    print( len(set(collider_nodes)))
-    return num_colliders
+        elif G.has_edge(x,y) and G.has_edge(y,z):
+            non_colliders +=1
+        elif G.has_edge(y,x) and G.has_edge(z,y):
+            non_colliders +=1
+        elif G.has_edge(y,x) and G.has_edge(y,z):
+            non_colliders +=1
+    return num_colliders, num_colliders/(num_colliders + non_colliders)
 
 # Check that this is a superstructure 
 def _check_superstructure(S, G):
-    """Make sure that S is a superstructure of G. This means all edges in G are contrained 
+    """Make sure that S is a superstructure of G. This means all edges in G are constrained 
        by S. 
     
 
@@ -180,17 +188,19 @@ def _check_superstructure(S, G):
         S (np.ndarray): adjacency matrix for the superstructure
         G (np.ndattay): adjacency matrix for the DAG 
     """
+    num_wrong = 0
     for row in np.arange(S.shape[0]):
         for col in np.arange(S.shape[1]):
             if G[row,col] == 1:
-                print(row,col)
-                assert(S[row,col]>0)
-                
+                if S[row,col] == 0:
+                    num_wrong+=1
+    print("Number of missed edges in superstructure (which has {} edges) {} out of {} edges".format(np.sum(S>0),num_wrong,  np.sum(G>0)))         
+       
 if __name__ == '__main__':
     args = get_args()
     if args.create:
-        create_base_case_net('scale_free', n=10, p=0.9, k=5, ncommunities=5, 
-                            alpha=0.5, collider_weight=10, nsamples=int(1e5),
+        create_base_case_net('erdos_renyi', n=10, p=0.4, k=2, ncommunities=5, 
+                            alpha=1e-1, collider_weight=10, nsamples=int(1e6),
                             outdir="./datasets/base_case/")
     st_types = ['dag', 'superstructure', 'superstructure_weighted']
     for t in st_types:
