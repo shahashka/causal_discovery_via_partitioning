@@ -32,13 +32,21 @@ def run_base_case(algorithm, structure_type, data_dir):
         G = nx.DiGraph(adj.to_numpy())
         
         # Run OSLOM using the correct edge.dat file corersponding to the specified structure
-        oslom_partition = oslom_algorithm(data_dir, "./OSLOM2/", structure_type)
+        oslom_partition = oslom_algorithm(nodes, data_dir, "./OSLOM2/", structure_type)
         
         # Evalute the partition 
         evaluate_partition(oslom_partition, G, nodes, df)
         
         # Create a visualization of the partition 
         create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
+        
+        # Partition problem
+        
+        # Launch processes and run locally 
+        
+        # Merge globally 
+        
+        # Compare causal metrics 
     else:
         NotImplementedError()
         
@@ -199,9 +207,10 @@ def _check_superstructure(S, G):
 if __name__ == '__main__':
     args = get_args()
     if args.create:
-        create_base_case_net('erdos_renyi', n=10, p=0.4, k=2, ncommunities=5, 
+        create_base_case_net('scale_free', n=10, p=0.3, k=2, ncommunities=5, 
                             alpha=1e-1, collider_weight=10, nsamples=int(1e6),
                             outdir="./datasets/base_case/")
     st_types = ['dag', 'superstructure', 'superstructure_weighted']
     for t in st_types:
         run_base_case('oslom', t, './datasets/base_case/')
+        

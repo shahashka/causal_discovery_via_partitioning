@@ -318,3 +318,6 @@ def evaluate_partition(partition, G, nodes, df):
     print("Modularity for Overlapping partitions: {}".format(mod_overlap))
     
     
+def delta_causality():
+    print("TODO")
+    
