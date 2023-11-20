@@ -1,7 +1,6 @@
 import numpy as np
 import subprocess
 
-
 def oslom_algorithm(nodes, data_dir, oslom_dir, structure_type='dag'):
     """Overlapping partitioning methods which take an input graph (superstructure) and partition nodes according to an objective
        overlapping nodes ideally render the partitions conditionally independent
@@ -36,9 +35,25 @@ def oslom_algorithm(nodes, data_dir, oslom_dir, structure_type='dag'):
     if len(homeless_nodes) > 0:
         partition[len(lines)] = homeless_nodes
     return partition
+
+def partition_problem(partition, structure, data):
+    """Split a the graph structure and dataset according to the given graph partition
+
+    Args:
+        partition (dict): the partition as a dictionary {comm_id : [nodes]}
+        structure (np.ndarray): the adjacency matrix for the initial structure 
+        data (pandas DataFrame): the dataset, columns correspond to nodes in the graph
+
+    Returns:
+        list: a list of tuples holding the sub structure and data subsets for each partition 
+    """
+    sub_problems = []
+    for _, sub_nodes in partition.items():
+        sub_structure = structure[sub_nodes][:,sub_nodes]
+        data_inds = sub_nodes + [-1] # add 'target' vector at the end of dataframe
+        sub_data = data.iloc[:,data_inds]
+        sub_problems.append((sub_structure, sub_data))
+    return sub_problems
         
-            
-
-
-def partition_problem():
-    print("TODO")
+    
+    

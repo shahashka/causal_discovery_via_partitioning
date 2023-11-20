@@ -149,7 +149,7 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
             else :
                 tpr_fpr= [0,0]
             print("{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(name, shd, sid, auc, tpr_fpr))
-        return shd, sid, auc, tpr_fpr 
+        return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
 
 
 def get_random_graph_data(graph_type, num_nodes, nsamples, iv_samples, p, k, seed=42, save=False, outdir=None):
@@ -299,7 +299,7 @@ def evaluate_partition(partition, G, nodes, df):
 
     Args:
         partition (dict): keys are community ids, values are lists of nodes 
-        G (nx.DiGraph): _description_
+        G (nx.DiGraph): the original structure that is being partitioned
         nodes (list): list of nodes in order of adjacency matrix
         df (pandas DataFrame): dataframe of sampled values
     """
@@ -318,6 +318,22 @@ def evaluate_partition(partition, G, nodes, df):
     print("Modularity for Overlapping partitions: {}".format(mod_overlap))
     
     
-def delta_causality():
-    print("TODO")
+def delta_causality(est_graph_serial, est_graph_partition, true_graph):
+    """Calculate the difference in scores (SHD, AUC, SID, TPR_FPR) between
+    the serial estimated grpah and the partitioned estimated graph. The difference
+    is calculated as serial_score - partition_score.
+
+    Args:
+        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from running the causal discovery algorithm on the entire data and node set
+        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph from running the causal discovery algorithm on the partitioned data and node sets
+        true_graph (np.ndarray or nx.DiGraph): the ground truth graph to compare to 
+    
+    Returns:
+        list (float, float, float, float): Delta SHD, AUC, SID, TPR_FPR. Note that the sign here is relative to the serial implmentation (we do not take the aboslute value)
+    """
+    scores_s = get_scores(["CD serial"], [est_graph_serial], true_graph)
+    scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)
+    delta = scores_s - scores_p
+    return delta
+
     

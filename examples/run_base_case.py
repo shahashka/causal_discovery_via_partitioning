@@ -1,21 +1,25 @@
 # Run superstructure creation, partition, local discovery and screening 
 # for a base case network with assumed community structure
-from cd_v_partition.utils import get_random_graph_data, get_data_from_graph, evaluate_partition
-from cd_v_partition.causal_discovery import pc, weight_colliders
-from cd_v_partition.overlapping_partition import oslom_algorithm
-from cd_v_partition.vis_partition import create_partition_plot
+from cd_v_partition.utils import get_random_graph_data, get_data_from_graph, evaluate_partition, delta_causality
+from cd_v_partition.causal_discovery import pc, weight_colliders, sp_gies
+from cd_v_partition.overlapping_partition import oslom_algorithm, partition_problem
+#from cd_v_partition.vis_partition import create_partition_plot
+from cd_v_partition.screen_moralizers import fusion
 import networkx as nx
 import numpy as np
 import pandas as pd
 import argparse
 import itertools
+import functools
+import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--create', action='store_true', help='Flag to toggle base case dataset creation')
     return parser.parse_args()
 
-def run_base_case(algorithm, structure_type, data_dir):
+def run_base_case(algorithm, structure_type, nthreads, data_dir):
     """Run a partitioning algorithm on a base case example. Specify whether to partition the DAG, superstructure or 
     weighted superstructure
 
@@ -33,20 +37,35 @@ def run_base_case(algorithm, structure_type, data_dir):
         
         # Run OSLOM using the correct edge.dat file corersponding to the specified structure
         oslom_partition = oslom_algorithm(nodes, data_dir, "./OSLOM2/", structure_type)
+        num_partitions = len(oslom_partition)
         
         # Evalute the partition 
         evaluate_partition(oslom_partition, G, nodes, df)
-        
-        # Create a visualization of the partition 
-        create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
+        #create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
         
         # Partition problem
-        
+        # TODO for now pass the DAG for debugging but later pass in super structure
+        print("Running local causal discovery...")
+        subproblems = partition_problem(oslom_partition, adj.to_numpy(), df)
         # Launch processes and run locally 
-        
+        func_partial = functools.partial(_local_structure_learn)
+        results = []
+        chunksize = max(1, num_partitions // nthreads)
+        print("Launching processes")
+        with ProcessPoolExecutor(max_workers=nthreads) as executor:
+            for result in executor.map(func_partial, subproblems, chunksize=chunksize):
+                results.append(result)
+    
         # Merge globally 
+        est_graph_partition = fusion(oslom_partition, results)
+        print(type(est_graph_partition))
+        # Call serial method
+        est_graph_serial = _local_structure_learn((adj.to_numpy(), df))
         
         # Compare causal metrics 
+        d_shd, d_sid, d_auc, d_tpr_fpr = delta_causality(est_graph_serial, est_graph_partition, adj.to_numpy())
+        print("Delta causality: SHD {}, SID {}, AUC {}, TPR_FPR {} ".format(d_shd, d_auc, d_sid, d_tpr_fpr))
+        
     else:
         NotImplementedError()
         
@@ -118,6 +137,18 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
 
     return superstructure_net, df
 
+def _local_structure_learn(subproblem):
+    """Call causal discovery algorithm on subproblem. Right now uses SP-GIES
+
+    Args:
+        subproblem (tuple np.ndarray, pandas DataFrame): the substructure adjacency matrix and corresponding data 
+
+    Returns:
+        np.ndarray: Estimated DAG adjacency matrix for the subproblem
+    """
+    skel, data = subproblem
+    adj_mat = sp_gies(data, outdir=None, skel=skel, pc=True)
+    return adj_mat
 
 def _construct_tiling(net, num_tiles):
     """Helper function to construct the tiled/community network from a base net.
@@ -210,7 +241,7 @@ if __name__ == '__main__':
         create_base_case_net('scale_free', n=10, p=0.3, k=2, ncommunities=5, 
                             alpha=1e-1, collider_weight=10, nsamples=int(1e6),
                             outdir="./datasets/base_case/")
-    st_types = ['dag', 'superstructure', 'superstructure_weighted']
+    st_types = ['dag']#, 'superstructure', 'superstructure_weighted']
     for t in st_types:
-        run_base_case('oslom', t, './datasets/base_case/')
+        run_base_case('oslom', t, 2, './datasets/base_case/')
         

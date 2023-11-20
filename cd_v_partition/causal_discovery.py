@@ -56,8 +56,9 @@ def pc(data, alpha, outdir, num_cores=8):
     rcode = 'pc_fit@pMax'
     p_values = ro.r(rcode)
 
-    rcode = "write.csv(pdag,row.names = FALSE, file = paste('{}/', 'pc-adj_mat.csv',sep = ''))".format(outdir)
-    ro.r(rcode)
+    if outdir:
+        rcode = "write.csv(pdag,row.names = FALSE, file = paste('{}/', 'pc-adj_mat.csv',sep = ''))".format(outdir)
+        ro.r(rcode)
     return pdag, p_values 
 
 def cu_pc(data, alpha, outdir):
@@ -101,12 +102,13 @@ def cu_pc(data, alpha, outdir):
     rcode = 'as(cuPC_fit@pMax, "matrix")'
     p_values = ro.r(rcode)
 
-    rcode = "write.csv(skel,row.names = FALSE, file = paste('{}/', 'cupc-adj_mat.csv',sep = ''))".format(outdir)
-    ro.r(rcode)
+    if outdir:
+        rcode = "write.csv(skel,row.names = FALSE, file = paste('{}/', 'cupc-adj_mat.csv',sep = ''))".format(outdir)
+        ro.r(rcode)
     return skel, p_values
 
 
-def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True,  target_map=None, multifactor_targets=None, adaptive=True):
+def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True, multifactor_targets=None, adaptive=True):
     '''
       Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
 
@@ -116,15 +118,12 @@ def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True,  target_map=None, mult
                                                 that was intervened on to obtain the sample (assumes single interventions only).
                                                 This indexes from 1 for R convenience.
                                                 For observational samples the corresponding target should be 0
-                       outdir (str): The directory to save the final adjacency matrix named sp-gies-adj_mat.csv 
+                       outdir (str): The directory to save the final adjacency matrix named sp-gies-adj_mat.csv. Set to None to skip saving files
                        skel (numpy ndarray): an optional initial skeleton with dimensions p x p
                        pc (bool): a flag to indicate if skeleton estimation should be done with the PC. If False
                                     and no skel is specified, then assumed no skeleton i.e. reverts to GIES algorithm.
                                     Will use the GPU accelerated version of the PC if avaiable, otherwise reverts to pcalg
                                     implementation of PC
-                        target_map (dict): An optional dictionary to map the 'target' column of the input dataset to the indices
-                                         in the dataframe. This is only needed for the parallel implementation of SP-GIES where the
-                                        full graph is partitioned and indices need to be tracked
                         multifactor_targets (list): An optional list of lists for when there are multinode targets. In this case it is
                                                     assumed that the 'target' column of the data DataFrame contains the index into this list
                Returns:
@@ -147,8 +146,6 @@ def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True,  target_map=None, mult
     fixed_gaps = np.array((skel == 0), dtype=int)
     print("Fixed gaps {}".format(sum(sum(fixed_gaps))))
     target_index = data.loc[:, 'target'].to_numpy()
-    if target_map is not None:
-        target_index = np.array([0 if i == 0 else target_map[i] + 1 for i in target_index])
     targets = multifactor_targets if multifactor_targets else np.unique(target_index)[1:]  # Remove 0 the observational target
     target_index_R = target_index + 1  # R indexes from 1
     data = data.drop(columns=['target']).to_numpy(dtype=float)
@@ -190,9 +187,10 @@ def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True,  target_map=None, mult
     else:
         adj_mat = np.zeros((1,1))
     ro.r.assign("adj_mat", adj_mat)
-    rcode = 'write.csv(adj_mat, row.names = FALSE,' \
-            ' file = paste("{}/", "sp-gies-adj_mat.csv", sep=""))'.format(outdir)
-    ro.r(rcode)
+    if outdir:
+        rcode = 'write.csv(adj_mat, row.names = FALSE,' \
+                ' file = paste("{}/", "sp-gies-adj_mat.csv", sep=""))'.format(outdir)
+        ro.r(rcode)
     return adj_mat
 
 def weight_colliders(adj_mat, weight=1):
