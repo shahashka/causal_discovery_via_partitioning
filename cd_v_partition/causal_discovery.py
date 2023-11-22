@@ -2,19 +2,22 @@
 # Runs local causal discovery on subgraphs to be merged later
 import pandas as pd
 import numpy as np
+import os
+import itertools
+
+from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
+import logging
+rpy2_logger.setLevel(logging.ERROR)   # will display errors, but not warnings
 from rpy2.robjects.packages import importr
 import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
 from rpy2.robjects.packages import SignatureTranslatedAnonymousPackage
-from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
-import logging
-rpy2_logger.setLevel(logging.ERROR)   # will display errors, but not warnings
 rpy2.robjects.numpy2ri.activate()
-import os
-import itertools
+
 pcalg = importr('pcalg')
 base = importr('base')
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
+
 def pc(data, alpha, outdir, num_cores=8):
     '''
       Python wrapper for PC.
@@ -144,9 +147,9 @@ def sp_gies(data, outdir, alpha=1e-3, skel=None, pc=True, multifactor_targets=No
         else:
             skel = np.ones((data.shape[1], data.shape[1]))
     fixed_gaps = np.array((skel == 0), dtype=int)
-    print("Fixed gaps {}".format(sum(sum(fixed_gaps))))
     target_index = data.loc[:, 'target'].to_numpy()
     targets = multifactor_targets if multifactor_targets else np.unique(target_index)[1:]  # Remove 0 the observational target
+    # TODO with interventional data do the names and target_ids match? 
     target_index_R = target_index + 1  # R indexes from 1
     data = data.drop(columns=['target']).to_numpy(dtype=float)
 

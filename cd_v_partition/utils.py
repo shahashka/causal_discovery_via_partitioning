@@ -127,6 +127,10 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
                 sid += cdt.metrics.SID(g, n) if get_sid else 0
                 if name!='NULL':
                     tpr_fpr += tpr_fpr_score(g,n)
+                # Precision/recall requires 0,1 array 
+                if type(n) == np.ndarray:
+                    g = g!=0
+                    n = n!=0
                 auc +=  cdt.metrics.precision_recall(g, n)[0]
             print("{} SHD: {} SID: {} AUC: {} TPR: {}".format(name, shd/len(net), sid/len(net), auc/len(net), tpr_fpr[0]/len(net)))
         elif type(net) != list and type(ground_truth) == list:
@@ -136,18 +140,28 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
             for g in ground_truth:
                 shd += cdt.metrics.SHD(g, net, False)
                 sid +=cdt.metrics.SID(g, net) if get_sid else 0
-                auc +=  cdt.metrics.precision_recall(g, net)[0]
                 if name!='NULL':
                     tpr_fpr += tpr_fpr_score(g,n)
+                # Precision/recall requires 0,1 array 
+                if type(net) == np.ndarray:
+                    g = g!=0
+                    net = net!=0
+                auc +=  cdt.metrics.precision_recall(g, net)[0]
             print("{} SHD: {} SID: {} AUC: {} TPR: {}".format(name, shd/len(ground_truth), sid/len(ground_truth), auc/len(ground_truth), tpr_fpr[0]/len(ground_truth)))
         else:
             shd = cdt.metrics.SHD(ground_truth, net, False)
             sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
-            auc, pr = cdt.metrics.precision_recall(ground_truth, net)
+            auc=0
             if name!='NULL':
                 tpr_fpr = tpr_fpr_score(ground_truth, net)
             else :
                 tpr_fpr= [0,0]
+            # Precision/recall requires 0,1 array 
+            if type(net) == np.ndarray:
+                    ground_truth = ground_truth!=0
+                    net = net!=0
+            auc, pr = cdt.metrics.precision_recall(ground_truth, net)
+
             print("{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(name, shd, sid, auc, tpr_fpr))
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
 
@@ -329,11 +343,11 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
         true_graph (np.ndarray or nx.DiGraph): the ground truth graph to compare to 
     
     Returns:
-        list (float, float, float, float): Delta SHD, AUC, SID, TPR_FPR. Note that the sign here is relative to the serial implmentation (we do not take the aboslute value)
+        list (float, float, float, float, float): Delta SHD, AUC, SID, TPR, FPR. Note that the sign here is relative to the serial implmentation (we do not take the aboslute value)
     """
     scores_s = get_scores(["CD serial"], [est_graph_serial], true_graph)
     scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)
-    delta = scores_s - scores_p
+    delta = [s-p for (s,p) in zip(scores_s, scores_p)]
     return delta
 
     

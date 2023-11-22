@@ -1,5 +1,5 @@
 import networkx as nx
-
+import numpy as np
 # Final fusion step to merge subgraphs
 # In infinite data limit this is done by screening for conflicting edges during union over subgraphs 
 
@@ -17,11 +17,10 @@ def fusion(partition, local_cd_adj_mats):
     """
     # Convert adjacency matrices to nx.DiGraphs, make sure to label nodes using the partition
     local_cd_graphs = []
-    # TODO are we doing indices properly? 
     for part,adj in zip(partition.items(), local_cd_adj_mats):
         _, node_ids = part
-        subgraph = nx.from_numpy_array(adj)
-        nx.relabel_nodes(subgraph, mapping=dict(zip(subgraph.nodes(), node_ids)),copy=False)
+        subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
+        nx.relabel_nodes(subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)),copy=False)
         local_cd_graphs.append(subgraph)
     
     # Take the union over graphs
@@ -33,6 +32,7 @@ def fusion(partition, local_cd_adj_mats):
         if global_graph.has_edge(j,i):
             weight_ij = global_graph.get_edge_data(i,j)['weight']
             weight_ji = global_graph.get_edge_data(j,i)['weight']
+            print("Conflict found, weights: {} {}".format(weight_ij, weight_ji))
             if weight_ij > weight_ji:
                 global_graph_resolved.remove_edge(j,i)
             else:
@@ -66,3 +66,6 @@ def _union_with_overlaps(graphs):
         raise ValueError("cannot apply union_all to an empty list")
 
     return R
+
+def _cycle_resolution(G):
+    print("TODO")

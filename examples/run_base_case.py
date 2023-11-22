@@ -31,7 +31,7 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
     if algorithm == 'oslom':
         # Load information from data directory 
         df = pd.read_csv("{}/data.csv".format(data_dir), header=0)
-        adj = pd.read_csv("{}/tiled.csv".format(data_dir), header=0)
+        adj = pd.read_csv("{}/{}.csv".format(data_dir, structure_type.split("_")[0]), header=0)
         nodes = adj.columns.to_numpy(dtype=int)
         G = nx.DiGraph(adj.to_numpy())
         
@@ -44,7 +44,6 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
         #create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
         
         # Partition problem
-        # TODO for now pass the DAG for debugging but later pass in super structure
         print("Running local causal discovery...")
         subproblems = partition_problem(oslom_partition, adj.to_numpy(), df)
         # Launch processes and run locally 
@@ -58,13 +57,16 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
     
         # Merge globally 
         est_graph_partition = fusion(oslom_partition, results)
-        print(type(est_graph_partition))
+        est_graph_partition = nx.adjacency_matrix(est_graph_partition, 
+                                                  nodelist=np.arange(len(nodes))).todense()
+        
         # Call serial method
         est_graph_serial = _local_structure_learn((adj.to_numpy(), df))
         
         # Compare causal metrics 
-        d_shd, d_sid, d_auc, d_tpr_fpr = delta_causality(est_graph_serial, est_graph_partition, adj.to_numpy())
-        print("Delta causality: SHD {}, SID {}, AUC {}, TPR_FPR {} ".format(d_shd, d_auc, d_sid, d_tpr_fpr))
+        d_scores = delta_causality(est_graph_serial, est_graph_partition, adj.to_numpy())
+        print("Delta causality: SHD {}, SID {}, AUC {}, TPR {} , FPR {}".format(
+            d_scores[0], d_scores[1], d_scores[2], d_scores[3], d_scores[4]))
         
     else:
         NotImplementedError()
@@ -108,7 +110,7 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     df_edges.to_csv("{}/edges_dag.dat".format(outdir),sep='\t', header=None, index=None)
     adj_mat = nx.adjacency_matrix(tiled_net, nodelist=nodes).toarray()
     df = pd.DataFrame(adj_mat)
-    df.to_csv("{}/tiled.csv".format(outdir), index=False)
+    df.to_csv("{}/dag.csv".format(outdir), index=False)
     
     print("Generate data")
     # Generate data from the tiled network
@@ -120,11 +122,14 @@ def create_base_case_net(graph_type, n, p, k, ncommunities, alpha, collider_weig
     data = df.drop(columns=['target'])
     data = data.to_numpy()
     superstructure, p_values = pc(data, alpha=alpha, outdir=outdir) 
-    superstructure = weight_colliders(superstructure, weight=collider_weight)
-    weights = superstructure #np.multiply(superstructure, np.abs(p_values)) # p_values are negative? pc algorithm pMax matrix is confusing, for now take absolute value 
+    superstructure_w = weight_colliders(superstructure, weight=collider_weight)
+    weights = superstructure_w #np.multiply(superstructure_w, np.abs(p_values)) # p_values are negative? pc algorithm pMax matrix is confusing, for now take absolute value 
     superstructure_net = nx.from_numpy_array(weights, create_using=nx.Graph)
     
-    # Save the super structure edges and weighted superstructure edges               
+    # Save the super structure adjacency matrix, edges and weighted superstructure edges               
+    df_adj = pd.DataFrame(superstructure)
+    df_adj.to_csv("{}/superstructure.csv".format(outdir), index=None)
+
     df_edges = pd.DataFrame(list(superstructure_net.edges))
     df_edges.to_csv("{}/edges_superstructure.dat".format(outdir),sep='\t', header=None, index=None)
 
@@ -241,7 +246,8 @@ if __name__ == '__main__':
         create_base_case_net('scale_free', n=10, p=0.3, k=2, ncommunities=5, 
                             alpha=1e-1, collider_weight=10, nsamples=int(1e6),
                             outdir="./datasets/base_case/")
-    st_types = ['dag']#, 'superstructure', 'superstructure_weighted']
+    st_types = ['superstructure', 'superstructure_weighted', 'dag']
     for t in st_types:
+        print(t)
         run_base_case('oslom', t, 2, './datasets/base_case/')
         

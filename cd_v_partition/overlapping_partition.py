@@ -18,7 +18,8 @@ def oslom_algorithm(nodes, data_dir, oslom_dir, structure_type='dag'):
     # Run the OSLOM code externally
     weight_flag = "-w" if "weight" in structure_type else "-uw"
     subprocess.run(["{}/oslom_undir".format(oslom_dir), "-f", 
-                    "{}/edges_{}.dat".format(data_dir, structure_type),"{}".format(weight_flag)])
+                    "{}/edges_{}.dat".format(data_dir, structure_type),"{}".format(weight_flag)]
+                   ,stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
     
     # Read the output partition file and return the partition as a dictionary 
     partition_file = "{}/edges_{}.dat_oslo_files/tp".format(data_dir, structure_type)
