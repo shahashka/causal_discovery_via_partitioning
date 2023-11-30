@@ -3,7 +3,7 @@
 from cd_v_partition.utils import get_random_graph_data, get_data_from_graph, evaluate_partition, delta_causality
 from cd_v_partition.causal_discovery import pc, weight_colliders, sp_gies
 from cd_v_partition.overlapping_partition import oslom_algorithm, partition_problem
-#from cd_v_partition.vis_partition import create_partition_plot
+from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.screen_moralizers import fusion
 import networkx as nx
 import numpy as np
@@ -11,7 +11,7 @@ import pandas as pd
 import argparse
 import itertools
 import functools
-import multiprocessing as mp
+import time
 from concurrent.futures import ProcessPoolExecutor
 
 def get_args():
@@ -36,37 +36,51 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
         G = nx.DiGraph(adj.to_numpy())
         
         # Run OSLOM using the correct edge.dat file corersponding to the specified structure
+        start_part = time.time()
         oslom_partition = oslom_algorithm(nodes, data_dir, "./OSLOM2/", structure_type)
+        part_time = time.time() - start_part
         num_partitions = len(oslom_partition)
         
         # Evalute the partition 
         evaluate_partition(oslom_partition, G, nodes, df)
-        #create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
+        create_partition_plot(G, nodes, oslom_partition, "{}/oslom_{}.png".format(data_dir, structure_type))  
         
         # Partition problem
         print("Running local causal discovery...")
+        start_part_problem = time.time()
         subproblems = partition_problem(oslom_partition, adj.to_numpy(), df)
+        part_problem_time = time.time() - start_part_problem
+        
         # Launch processes and run locally 
         func_partial = functools.partial(_local_structure_learn)
         results = []
         chunksize = max(1, num_partitions // nthreads)
         print("Launching processes")
+        
+        start_local_learn = time.time()
         with ProcessPoolExecutor(max_workers=nthreads) as executor:
             for result in executor.map(func_partial, subproblems, chunksize=chunksize):
                 results.append(result)
+        local_learn_time = time.time() - start_local_learn
     
         # Merge globally 
+        start_fusion = time.time()
         est_graph_partition = fusion(oslom_partition, results)
+        fusion_time = time.time() - start_fusion
         est_graph_partition = nx.adjacency_matrix(est_graph_partition, 
                                                   nodelist=np.arange(len(nodes))).todense()
         
         # Call serial method
+        start_serial = time.time()
         est_graph_serial = _local_structure_learn((adj.to_numpy(), df))
+        serial_time = time.time() - start_serial
         
         # Compare causal metrics 
         d_scores = delta_causality(est_graph_serial, est_graph_partition, adj.to_numpy())
         print("Delta causality: SHD {}, SID {}, AUC {}, TPR {} , FPR {}".format(
             d_scores[0], d_scores[1], d_scores[2], d_scores[3], d_scores[4]))
+        
+        print("Time to solution (s): CD_serial {} , CD_partition {}".format(serial_time, part_time+part_problem_time+local_learn_time+fusion_time))
         
     else:
         NotImplementedError()
@@ -243,7 +257,7 @@ def _check_superstructure(S, G):
 if __name__ == '__main__':
     args = get_args()
     if args.create:
-        create_base_case_net('scale_free', n=10, p=0.3, k=2, ncommunities=5, 
+        create_base_case_net('scale_free', n=10, p=0.3, k=4, ncommunities=5, 
                             alpha=1e-1, collider_weight=10, nsamples=int(1e6),
                             outdir="./datasets/base_case/")
     st_types = ['superstructure', 'superstructure_weighted', 'dag']

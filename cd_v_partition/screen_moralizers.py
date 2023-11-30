@@ -69,3 +69,6 @@ def _union_with_overlaps(graphs):
 
 def _cycle_resolution(G):
     print("TODO")
+    
+    
+# TODO implement conflict resolution from this paper: https://arxiv.org/abs/1403.2150
