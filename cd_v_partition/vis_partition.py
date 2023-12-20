@@ -50,7 +50,7 @@ def create_partition_plot(G,nodes, partition, save_name):
     color_map = dict(zip(np.arange(num_colors+1), colors + ['gray']))
     colors = dict(zip(np.arange(len(nodes)), 
                       [color_map[comm[0]] if node not in overlaps else color_map[num_colors] for node, comm in node_to_partition.items() ]))
-    Graph(G, edge_width=5, node_size=10, node_layout=pos, node_color=colors, arrows=True, ax=ax)
+    Graph(G, edge_width=5, node_size=10, edge_color='black', node_layout=pos, node_color=colors, arrows=True, ax=ax)
 
     for comm, nodes in partition.items():
         _create_patches(pos, ax, nodes, color_map[comm])
