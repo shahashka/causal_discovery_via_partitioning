@@ -5,6 +5,7 @@ from cd_v_partition.causal_discovery import pc, weight_colliders, sp_gies
 from cd_v_partition.overlapping_partition import oslom_algorithm, partition_problem
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import fusion
+
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ import argparse
 import itertools
 import functools
 import time
+
 from concurrent.futures import ProcessPoolExecutor
 
 def get_args():
