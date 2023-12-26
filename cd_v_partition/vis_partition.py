@@ -4,7 +4,6 @@ import networkx as nx
 from scipy.spatial.distance import cdist
 from scipy.spatial.ckdtree import cKDTree
 from scipy.ndimage import gaussian_filter
-from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 import pylab
 import itertools

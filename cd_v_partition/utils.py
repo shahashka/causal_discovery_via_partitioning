@@ -349,5 +349,4 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)
     delta = [s-p for (s,p) in zip(scores_s, scores_p)]
     return delta
-
     
