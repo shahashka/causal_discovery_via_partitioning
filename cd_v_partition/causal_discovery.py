@@ -219,7 +219,7 @@ def sp_gies(
 
         ro.r.assign("result", result)
 
-        rcode = "result$repr$weight.mat()" # weight: ith column contains the regression coefficients of the ith stuctural equation
+        rcode = "result$repr$weight.mat()"  # weight: ith column contains the regression coefficients of the ith stuctural equation
         adj_mat = ro.r(rcode)
     else:
         adj_mat = np.zeros((1, 1))
