@@ -159,9 +159,9 @@ def sp_gies(
         obs_data = obs_data.drop(columns=["target"])
         obs_data = obs_data.to_numpy(dtype=float)
         if use_pc:
-            skel = pc(
-                obs_data, alpha, outdir, num_cores=8
-            )[0]  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
+            skel = pc(obs_data, alpha, outdir, num_cores=8)[
+                0
+            ]  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
         else:
             skel = np.ones((data.shape[1], data.shape[1]))
     fixed_gaps = np.array((skel == 0), dtype=int)

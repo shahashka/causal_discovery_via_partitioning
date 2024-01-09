@@ -53,7 +53,9 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
 
         # Run OSLOM using the correct edge.dat file corersponding to the specified structure
         start_part = time.time()
-        oslom_partition = oslom_algorithm(nodes, data_dir, "./OSLOM2/", structure_type)
+        oslom_partition = oslom_algorithm(
+            nodes, "{}/edges_{}.dat".format(data_dir, structure_type), "./OSLOM2/"
+        )
         part_time = time.time() - start_part
         num_partitions = len(oslom_partition)
 

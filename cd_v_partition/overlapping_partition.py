@@ -2,7 +2,7 @@ import numpy as np
 import subprocess
 
 
-def oslom_algorithm(nodes, data_dir, oslom_dir, structure_type="dag"):
+def oslom_algorithm(nodes, dat_file, oslom_dir, structure_type="dag"):
     """Overlapping partitioning methods which take an input graph (superstructure) and partition nodes according to an objective
        overlapping nodes ideally render the partitions conditionally independent
 
@@ -22,7 +22,7 @@ def oslom_algorithm(nodes, data_dir, oslom_dir, structure_type="dag"):
         [
             "{}/oslom_undir".format(oslom_dir),
             "-f",
-            "{}/edges_{}.dat".format(data_dir, structure_type),
+            dat_file,
             "{}".format(weight_flag),
         ],
         stdout=subprocess.DEVNULL,
@@ -30,7 +30,7 @@ def oslom_algorithm(nodes, data_dir, oslom_dir, structure_type="dag"):
     )
 
     # Read the output partition file and return the partition as a dictionary
-    partition_file = "{}/edges_{}.dat_oslo_files/tp".format(data_dir, structure_type)
+    partition_file = "{}_oslo_files/tp".format(dat_file, structure_type)
     with open(partition_file, "rb") as f:
         lines = f.readlines()
     lines = lines[1::2]

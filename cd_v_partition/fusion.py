@@ -35,7 +35,7 @@ def screen_projections(partition, local_cd_adj_mats):
     return global_graph
 
 
-def fusion(partition, local_cd_adj_mats, data, cov):
+def fusion(partition, local_cd_adj_mats, data):
     """Fuse subgraphs by taking the union and resolving conflicts by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
 
@@ -52,6 +52,8 @@ def fusion(partition, local_cd_adj_mats, data, cov):
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
 
+    cor = np.corrcoef(data)
+
     global_graph_resolved = global_graph.copy()  # TODO this is an expensive copy
     for i, j in global_graph.edges():
         if global_graph.has_edge(j, i):
@@ -64,7 +66,7 @@ def fusion(partition, local_cd_adj_mats, data, cov):
             pa_i = list(global_graph_resolved.predecessors(i))
             pa_j = list(global_graph_resolved.predecessors(j))
             edge = _resolve_w_ric_score(
-                global_graph_resolved, data, cov, i, j, pa_i, pa_j
+                global_graph_resolved, data, cor, i, j, pa_i, pa_j
             )
 
             if edge:
@@ -196,7 +198,7 @@ def _fast_logpdf(samples, node, parents, correlation):
     Returns:
         (float) log likelihood value
     """
-    cor_nn = correlation[np.ix_([node], [node])] 
+    cor_nn = correlation[np.ix_([node], [node])]
     cor_pn = correlation[np.ix_(parents, [node])]
     cor_pp = correlation[np.ix_(parents, parents)]
     rss = cor_nn - cor_pn.T.dot(np.linalg.inv(cor_pp)).dot(cor_pn)

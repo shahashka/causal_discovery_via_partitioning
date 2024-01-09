@@ -32,7 +32,7 @@ def adj_to_edge(adj, nodes, ignore_weights=False):
     return edges
 
 
-def adj_to_dag(adj, nodes):
+def adj_to_dag(adj):
     """
     Helper function to convert an adjacency matrix into a Networkx DiGraph
             Parameters:
@@ -41,12 +41,7 @@ def adj_to_dag(adj, nodes):
             Returns:
                     nx.DiGraph
     """
-    dag = nx.DiGraph()
-    dag.add_nodes_from(nodes)
-    for i in range(adj.shape[0]):
-        for j in range(adj.shape[1]):
-            if np.abs(adj[i, j]) > 0:
-                dag.add_edge(nodes[i], nodes[j], weight=np.abs(adj[i, j]))
+    dag = nx.from_numpy_array(adj, create_using=nx.DiGraph)
     return dag
 
 
@@ -345,7 +340,7 @@ def _modularity_overlapping(partitions, nodes, A):
     return 1 / K * sum(mod_by_cluster)
 
 
-def evaluate_partition(partition, G, nodes, df):
+def evaluate_partition(partition, G, nodes):
     """Evaluate the partition over a graph with the edge coverage and overlapping
     modularity scores
 
@@ -353,7 +348,6 @@ def evaluate_partition(partition, G, nodes, df):
         partition (dict): keys are community ids, values are lists of nodes
         G (nx.DiGraph): the original structure that is being partitioned
         nodes (list): list of nodes in order of adjacency matrix
-        df (pandas DataFrame): dataframe of sampled values
     """
     # Edge coverage
     covered = 0

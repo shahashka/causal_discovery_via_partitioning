@@ -1,20 +1,16 @@
 # Imports
 import numpy as np
-import pandas as pd
-import networkx as nx
 import functools
 from concurrent.futures import ProcessPoolExecutor
 from cd_v_partition.utils import (
     get_random_graph_data,
     delta_causality,
-    get_scores,
     edge_to_adj,
-    adj_to_edge,
     adj_to_dag,
     evaluate_partition,
 )
 from cd_v_partition.causal_discovery import pc, sp_gies
-from cd_v_partition.overlapping_partition import oslom_algorithm, partition_problem
+from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import fusion
 

@@ -42,7 +42,6 @@ def create_partition_plot(G, nodes, partition, save_name, split_comms=True):
     if not split_comms:
         pos = nx.spring_layout(G, k=5 / np.sqrt(len(nodes)))
 
-   
     cm = pylab.get_cmap("plasma")
     colors = []
     num_colors = len(partition)
