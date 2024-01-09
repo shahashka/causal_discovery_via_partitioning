@@ -87,8 +87,8 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
         # Merge globally
         start_fusion = time.time()
         data = df.to_numpy()
-        cov = np.cov(data.T)
-        est_graph_partition = fusion(oslom_partition, results, data, cov)
+        cor = np.corrcoef(data)
+        est_graph_partition = fusion(oslom_partition, results, data, cor)
         fusion_time = time.time() - start_fusion
         est_graph_partition = nx.adjacency_matrix(
             est_graph_partition, nodelist=np.arange(len(nodes))
@@ -223,7 +223,7 @@ def _local_structure_learn(subproblem):
         np.ndarray: Estimated DAG adjacency matrix for the subproblem
     """
     skel, data = subproblem
-    adj_mat = sp_gies(data, outdir=None, skel=skel, pc=True)
+    adj_mat = sp_gies(data, outdir=None, skel=skel, use_pc=True)
     return adj_mat
 
 

@@ -114,8 +114,8 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
     for part, adj in zip(partition.items(), local_cd_adj_mats):
         _, node_ids = part
         subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
-        nx.relabel_nodes(
-            subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=False
+        subgraph = nx.relabel_nodes(
+            subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=True
         )
         local_cd_graphs.append(subgraph)
     return local_cd_graphs
@@ -184,7 +184,7 @@ def _resolve_w_ric_score(G, data, cov, i, j, pa_i, pa_j):
         return None
 
 
-def _fast_logpdf(samples, node, parents, covariance):
+def _fast_logpdf(samples, node, parents, correlation):
     """Calculate the likelihood of a set of nodes and candidate parents for Gaussian variables.
     TODO where does this eq come from. The code is ported from graphical_models.GaussDAG.fast_logpdf
 
@@ -192,24 +192,13 @@ def _fast_logpdf(samples, node, parents, covariance):
         samples (np.ndarray): data matrix where each column corresponds to a random variable
         node (int):the variable (column in data matrix) to calculate the likelhood of
         parents (list of ints): the list of parent ids for the node
-        covariance (np.ndarray): the covariance matrix for the data matrix
+        correlation (np.ndarray): the correlation coefficient matrix for the data matrix
     Returns:
         (float) log likelihood value
     """
-    cov_nn = covariance[np.ix_([node], [node])]
-    cov_pn = covariance[np.ix_(parents, [node])]
-    cov_pp = covariance[np.ix_(parents, parents)]
-    rss = cov_nn - cov_pn.T.dot(np.linalg.inv(cov_pp)).dot(cov_pn)
-
-    # vals, vecs = np.linalg.eigh(rss)
-    # logdet     = np.sum(np.log(vals))
-    # valsinv    = 1./vals
-    # U          = vecs * np.sqrt(valsinv)
-    # dim        = len(vals)
-    # mean = np.mean(samples[:, node])
-    # dev        = samples[:, node] - mean
-    # maha       = np.square(np.dot(dev, U)).sum(axis=1)
-    # log2pi     = np.log(2 * np.pi)
-    # return -0.5 * (dim * log2pi + maha + logdet)
+    cor_nn = correlation[np.ix_([node], [node])] 
+    cor_pn = correlation[np.ix_(parents, [node])]
+    cor_pp = correlation[np.ix_(parents, parents)]
+    rss = cor_nn - cor_pn.T.dot(np.linalg.inv(cor_pp)).dot(cor_pn)
     N = samples.shape[0]
     return 0.5 * (-N * (np.log(2 * np.pi) + 1 - np.log(N) + np.log(rss * (N - 1))))

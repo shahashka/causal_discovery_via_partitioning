@@ -124,7 +124,7 @@ def sp_gies(
     outdir,
     alpha=1e-3,
     skel=None,
-    pc=True,
+    use_pc=True,
     multifactor_targets=None,
     adaptive=True,
 ):
@@ -139,7 +139,7 @@ def sp_gies(
                                               For observational samples the corresponding target should be 0
                      outdir (str): The directory to save the final adjacency matrix named sp-gies-adj_mat.csv. Set to None to skip saving files
                      skel (numpy ndarray): an optional initial skeleton with dimensions p x p
-                     pc (bool): a flag to indicate if skeleton estimation should be done with the PC. If False
+                     use_pc (bool): a flag to indicate if skeleton estimation should be done with the PC. If False
                                   and no skel is specified, then assumed no skeleton i.e. reverts to GIES algorithm.
                                   Will use the GPU accelerated version of the PC if avaiable, otherwise reverts to pcalg
                                   implementation of PC
@@ -158,10 +158,10 @@ def sp_gies(
         obs_data = data.loc[data["target"] == 0]
         obs_data = obs_data.drop(columns=["target"])
         obs_data = obs_data.to_numpy(dtype=float)
-        if pc:
+        if use_pc:
             skel = pc(
                 obs_data, alpha, outdir, num_cores=8
-            )  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
+            )[0]  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
         else:
             skel = np.ones((data.shape[1], data.shape[1]))
     fixed_gaps = np.array((skel == 0), dtype=int)

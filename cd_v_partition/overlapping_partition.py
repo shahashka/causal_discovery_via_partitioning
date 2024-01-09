@@ -60,7 +60,8 @@ def partition_problem(partition, structure, data):
     sub_problems = []
     for _, sub_nodes in partition.items():
         sub_structure = structure[sub_nodes][:, sub_nodes]
-        data_inds = sub_nodes + [-1]  # add 'target' vector at the end of dataframe
-        sub_data = data.iloc[:, data_inds]
+        sub_nodes = list(sub_nodes)
+        sub_nodes.append(-1)  # add 'target' vector at the end of dataframe
+        sub_data = data.iloc[:, sub_nodes]
         sub_problems.append((sub_structure, sub_data))
     return sub_problems

@@ -10,7 +10,7 @@ import itertools
 from netgraph import Graph, get_curved_edge_paths
 
 
-def create_partition_plot(G, nodes, partition, save_name):
+def create_partition_plot(G, nodes, partition, save_name, split_comms=True):
     """
     Create plot of overlapping partitions with patches
 
@@ -27,6 +27,7 @@ def create_partition_plot(G, nodes, partition, save_name):
     save_name -- Save the matplotlib figure to this path
 
     """
+    _, ax = plt.subplots(figsize=(50, 50), dpi=80)
 
     node_to_partition = dict(
         zip(np.arange(len(nodes)), [[] for _ in np.arange(len(nodes))])
@@ -38,8 +39,10 @@ def create_partition_plot(G, nodes, partition, save_name):
                 comm.append(key)
                 node_to_partition[node] = comm
     pos, overlaps = _partition_layout(G, node_to_partition)
+    if not split_comms:
+        pos = nx.spring_layout(G, k=5 / np.sqrt(len(nodes)))
 
-    _, ax = plt.subplots()
+   
     cm = pylab.get_cmap("plasma")
     colors = []
     num_colors = len(partition)
@@ -58,8 +61,8 @@ def create_partition_plot(G, nodes, partition, save_name):
     )
     Graph(
         G,
-        edge_width=5,
-        node_size=10,
+        edge_width=1,
+        node_size=5,
         edge_color="black",
         node_layout=pos,
         node_color=colors,
