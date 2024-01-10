@@ -116,72 +116,24 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
                     floats corresponding to SHD, SID, AUC, (TPR, FPR)
     """
     for name, net in zip(alg_names, networks):
-        if type(net) == list and type(ground_truth) == list:
-            shd = 0
-            sid = 0
-            auc = 0
-            tpr_fpr = [0, 0]
-            for n, g in zip(net, ground_truth):
-                shd += cdt.metrics.SHD(g, n, False)
-                sid += cdt.metrics.SID(g, n) if get_sid else 0
-                if name != "NULL":
-                    tpr_fpr += tpr_fpr_score(g, n)
-                # Precision/recall requires 0,1 array
-                if type(n) == np.ndarray:
-                    g = g != 0
-                    n = n != 0
-                auc += cdt.metrics.precision_recall(g, n)[0]
-            print(
-                "{} SHD: {} SID: {} AUC: {} TPR: {}".format(
-                    name,
-                    shd / len(net),
-                    sid / len(net),
-                    auc / len(net),
-                    tpr_fpr[0] / len(net),
-                )
-            )
-        elif type(net) != list and type(ground_truth) == list:
-            shd = 0
-            sid = 0
-            auc = 0
-            for g in ground_truth:
-                shd += cdt.metrics.SHD(g, net, False)
-                sid += cdt.metrics.SID(g, net) if get_sid else 0
-                if name != "NULL":
-                    tpr_fpr += tpr_fpr_score(g, n)
-                # Precision/recall requires 0,1 array
-                if type(net) == np.ndarray:
-                    g = g != 0
-                    net = net != 0
-                auc += cdt.metrics.precision_recall(g, net)[0]
-            print(
-                "{} SHD: {} SID: {} AUC: {} TPR: {}".format(
-                    name,
-                    shd / len(ground_truth),
-                    sid / len(ground_truth),
-                    auc / len(ground_truth),
-                    tpr_fpr[0] / len(ground_truth),
-                )
-            )
+        sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
+        auc = 0
+        if name != "NULL":
+            tpr_fpr = tpr_fpr_score(ground_truth, net)
         else:
-            shd = cdt.metrics.SHD(ground_truth, net, False)
-            sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
-            auc = 0
-            if name != "NULL":
-                tpr_fpr = tpr_fpr_score(ground_truth, net)
-            else:
-                tpr_fpr = [0, 0]
-            # Precision/recall requires 0,1 array
-            if type(net) == np.ndarray:
-                ground_truth = ground_truth != 0
-                net = net != 0
-            auc, pr = cdt.metrics.precision_recall(ground_truth, net)
+            tpr_fpr = [0, 0]
+        # Precision/recall, SHD requires 0,1 array
+        if type(net) == np.ndarray:
+            ground_truth = (ground_truth != 0).astype(int)
+            net = (net != 0).astype(int)
+        auc, pr = cdt.metrics.precision_recall(ground_truth, net)
+        shd = cdt.metrics.SHD(ground_truth, net, False)
 
-            print(
-                "{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(
-                    name, shd, sid, auc, tpr_fpr
-                )
+        print(
+            "{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(
+                name, shd, sid, auc, tpr_fpr
             )
+        )
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
 
 
