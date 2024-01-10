@@ -52,7 +52,7 @@ def fusion(partition, local_cd_adj_mats, data):
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
 
-    cor = np.corrcoef(data)
+    cor = np.corrcoef(data.T)
 
     global_graph_resolved = global_graph.copy()  # TODO this is an expensive copy
     for i, j in global_graph.edges():

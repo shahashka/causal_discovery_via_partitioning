@@ -21,13 +21,14 @@ outdir = "./examples/"
 (edges, nodes, _, _), df = get_random_graph_data(
     graph_type="scale_free", iv_samples=0, num_nodes=50, nsamples=int(1e4), p=0.5, k=1
 )
-print(df.head)
 G_star = edge_to_adj(list(edges), nodes=nodes)
 
 # Find the 'superstructure'
-df_obs = df.drop(columns=["target"], inplace=False)
+df_obs = df.drop(columns=["target"])
 data_obs = df_obs.to_numpy()
-superstructure, p_values = pc(data_obs, alpha=0.9, outdir=outdir)
+print(data_obs)
+superstructure, p_values = pc(data_obs, alpha=0.5, outdir=None)
+print("Found superstructure")
 
 # Call the causal learner on the full data A(X_v) and superstructure
 A_X_v = sp_gies(df, skel=superstructure, outdir=None)

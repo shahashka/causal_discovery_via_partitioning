@@ -60,7 +60,7 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
         num_partitions = len(oslom_partition)
 
         # Evalute the partition
-        evaluate_partition(oslom_partition, G, nodes, df)
+        evaluate_partition(oslom_partition, G, nodes)
         create_partition_plot(
             G,
             nodes,
@@ -89,8 +89,7 @@ def run_base_case(algorithm, structure_type, nthreads, data_dir):
         # Merge globally
         start_fusion = time.time()
         data = df.to_numpy()
-        cor = np.corrcoef(data)
-        est_graph_partition = fusion(oslom_partition, results, data, cor)
+        est_graph_partition = fusion(oslom_partition, results, data)
         fusion_time = time.time() - start_fusion
         est_graph_partition = nx.adjacency_matrix(
             est_graph_partition, nodelist=np.arange(len(nodes))
@@ -241,6 +240,8 @@ def _construct_tiling(net, num_tiles):
     Returns:
         nx.DiGraph: the final directed graph with community structure
     """
+    if num_tiles==1:
+        return net
     num_nodes = len(list(net.nodes()))
     degree_sequence = sorted((d for _, d in net.in_degree()), reverse=True)
     dmax = max(degree_sequence)
@@ -330,7 +331,7 @@ if __name__ == "__main__":
             p=0.3,
             k=4,
             ncommunities=5,
-            alpha=1e-1,
+            alpha=5e-1,
             collider_weight=10,
             nsamples=int(1e6),
             outdir="./datasets/base_case/",
