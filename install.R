@@ -1,0 +1,8 @@
+install.packages("tictoc", repos = "http://cran.us.r-project.org")
+install.packages("BiocManager", repos="http://cran.us.r-project.org")
+library(BiocManager)
+BiocManager::install(c("graph", "RBGL"))
+install.packages("pcalg", repos = "http://cran.us.r-project.org")
+install.packages("kpcalg", repos = "http://cran.us.r-project.org")
+install.packages("sets", repos = "http://cran.us.r-project.org")
+install.packages("https://cran.r-project.org/src/contrib/Archive/SID/SID_1.0.tar.gz")
