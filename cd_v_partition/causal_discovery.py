@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 
+CUPC_DIR = Path("./cupc/cuPC.R")
+
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
 import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
@@ -93,7 +95,7 @@ def cu_pc(
         print("No compiled Skeleton.so file")
         return
     print("Running GPU implementation of PC algorithm")
-    with open("./cupc/cuPC.R") as file:
+    with open(CUPC_DIR) as file:
         string = "".join(file.readlines())
     cupc = SignatureTranslatedAnonymousPackage(string, "cupc")
     ro.r.assign("data", data)

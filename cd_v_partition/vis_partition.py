@@ -1,4 +1,5 @@
 import itertools
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -11,24 +12,24 @@ from scipy.spatial.ckdtree import cKDTree
 from scipy.spatial.distance import cdist
 
 
-def create_partition_plot(G, nodes, partition, save_name):
+def create_partition_plot(
+    G: nx.Graph | nx.DiGraph,
+    nodes: list[str],
+    partition: dict[int, list[int]],
+    save_name: Path | str,
+):
     """
-    Create plot of overlapping partitions with patches
+    Create plot of overlapping partitions with patches.
 
-    Arguments:
-    ----------
-    G -- networkx.Graph or networkx.DiGraph instance
-        graph to plot
+    Args:
+        G (nx.Graph | nx.DiGraph): Graph to plot.
+        nodes (list[str]): List of node names.
+        partition (dict[int, list[int]]): Partition.
+        save_name (Path | str):
 
-    nodes -- list of node names
-
-    partition -- dict mapping partition -> list of nodes in
-        graph partitions
-
-    save_name -- Save the matplotlib figure to this path
-
+    Returns:
+        ...
     """
-
     node_to_partition = dict(
         zip(np.arange(len(nodes)), [[] for _ in np.arange(len(nodes))])
     )
@@ -141,36 +142,22 @@ def _create_patches(node_positions, ax, subset, color):
     ax.add_patch(patch)
 
 
-def _partition_layout(g, partition):
+def _partition_layout(
+    g: nx.Graph | nx.DiGraph, partition: dict[int, list[int]]
+) -> tuple[dict[int, tuple[float, float]], list]:
     """
     Compute the layout for a modular graph.
 
-
-    Arguments:
-    ----------
-    g -- networkx.Graph or networkx.DiGraph instance
-        graph to plot
-
-    partition -- dict mapping int node -> list of ints partition
-        graph partitions
-
+    Args:
+        g (nx.Graph | nx.DiGraph): Graph to plot.
+        partition (dict[int, list[int]]): Graph partitions.
 
     Returns:
-    --------
-    pos -- dict mapping int node -> (float x, float y)
-        node positions
-
+        Node positions.
     """
-
     pos_partitions = _position_partitions(g, partition, scale=3.0)
-
     pos_nodes = _position_nodes(g, partition, scale=1.0)
-
-    # combine positions
-    pos = dict()
-    for node in g.nodes():
-        pos[node] = pos_partitions[node] + pos_nodes[node]
-
+    pos = {node: pos_partitions[node] + pos_nodes[node] for node in g.nodes()}
     overlaps = _find_overlaps(partition)
     return pos, overlaps
 
@@ -211,7 +198,7 @@ def _find_overlaps(partition):
 
 
 def _find_between_partition_edges(g, partition):
-    edges = dict()
+    edges = {}
 
     for ni, nj in g.edges():
         ci = partition[ni]
