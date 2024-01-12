@@ -6,15 +6,18 @@ from cd_v_partition.utils import (
     get_random_graph_data,
     get_data_from_graph,
     delta_causality,
+    edge_to_adj
 )
-from cd_v_partition.causal_discovery import sp_gies
-from cd_v_partition.fusion import screen_projections
+from cd_v_partition.causal_discovery import sp_gies, pc
+from cd_v_partition.fusion import screen_projections, fusion, fusion_basic
 import functools
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
 import itertools
 import matplotlib.patches as mpatches
-
+import cdt
+from sklearn.metrics import roc_curve
+outdir = "./tests/empirical_tests/"
 
 # Impose a causal ordering according to degree distribution, return a directed graph
 def apply_causal_order(undirected_graph):
@@ -38,7 +41,7 @@ def apply_causal_order(undirected_graph):
     return directed_graph
 
 
-def create_two_comms(graph_type, n, m1, m2, p1, p2, nsamples):
+def create_two_comms(graph_type, n, m1, m2, p1, p2):
     # generate the edges set
     comm_1 = get_random_graph_data(
         graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p1, k=m1
@@ -78,7 +81,10 @@ def create_two_comms(graph_type, n, m1, m2, p1, p2, nsamples):
                 dest = np.random.choice(np.arange(t * n), size=num_connected)
                 connections = [(node_label, d) for d in dest]
                 tiled_graph.add_edges_from(connections)
+                
     causal_tiled_graph = apply_causal_order(tiled_graph)
+    
+    
     init_partition = {0: list(np.arange(n)), 1: list(np.arange(n, 2 * n))}
     create_partition_plot(
         causal_tiled_graph,
@@ -89,23 +95,21 @@ def create_two_comms(graph_type, n, m1, m2, p1, p2, nsamples):
     return init_partition, causal_tiled_graph
 
 
-def run_causal_discovery(partition, nsamples, graph):
-    # Generate data
-    df = get_data_from_graph(
-        list(graph.nodes()), list(graph.edges()), nsamples=nsamples, iv_samples=0
-    )[1]
-    nodes = list(df.columns)
-    nodes.remove("target")
+def run_causal_discovery(partition, df, G_star):
+    
+    # Find superstructure
+    df_obs = df.drop(columns=["target"])
+    data_obs = df_obs.to_numpy()
+    superstructure, _ = pc(data_obs, alpha=0.5, outdir=None)
 
     # Break up problem according to provided partition
-    adj = nx.adjacency_matrix(graph, nodelist=nodes).todense()
-    subproblems = partition_problem(partition, adj, df)
+    subproblems = partition_problem(partition, superstructure, df)
 
     # Local learn
     func_partial = functools.partial(_local_structure_learn)
     results = []
     num_partitions = len(partition)
-    nthreads = 4
+    nthreads = 2
     chunksize = max(1, num_partitions // nthreads)
     print("Launching processes")
 
@@ -114,37 +118,23 @@ def run_causal_discovery(partition, nsamples, graph):
             results.append(result)
 
     # Merge globally
-    # data = df.to_numpy()
-    # cor = np.corrcoef(data)
-    est_graph_partition = screen_projections(partition, results)
-    est_graph_partition = nx.adjacency_matrix(
-        est_graph_partition, nodelist=np.arange(len(graph.nodes))
-    ).todense()
+    subgraphs, est_graph_partition = screen_projections(partition, results)
 
     # Call serial method
-    est_graph_serial = _local_structure_learn((adj, df))
-
+    est_graph_serial = _local_structure_learn([superstructure, df])
+    
     # Compare causal metrics
-    d_scores = delta_causality(est_graph_serial, est_graph_partition, adj)
-    return d_scores[-2]  # this is the true positive rate
+    d_scores = delta_causality(est_graph_serial, est_graph_partition, G_star )
+    return subgraphs, est_graph_partition, d_scores[-2]  # this is the true positive rate
 
 
 def _local_structure_learn(subproblem):
-    """Call causal discovery algorithm on subproblem. Right now uses SP-GIES
-
-    Args:
-        subproblem (tuple np.ndarray, pandas DataFrame): the substructure adjacency matrix and corresponding data
-
-    Returns:
-        np.ndarray: Estimated DAG adjacency matrix for the subproblem
-    """
     skel, data = subproblem
-    adj_mat = sp_gies(data, outdir=None, skel=None, use_pc=True, alpha=0.5)
+    adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
 
 
 def define_causal_partition(partition, graph):
-    unmarked_nodes = list(np.arange(len(graph.nodes)))
     cut_nodes = set()
     for n in graph.nodes():
         comm_n = int(n >= 50)
@@ -170,21 +160,24 @@ def define_causal_partition(partition, graph):
 
 
 def define_rand_edge_coverage(partition, graph):
-    unmarked_nodes = list(np.arange(len(graph.nodes)))
+    num_nodes = len(graph.nodes)
+    unmarked_nodes = list(np.arange(num_nodes))
     for n in graph.nodes():
-        comm_n = int(n >= 50)
+        comm_n = int(n >= num_nodes/2)
         for m in nx.neighbors(graph, n):
             n_unmarked = n in unmarked_nodes
             m_unmarked = m in unmarked_nodes
             if n_unmarked or m_unmarked:
-                comm_m = int(m >= 50)
+                comm_m = int(m >= num_nodes/2)
                 if comm_n != comm_m:
                     if (
                         m % 2
                     ):  # Randomly assign the cut nodes to one or the other partition to ensure edge coverage
                         partition[comm_n] += [m]
+                        overlap_node = m
                     else:
                         partition[comm_m] += [n]
+                        overlap_node = n
                     if m_unmarked:
                         unmarked_nodes.remove(m)
                     if n_unmarked:
@@ -199,39 +192,45 @@ def define_rand_edge_coverage(partition, graph):
     )
     return partition
 
-
 num_repeats = 30
 scores_edge_cover = []
 scores_hard_partition = []
 scores_causal_partition = []
-sample_range = [1e2, 1e3, 1e4, 1e5]
+sample_range = [1e2, 1e3, 1e4, 1e5, 1e6]
 for ns in sample_range:
     score_ec = []
     score_hp = []
     score_cp = []
+    degree_info = []
+    delta_tpr = []
     for i in range(num_repeats):
         print(i)
         init_partition, graph = create_two_comms(
-            "scale_free", n=50, m1=2, m2=1, p1=0.5, p2=0.5, nsamples=0
+            "scale_free", n=25, m1=1, m2=2, p1=0.5, p2=0.5
         )
-        d_shd = run_causal_discovery(init_partition, nsamples=int(ns), graph=graph)
-        score_hp.append(d_shd)
+        # Generate data
+        num_nodes = len(graph.nodes())
+        (edges, nodes, _, _), df = get_data_from_graph(
+            list(np.arange(num_nodes)), list(graph.edges()), nsamples=int(ns), iv_samples=0
+        )
+        G_star = edge_to_adj(edges, nodes)
+        d_tpr_hard = run_causal_discovery(init_partition, df, G_star)
+        score_hp.append(d_tpr_hard)
 
         partition = define_rand_edge_coverage(init_partition, graph)
-        d_shd = run_causal_discovery(partition, nsamples=int(ns), graph=graph)
-        score_ec.append(d_shd)
-
+        d_tpr_ec = run_causal_discovery(partition,  df, G_star)
+        score_ec.append(d_tpr_ec)
+        
         partition = define_causal_partition(init_partition, graph)
-        d_shd = run_causal_discovery(partition, nsamples=int(ns), graph=graph)
-        score_cp.append(d_shd)
+        d_tpr_cp = run_causal_discovery(partition, df, G_star)
+        score_cp.append(d_tpr_cp)
+          
 
     scores_edge_cover.append(score_ec)
     scores_hard_partition.append(score_hp)
     scores_causal_partition.append(score_cp)
 
 labels = []
-
-
 def add_label(violin, label):
     color = violin["bodies"][0].get_facecolor().flatten()
     labels.append((mpatches.Patch(color=color), label))
@@ -247,20 +246,21 @@ add_label(
     ax.violinplot(scores_hard_partition, showmeans=True, showmedians=False),
     label="hard_partition",
 )
-add_label(
-    ax.violinplot(scores_causal_partition, showmeans=True, showmedians=False),
-    label="causal_partition",
-)
+# add_label(
+#     ax.violinplot(scores_causal_partition, showmeans=True, showmedians=False),
+#     label="causal_partition",
+# )
 
 ax.set_xticks(
     np.arange(1, len(sample_range) + 1),
-    labels=["1e2", "1e3", "1e4", "1e5"],
-    rotation=45,
+    labels=["1e{}".format(i) for i in range(len(1,sample_range))],
+    rotation=45
 )
 plt.legend(*zip(*labels), loc=2)
 plt.savefig("./tests/empirical_tests/causal_part_test_sparse.png")
 
-# init_partition, graph = create_two_comms("scale_free", n=50, m1=5, m2=2,p1=0.5,p2=0.5, nsamples=0)
-# partition = define_causal_partition(init_partition, graph)
-# d_shd = run_causal_discovery(partition, nsamples=int(1e3), graph=graph)
-# print(d_shd)
+# plt.clf()
+# plt.figure(figsize=(5,5))
+# plt.scatter(degree_info, delta_tpr)
+# plt.savefig("./tests/empirical_tests/degree_overlap_v_tpr.png")
+

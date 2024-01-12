@@ -115,7 +115,11 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
             Returns:
                     floats corresponding to SHD, SID, AUC, (TPR, FPR)
     """
+    if type(ground_truth) == nx.DiGraph:
+        ground_truth = nx.adjacency_matrix(ground_truth, nodelist=np.arange(len(ground_truth.nodes()))).todense()
     for name, net in zip(alg_names, networks):
+        if type(net) == nx.DiGraph:
+            net = nx.adjacency_matrix(net, nodelist=np.arange(len(net.nodes()))).todense()
         sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
         auc = 0
         if name != "NULL":
@@ -123,9 +127,8 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
         else:
             tpr_fpr = [0, 0]
         # Precision/recall, SHD requires 0,1 array
-        if type(net) == np.ndarray:
-            ground_truth = (ground_truth != 0).astype(int)
-            net = (net != 0).astype(int)
+        ground_truth = (ground_truth != 0).astype(int)
+        net = (net != 0).astype(int)
         auc, pr = cdt.metrics.precision_recall(ground_truth, net)
         shd = cdt.metrics.SHD(ground_truth, net, False)
 
