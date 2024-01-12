@@ -46,7 +46,6 @@ def oslom_algorithm(nodes, dat_file, oslom_dir, structure_type="dag"):
     return partition
 
 
-
 def partition_problem(partition, structure, data):
     """Split a the graph structure and dataset according to the given graph partition
 
