@@ -168,6 +168,7 @@ def sp_gies(
         df = pd.DataFrame(data=adj_mat)
         df.to_csv("{}/sp-gies-adj_mat.csv".format(outdir), header=False, index=False)
         return adj_mat
+
     if skel is None:
         obs_data = data.loc[data["target"] == 0]
         obs_data = obs_data.drop(columns=["target"])
@@ -178,7 +179,14 @@ def sp_gies(
             )  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
         else:
             skel = np.ones((data.shape[1], data.shape[1]))
+
     fixed_gaps = np.array((skel == 0), dtype=int)
+    try:
+        print(data.head())
+        print(data.loc[:, "target"].head())
+    except KeyError as err:
+        print(f"{data.columns=}")
+        raise err
     target_index = data.loc[:, "target"].to_numpy()
     targets = (
         multifactor_targets if multifactor_targets else np.unique(target_index)[1:]

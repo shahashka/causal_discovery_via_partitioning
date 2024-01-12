@@ -17,6 +17,12 @@ from cd_v_partition.utils import (
 from cd_v_partition.vis_partition import create_partition_plot
 
 
+def local_structure_learn(subproblem):
+    skel, data = subproblem
+    adj_mat = sp_gies(data, skel=skel, outdir=None)
+    return adj_mat
+
+
 def tutorial(spec: SimulationSpec):
     outdir = "./examples/"
 
@@ -61,12 +67,7 @@ def tutorial(spec: SimulationSpec):
     num_partitions = 2
     nthreads = 2  # each thread handles one partition
 
-    def _local_structure_learn(subproblem):
-        skel, data = subproblem
-        adj_mat = sp_gies(data, skel=skel, outdir=None)
-        return adj_mat
-
-    func_partial = functools.partial(_local_structure_learn)
+    func_partial = functools.partial(local_structure_learn)
     results = []
 
     chunksize = max(1, num_partitions // nthreads)
