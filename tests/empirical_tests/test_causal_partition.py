@@ -118,14 +118,14 @@ def run_causal_discovery(partition, df, G_star):
             results.append(result)
 
     # Merge globally
-    subgraphs, est_graph_partition = screen_projections(partition, results)
+    est_graph_partition = screen_projections(partition, results)
 
     # Call serial method
     est_graph_serial = _local_structure_learn([superstructure, df])
     
     # Compare causal metrics
     d_scores = delta_causality(est_graph_serial, est_graph_partition, G_star )
-    return subgraphs, est_graph_partition, d_scores[-2]  # this is the true positive rate
+    return d_scores[-2]  # this is the true positive rate
 
 
 def _local_structure_learn(subproblem):
@@ -253,9 +253,12 @@ add_label(
 
 ax.set_xticks(
     np.arange(1, len(sample_range) + 1),
-    labels=["1e{}".format(i) for i in range(len(1,sample_range))],
+    labels=["1e{}".format(i) for i in range(len(sample_range))],
     rotation=45
 )
+ax.set_xlabel("Number of samples")
+ax.set_ylabel("Delta TPR (Serial - Partition)")
+ax.set_title("Comparison of partition types for 2 community scale free networks")
 plt.legend(*zip(*labels), loc=2)
 plt.savefig("./tests/empirical_tests/causal_part_test_sparse.png")
 

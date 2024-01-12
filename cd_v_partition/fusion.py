@@ -33,7 +33,7 @@ def screen_projections(partition, local_cd_adj_mats):
             ) and global_graph.has_edge(i, j):
                 global_graph.remove_edge(i, j)
     
-    return local_cd_graphs, global_graph
+    return global_graph
 
 
 def fusion(partition, local_cd_adj_mats, data):
@@ -52,7 +52,6 @@ def fusion(partition, local_cd_adj_mats, data):
 
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
-
     cor = np.corrcoef(data.T)
 
     global_graph_resolved = global_graph.copy()  # TODO this is an expensive copy
@@ -72,8 +71,7 @@ def fusion(partition, local_cd_adj_mats, data):
 
             if edge:
                 global_graph_resolved.add_edge(edge[0], edge[1])
-        
-    return local_cd_graphs, global_graph_resolved
+    return global_graph_resolved
 
 
 def fusion_basic(partition, local_cd_adj_mats):
@@ -105,7 +103,7 @@ def fusion_basic(partition, local_cd_adj_mats):
                 global_graph_resolved.remove_edge(j, i)
             else:
                 global_graph_resolved.remove_edge(i, j)
-    return local_cd_graphs, global_graph_resolved
+    return global_graph_resolved
 
 
 def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
@@ -162,10 +160,10 @@ def _detect_cycle(G, edge):
 # Only add an edge if the RIC score for i->j and j->i both are greater than the score with no edge
 # max(RIC(i->j), RIC(j->i)) < RIC(i,j))
 def _resolve_w_ric_score(G, data, cov, i, j, pa_i, pa_j):
-    l_0i = _fast_logpdf(data, i, pa_i, cov)
-    l_0j = _fast_logpdf(data, j, pa_j, cov)
-    l_ij = _fast_logpdf(data, j, pa_j + [i], cov)
-    l_ji = _fast_logpdf(data, i, pa_i + [j], cov)
+    l_0i = _loglikelihood(data, i, pa_i, cov)
+    l_0j = _loglikelihood(data, j, pa_j, cov)
+    l_ij = _loglikelihood(data, j, pa_j + [i], cov)
+    l_ji = _loglikelihood(data, i, pa_i + [j], cov)
     p = data.shape[1]
     n = data.shape[0]
     lam = np.log(n) if p <= np.sqrt(n) else 2 * np.log(p)
@@ -187,9 +185,8 @@ def _resolve_w_ric_score(G, data, cov, i, j, pa_i, pa_j):
         return None
 
 
-def _fast_logpdf(samples, node, parents, correlation):
-    """Calculate the likelihood of a set of nodes and candidate parents for Gaussian variables.
-    TODO where does this eq come from. The code is ported from graphical_models.GaussDAG.fast_logpdf
+def _loglikelihood(samples, node, parents, correlation):
+    """Calculate the the log likelihood of the least squares estimate of a node given it's parents
 
     Args:
         samples (np.ndarray): data matrix where each column corresponds to a random variable
@@ -197,7 +194,7 @@ def _fast_logpdf(samples, node, parents, correlation):
         parents (list of ints): the list of parent ids for the node
         correlation (np.ndarray): the correlation coefficient matrix for the data matrix
     Returns:
-        (float) log likelihood value
+        (float) log likelhood value
     """
     cor_nn = correlation[np.ix_([node], [node])]
     cor_pn = correlation[np.ix_(parents, [node])]
