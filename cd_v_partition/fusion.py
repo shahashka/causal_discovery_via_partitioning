@@ -32,7 +32,8 @@ def screen_projections(partition, local_cd_adj_mats):
                 not adj_comm[row, col] and not adj_comm[col, row]
             ) and global_graph.has_edge(i, j):
                 global_graph.remove_edge(i, j)
-    return global_graph
+    
+    return local_cd_graphs, global_graph
 
 
 def fusion(partition, local_cd_adj_mats, data):
@@ -71,7 +72,8 @@ def fusion(partition, local_cd_adj_mats, data):
 
             if edge:
                 global_graph_resolved.add_edge(edge[0], edge[1])
-    return global_graph_resolved
+        
+    return local_cd_graphs, global_graph_resolved
 
 
 def fusion_basic(partition, local_cd_adj_mats):
@@ -103,8 +105,7 @@ def fusion_basic(partition, local_cd_adj_mats):
                 global_graph_resolved.remove_edge(j, i)
             else:
                 global_graph_resolved.remove_edge(i, j)
-
-    return global_graph_resolved
+    return local_cd_graphs, global_graph_resolved
 
 
 def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
@@ -138,7 +139,7 @@ def _union_with_overlaps(graphs):
             R = G.__class__()
         seen_nodes |= G_nodes_set
         R.graph.update(G.graph)
-        R.add_nodes_from(G.nodes(data=True))
+        R.add_nodes_from(G.nodes(data=False))
         R.add_edges_from(
             G.edges(keys=True, data=True) if G.is_multigraph() else G.edges(data=True)
         )
