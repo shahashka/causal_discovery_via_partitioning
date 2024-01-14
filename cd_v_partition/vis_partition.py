@@ -10,7 +10,7 @@ import itertools
 from netgraph import Graph, get_curved_edge_paths
 
 
-def create_partition_plot(G, nodes, partition, save_name, split_comms=True):
+def create_partition_plot(G, nodes, partition, save_name, pos_global=None, split_comms=True):
     """
     Create plot of overlapping partitions with patches
 
@@ -58,6 +58,9 @@ def create_partition_plot(G, nodes, partition, save_name, split_comms=True):
             ],
         )
     )
+
+    if pos_global is not None:
+        pos = pos_global
     Graph(
         G,
         edge_width=1,
@@ -76,6 +79,8 @@ def create_partition_plot(G, nodes, partition, save_name, split_comms=True):
 
 # https://stackoverflow.com/questions/73265089/networkx-how-to-draw-bounding-area-containing-a-set-of-nodes
 def _create_patches(node_positions, ax, subset, color):
+    if len(subset) == 1:
+        return
     # Using the nodes in the subset, construct the minimum spanning tree using distance as the weight parameter.
     xy = np.array([node_positions[node] for node in subset])
     distances = cdist(xy, xy)
@@ -176,7 +181,7 @@ def _partition_layout(g, partition):
     return pos, overlaps
 
 
-def _position_partitions(g, partition, **kwargs):
+def _position_partitions(g, partition,  **kwargs):
     # create a weighted graph, in which each node corresponds to a partition,
     # and each edge weight to the number of edges between partitions
     between_partition_edges = _find_between_partition_edges(g, partition)
