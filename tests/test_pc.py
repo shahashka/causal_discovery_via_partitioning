@@ -56,3 +56,4 @@ for row, col in itertools.product(np.arange(pdag.shape[0]), np.arange(pdag.shape
 pdag_gpu, p_values_gpu = cu_pc(obs_data, alpha=0.001, outdir="./tests")
 assert (pdag_gpu == pdag).all()
 assert (np.abs(np.abs(p_values_gpu) - np.abs(p_values)) < 1e-4).all()
+print("All tests passed!")
