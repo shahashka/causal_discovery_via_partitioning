@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 import itertools
-
+from conditional_independence import partial_correlation_test
 # Final fusion step to merge subgraphs
 # In infinite data limit this is done by screening for conflicting edges during union over subgraphs
 
@@ -37,7 +37,7 @@ def screen_projections(partition, local_cd_adj_mats):
 
 
 def fusion(partition, local_cd_adj_mats, data):
-    """Fuse subgraphs by taking the union and resolving conflicts by taking the lower
+    """Fuse subgraphs by taking the union and resolving edges for overlapping nodes by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
 
     Args:
@@ -53,25 +53,38 @@ def fusion(partition, local_cd_adj_mats, data):
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
     cor = np.corrcoef(data.T)
-
-    global_graph_resolved = global_graph.copy()  # TODO this is an expensive copy
-    for i, j in global_graph.edges():
+    
+    comms = [set(p) for p in partition.values()]
+    overlaps = set.intersection(*comms)
+    def remove_elements(S, i, j):
+        new_S = S.copy()
+        new_S.remove(i)
+        new_S.remove(j)
+        return new_S
+    # Sort the list of possible overlapping edges accordinng to their p-value
+    suffstat = {'n':data.shape[0], 'C':cor}
+    overlap_edges = list(itertools.combinations(overlaps, 2))
+    if len(overlap_edges) > 0:
+        conditioning_set = [set.union(*[set(global_graph.predecessors(i)),set(global_graph.predecessors(j)), remove_elements(overlaps,i,j)]) for i,j in overlap_edges]
+        p_value = [partial_correlation_test(suffstat, i,j,S)['p_value'] for (i,j), S in zip(overlap_edges, conditioning_set)]
+        p_value, overlap_edges = zip(*sorted(zip(p_value, overlap_edges)))
+        
+    # Loop through the edge options and favor lower ric_score
+    for i, j in overlap_edges:
         if global_graph.has_edge(j, i):
-            #  Resolve conflicts by favoring lower ric_scores
-            if global_graph_resolved.has_edge(j, i):
-                global_graph_resolved.remove_edge(j, i)
-            if global_graph_resolved.has_edge(i, j):
-                global_graph_resolved.remove_edge(i, j)
+            global_graph.remove_edge(j, i)
+        if global_graph.has_edge(i, j):
+            global_graph.remove_edge(i, j)
 
-            pa_i = list(global_graph_resolved.predecessors(i))
-            pa_j = list(global_graph_resolved.predecessors(j))
-            edge = _resolve_w_ric_score(
-                global_graph_resolved, data, cor, i, j, pa_i, pa_j
-            )
+        pa_i = list(global_graph.predecessors(i))
+        pa_j = list(global_graph.predecessors(j))
+        edge = _resolve_w_ric_score(
+            global_graph, data, cor, i, j, pa_i, pa_j
+        )
 
-            if edge:
-                global_graph_resolved.add_edge(edge[0], edge[1])
-    return global_graph_resolved
+        if edge:
+            global_graph.add_edge(edge[0], edge[1])
+    return global_graph
 
 
 def fusion_basic(partition, local_cd_adj_mats):

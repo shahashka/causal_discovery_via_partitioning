@@ -72,3 +72,6 @@ local_adj_mats = [
 ]
 test4 = screen_projections(partition, local_adj_mats)
 assert test4.edges() == chain.edges()  # 0->1,2->3
+test4 = fusion(partition, local_adj_mats, samples)
+assert list(test4.edges()) == G_star_edges  # 0->1->2->3
+print("All tests passed!")
