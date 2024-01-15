@@ -37,7 +37,7 @@ def screen_projections(partition, local_cd_adj_mats):
 
 
 def fusion(partition, local_cd_adj_mats, data):
-    """Fuse subgraphs by taking the union and resolving conflicts by taking the lower
+    """Fuse subgraphs by taking the union and resolving edges for overlapping nodes by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
 
     Args:
@@ -53,25 +53,29 @@ def fusion(partition, local_cd_adj_mats, data):
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
     cor = np.corrcoef(data.T)
+    
+    comms = [set(p) for p in partition.values()]
+    overlaps = set.intersection(*comms)
 
-    global_graph_resolved = global_graph.copy()  # TODO this is an expensive copy
-    for i, j in global_graph.edges():
+    # Loop through possible edges in the overlapping sets 
+    # The problem is that the order of looping clearly will matter 
+    # TODO sort edges according to their associated p-value 
+    for i, j in itertools.combinations(overlaps, 2):
+        #  Resolve conflicts by favoring lower ric_scores
         if global_graph.has_edge(j, i):
-            #  Resolve conflicts by favoring lower ric_scores
-            if global_graph_resolved.has_edge(j, i):
-                global_graph_resolved.remove_edge(j, i)
-            if global_graph_resolved.has_edge(i, j):
-                global_graph_resolved.remove_edge(i, j)
+            global_graph.remove_edge(j, i)
+        if global_graph.has_edge(i, j):
+            global_graph.remove_edge(i, j)
 
-            pa_i = list(global_graph_resolved.predecessors(i))
-            pa_j = list(global_graph_resolved.predecessors(j))
-            edge = _resolve_w_ric_score(
-                global_graph_resolved, data, cor, i, j, pa_i, pa_j
-            )
+        pa_i = list(global_graph.predecessors(i))
+        pa_j = list(global_graph.predecessors(j))
+        edge = _resolve_w_ric_score(
+            global_graph, data, cor, i, j, pa_i, pa_j
+        )
 
-            if edge:
-                global_graph_resolved.add_edge(edge[0], edge[1])
-    return global_graph_resolved
+        if edge:
+            global_graph.add_edge(edge[0], edge[1])
+    return global_graph
 
 
 def fusion_basic(partition, local_cd_adj_mats):

@@ -33,10 +33,10 @@ for row, col in itertools.product(np.arange(pdag.shape[0]), np.arange(pdag.shape
         assert pdag[row, col] == 0
 
 # Check metrics
-shd, sid, auc, tpr_fpr = get_scores(
+shd, sid, auc, tpr, fpr = get_scores(
     ["PC"], [pdag], edge_to_adj(arcs, list(np.arange(10)))
 )
-assert shd == 5 and tpr_fpr[0] == 1
+assert shd == 5 and tpr == 1
 
 W = 10
 weighted_pdag = weight_colliders(pdag, weight=W)

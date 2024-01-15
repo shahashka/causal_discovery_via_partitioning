@@ -123,13 +123,12 @@ def create_two_comms(graph_type, n, m1, m2, p1, p2, vis=True):
         )
     return init_partition, causal_tiled_graph
 
-
+def _local_structure_learn(subproblem):
+    skel, data = subproblem
+    adj_mat = sp_gies(data, skel=None, outdir=None)
+    return adj_mat
+    
 def run_causal_discovery(partition, df, G_star):
-    def _local_structure_learn(subproblem):
-        skel, data = subproblem
-        adj_mat = sp_gies(data, skel=None, outdir=None)
-        return adj_mat
-
     # Find superstructure
     df_obs = df.drop(columns=["target"])
     data_obs = df_obs.to_numpy()
