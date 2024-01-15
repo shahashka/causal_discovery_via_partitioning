@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 import itertools
-
+from conditional_independence import partial_correlation_test
 # Final fusion step to merge subgraphs
 # In infinite data limit this is done by screening for conflicting edges during union over subgraphs
 
@@ -56,12 +56,21 @@ def fusion(partition, local_cd_adj_mats, data):
     
     comms = [set(p) for p in partition.values()]
     overlaps = set.intersection(*comms)
-
-    # Loop through possible edges in the overlapping sets 
-    # The problem is that the order of looping clearly will matter 
-    # TODO sort edges according to their associated p-value 
-    for i, j in itertools.combinations(overlaps, 2):
-        #  Resolve conflicts by favoring lower ric_scores
+    def remove_elements(S, i, j):
+        new_S = S.copy()
+        new_S.remove(i)
+        new_S.remove(j)
+        return new_S
+    # Sort the list of possible overlapping edges accordinng to their p-value
+    suffstat = {'n':data.shape[0], 'C':cor}
+    overlap_edges = list(itertools.combinations(overlaps, 2))
+    if len(overlap_edges) > 0:
+        conditioning_set = [set.union(*[set(global_graph.predecessors(i)),set(global_graph.predecessors(j)), remove_elements(overlaps,i,j)]) for i,j in overlap_edges]
+        p_value = [partial_correlation_test(suffstat, i,j,S)['p_value'] for (i,j), S in zip(overlap_edges, conditioning_set)]
+        p_value, overlap_edges = zip(*sorted(zip(p_value, overlap_edges)))
+        
+    # Loop through the edge options and favor lower ric_score
+    for i, j in overlap_edges:
         if global_graph.has_edge(j, i):
             global_graph.remove_edge(j, i)
         if global_graph.has_edge(i, j):
