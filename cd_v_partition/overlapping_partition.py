@@ -1,6 +1,9 @@
-import numpy as np
 import subprocess
 import networkx as nx
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 def expansive_causal_partition(adj_mat, partition):
     """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
@@ -124,21 +127,32 @@ def rand_edge_cover_partition(adj_mat, partition):
             partition[c] += [n]
     return partition
 
-def oslom_algorithm(nodes, dat_file, oslom_dir, structure_type="dag"):
-    """Overlapping partitioning methods which take an input graph (superstructure) and partition nodes according to an objective
-       overlapping nodes ideally render the partitions conditionally independent
+
+def oslom_algorithm(
+    nodes,
+    dat_file: Path | str,
+    oslom_dir: Path | str,
+    structure_type: str | None = "dag",
+) -> dict:
+    """
+    Overlapping partitioning methods which take an input graph (superstructure) and partition
+    nodes according to an objective overlapping nodes ideally render the partitions conditionally
+    independent.
 
     Args:
-        data_dir (str): the directory containing the *.dat file which holds the edges of the structure to partition
-        oslom_dir (str): the directory containing the OSLOM binary
-        structure_type (str, optional): specify the structure type as either the 'dag',
-                                        'superstructure', or 'superstructure_weighted'. If weighted
-                                        then weights in the *.dat are used by OSLOM. Defaults to 'dag'.
+        nodes (): ...
+        data_dir (Path | str): The directory containing the *.dat file which holds the edges of the
+            structure to partition.
+        oslom_dir (Path | str): The directory containing the OSLOM binary
+        structure_type (str | None): Specify the structure type as either the 'dag',  'superstructure',
+            or 'superstructure_weighted'. If weighted then weights in the *.dat are used by OSLOM.
+            Defaults to 'dag'.
 
     Returns:
-        dict: the estimated partition as a dictionary {comm_id : [nodes]}
+        dict: The estimated partition as a dictionary {comm_id : [nodes]}
     """
     # Run the OSLOM code externally
+    structure_type = structure_type if structure_type is not None else "dag"
     weight_flag = "-w" if "weight" in structure_type else "-uw"
     subprocess.run(
         [
@@ -163,19 +177,20 @@ def oslom_algorithm(nodes, dat_file, oslom_dir, structure_type="dag"):
         for n in part:
             if n in homeless_nodes:
                 homeless_nodes.remove(n)
+
     if len(homeless_nodes) > 0:
         partition[len(lines)] = homeless_nodes
     return partition
 
 
 
-def partition_problem(partition, structure, data):
-    """Split a the graph structure and dataset according to the given graph partition
+def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame):
+    """Split the graph structure and dataset according to the given graph partition
 
     Args:
         partition (dict): the partition as a dictionary {comm_id : [nodes]}
         structure (np.ndarray): the adjacency matrix for the initial structure
-        data (pandas DataFrame): the dataset, columns correspond to nodes in the graph
+        data (pd.DataFrame): the dataset, columns correspond to nodes in the graph
 
     Returns:
         list: a list of tuples holding the sub structure and data subsets for each partition
