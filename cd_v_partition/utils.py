@@ -53,7 +53,7 @@ def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False)
     return edges
 
 
-def adj_to_dag(adj: np.ndarray, nodes: list[str]) -> nx.DiGraph:
+def adj_to_dag(adj: np.ndarray) -> nx.DiGraph:
     r"""
     Helper function to convert an adjacency matrix into a directed graph.
 
@@ -410,6 +410,7 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     return delta
 
 
+# TODO modify k_comm to take a parameter pho rather than number of edges
 def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
     """Create a random network with k communities with the specified graph type and parameters
 
