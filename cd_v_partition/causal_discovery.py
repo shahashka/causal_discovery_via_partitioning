@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Causal discovery methods: cuPC, SP-GIES, etc... each with a specific set of
 # assumptions that are assumed to be satisfied on subgraph. Runs local causal discovery on
 # subgraphs to be merged later.
@@ -139,7 +141,7 @@ def sp_gies(
 ):
     r"""
     Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
-    
+
     Args:
         data (pd.DataFrame): DataFrame containing observational and interventional samples.
             Must contain a column named 'target' which specifies the index of the node that
@@ -182,12 +184,6 @@ def sp_gies(
             skel = np.ones((data.shape[1], data.shape[1]))
 
     fixed_gaps = np.array((skel == 0), dtype=int)
-    try:
-        print(data.head())
-        print(data.loc[:, "target"].head())
-    except KeyError as err:
-        print(f"{data.columns=}")
-        raise err
     target_index = data.loc[:, "target"].to_numpy()
     targets = (
         multifactor_targets if multifactor_targets else np.unique(target_index)[1:]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 from pathlib import Path
 
@@ -166,7 +168,7 @@ def _partition_layout(
     overlaps = _find_overlaps(partition)
     return pos, overlaps
 
-  
+
 def _position_partitions(g, partition, **kwargs):
     # create a weighted graph, in which each node corresponds to a partition,
     # and each edge weight to the number of edges between partitions

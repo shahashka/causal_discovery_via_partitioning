@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Relevant graph operations, metrics, and data generation
 import itertools
 import math
@@ -15,18 +17,17 @@ from sklearn.metrics import roc_curve
 
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
-    match random_state:
-        case None:
-            return RandomState()
-        case RandomState():
-            return random_state
-        case int():
-            return RandomState(random_state)
-        case _:
-            raise ValueError(
-                "Illegal value for `load_random_state()` Must be either an instance of "
-                "`RandomState`, an integer to seed with, or None."
-            )
+    if random_state is None:
+        return RandomState()
+    elif isinstance(random_state, RandomState):
+        return random_state
+    elif isinstance(random_state, int):
+        return RandomState(random_state)
+    else:
+        raise ValueError(
+            "Illegal value for `load_random_state()` Must be either an instance of "
+            "`RandomState`, an integer to seed with, or None."
+        )
 
 
 def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False):
@@ -52,7 +53,6 @@ def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False)
     return edges
 
 
-
 def adj_to_dag(adj: np.ndarray, nodes: list[str]) -> nx.DiGraph:
     r"""
     Helper function to convert an adjacency matrix into a directed graph.
@@ -66,6 +66,7 @@ def adj_to_dag(adj: np.ndarray, nodes: list[str]) -> nx.DiGraph:
     """
     dag = nx.from_numpy_array(adj, create_using=nx.DiGraph)
     return dag
+
 
 def edge_to_adj(edges: list[tuple], nodes: list[str]) -> np.ndarray:
     r"""
@@ -99,7 +100,6 @@ def edge_to_dag(edges) -> nx.DiGraph:
     dag = nx.DiGraph()
     dag.add_edges_from(edges)
     return dag
-
 
 
 def tpr_fpr_score(
@@ -153,10 +153,14 @@ def get_scores(
         floats corresponding to SHD, SID, AUC, (TPR, FPR)
     """
     if type(ground_truth) == nx.DiGraph:
-        ground_truth = nx.adjacency_matrix(ground_truth, nodelist=np.arange(len(ground_truth.nodes()))).todense()
+        ground_truth = nx.adjacency_matrix(
+            ground_truth, nodelist=np.arange(len(ground_truth.nodes()))
+        ).todense()
     for name, net in zip(alg_names, networks):
         if type(net) == nx.DiGraph:
-            net = nx.adjacency_matrix(net, nodelist=np.arange(len(net.nodes()))).todense()
+            net = nx.adjacency_matrix(
+                net, nodelist=np.arange(len(net.nodes()))
+            ).todense()
         sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
         auc = 0
         if name != "NULL":
@@ -178,13 +182,12 @@ def get_scores(
 
 
 def get_random_graph_data(
-
     graph_type: str,
     num_nodes: int,
     nsamples: int,
     iv_samples: int,
     p: float,
-    k: int,
+    m: int,
     seed: int = 42,
     save: bool = False,
     outdir: Path | str = None,
@@ -204,7 +207,7 @@ def get_random_graph_data(
         nsamples (int): number of observational samples to generate
         iv_samples (int) : number of interventional samples to generate
         p (float): probability of edge creation (erdos_renyi) or rewiring (small_world)
-        k (int): number of edges to attach from a new node to existing nodes (scale_free) or number of
+        m (int): number of edges to attach from a new node to existing nodes (scale_free) or number of
             nearest neighbors connected in ring (small_world)
         seed (int): random seed
         save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
@@ -214,21 +217,18 @@ def get_random_graph_data(
             var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
             observational, interventional data and target indices)
     """
-    match graph_type:
-        case "erdos_renyi":
-            random_graph_model = lambda nnodes: nx.erdos_renyi_graph(
-                nnodes, p=p, seed=seed
-            )
-        case "scale_free":
-            random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
-                nnodes, m=k, seed=seed
-            )
-        case "small_world":
-            random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
-                nnodes, k=k, p=p, seed=seed
-            )
-        case _:
-            raise ValueError("Unsupported random graph")
+    if graph_type == "erdos_renyi":
+        random_graph_model = lambda nnodes: nx.erdos_renyi_graph(nnodes, p=p, seed=seed)
+    elif "scale_free":
+        random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
+            nnodes, m=m, seed=seed
+        )
+    elif "small_world":
+        random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
+            nnodes, k=m, p=p, seed=seed
+        )
+    else:
+        raise ValueError("Unsupported random graph")
 
     dag = rand.directed_random_graph(num_nodes, random_graph_model)
     nodes_inds = list(dag.nodes)
@@ -265,10 +265,10 @@ def get_random_graph_data(
 def get_data_from_graph(
     nodes: list[str],
     edges: list[tuple],
-    bias: np.ndarray,
-    var: np.ndarray,
     nsamples: int,
     iv_samples: int,
+    bias: np.ndarray = None,
+    var: np.ndarray = None,
     save: bool = False,
     outdir: Path | str = None,
 ):
@@ -292,9 +292,10 @@ def get_data_from_graph(
             var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
             observational, interventional data and target indices)
     """
-    # bias = np.random.normal(0, 1, size=len(nodes))
-    # var = np.abs(np.random.normal(0, 1, size=len(nodes)))
-    
+    if bias is None or var is None:
+        bias = np.random.normal(0, 1, size=len(nodes))
+        var = np.abs(np.random.normal(0, 1, size=len(nodes)))
+
     bn = GaussDAG(nodes=nodes, arcs=edges, biases=bias, variances=var)
     data = bn.sample(nsamples)
 
@@ -393,20 +394,21 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     is calculated as serial_score - partition_score.
 
     Args:
-        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from running the causal 
+        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from running the causal
             discovery algorithm on the entire data and node set
-        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph from running the causal 
+        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph from running the causal
             discovery algorithm on the partitioned data and node sets
         true_graph (np.ndarray or nx.DiGraph): the ground truth graph to compare to
 
     Returns:
-        list (float, float, float, float, float): Delta SHD, AUC, SID, TPR, FPR. Note that the sign 
+        list (float, float, float, float, float): Delta SHD, AUC, SID, TPR, FPR. Note that the sign
             here is relative to the serial implmentation (we do not take the aboslute value)
     """
     scores_s = get_scores(["CD serial"], [est_graph_serial], true_graph)
     scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)
     delta = [s - p for (s, p) in zip(scores_s, scores_p)]
     return delta
+
 
 def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
     """Create a random network with k communities with the specified graph type and parameters
@@ -425,13 +427,13 @@ def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
     comms = []
     for i in np.arange(k):
         if type(m_list) == int:
-            m=m_list
+            m = m_list
         else:
-            m=m_list[i]
+            m = m_list[i]
         if type(p_list) == int:
-            p=p_list
+            p = p_list
         else:
-            p=p_list[i]
+            p = p_list[i]
         comm_k = get_random_graph_data(
             graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m
         )[0][0]
@@ -466,10 +468,10 @@ def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
                     connections = [(node_label, d) for d in dest]
                     comm_graph.add_edges_from(connections)
                     tune_mod -= num_connected
-                
-    init_partition=dict()
+
+    init_partition = dict()
     for i in np.arange(k):
-        init_partition[i] = list(np.arange(i*n, (i+1) * n))
+        init_partition[i] = list(np.arange(i * n, (i + 1) * n))
     comm_graph = _remove_cycles(comm_graph)
     return init_partition, comm_graph
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import subprocess
 import networkx as nx
 from pathlib import Path
@@ -5,7 +7,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-def expansive_causal_partition(adj_mat, partition):
+
+def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
     """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
 
     Args:
@@ -25,7 +28,9 @@ def expansive_causal_partition(adj_mat, partition):
     return causal_partition
 
 
-def modularity_partition(adj_mat, resolution=1, cutoff=2, best_n=2):
+def modularity_partition(
+    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 2, best_n: int = 2
+):
     """Creates disjoint partition by greedily maximizing modularity. Using networkx built-in implementaiton.
 
     Args:
@@ -49,7 +54,7 @@ def modularity_partition(adj_mat, resolution=1, cutoff=2, best_n=2):
     return partition
 
 
-def heirarchical_partition(adj_mat, max_community_size=0.5):
+def heirarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
     """Creates disjoint partition via heirarchical community detection
 
     Args:
@@ -74,11 +79,12 @@ def heirarchical_partition(adj_mat, max_community_size=0.5):
         # didn't produce any partitions with sufficiently small clusters
     return
 
-def rand_edge_cover_partition(adj_mat, partition):
-    """Creates a random edge covering partition from an initial hard partition. 
+
+def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
+    """Creates a random edge covering partition from an initial hard partition.
 
     Randomly chooses cut edges and randomly assigns endpoints to communities. Recursively
-    adds any shared endpoints to the same community 
+    adds any shared endpoints to the same community
     Args:
         adj_mat (np.ndarray): Adjacency matrix for the graph
         partition (dict): the estimated partition as a dictionary {comm_id : [nodes]}
@@ -87,20 +93,20 @@ def rand_edge_cover_partition(adj_mat, partition):
         dict: the overlapping partition as a dictionary {comm_id : [nodes]}
     """
     graph = nx.from_numpy_array(adj_mat)
-    
-    def edge_coverage_helper(i,j,comm, cut_edges, node_to_comm):
+
+    def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
         node_to_comm[i] = comm
         node_to_comm[j] = comm
-        cut_edges.remove((i,j))
-        
+        cut_edges.remove((i, j))
+
         # Any other edges that share the same endpoint must be in the same community
-        # E.g. if edges (1,2) and (2,3) are cut then nodes 1,2,3 must all be in the 
+        # E.g. if edges (1,2) and (2,3) are cut then nodes 1,2,3 must all be in the
         # same community to ensure edge coverage
         for edge in cut_edges:
             if i in edge or j in edge:
                 edge_coverage_helper(edge[0], edge[1], comm, cut_edges, node_to_comm)
         return node_to_comm, cut_edges
-    
+
     node_to_comm = dict()
     for comm_id, comm in partition.items():
         for node in comm:
@@ -109,18 +115,20 @@ def rand_edge_cover_partition(adj_mat, partition):
     for edge in graph.edges():
         if node_to_comm[edge[0]] != node_to_comm[edge[1]]:
             cut_edges.append(edge)
-    
+
     # Randomly choose a cut edge until all edges are covered
     while len(cut_edges) > 0:
         edge_ind = np.random.choice(np.arange(len(cut_edges)))
         i = cut_edges[edge_ind][0]
         j = cut_edges[edge_ind][1]
-        
+
         # Randomly choose an endpoint and associated community to start
-        # putting all endpoints into. 
+        # putting all endpoints into.
         comm = np.random.choice([node_to_comm[i], node_to_comm[j]])
-        node_to_comm, cut_edges = edge_coverage_helper(i,j,comm, cut_edges, node_to_comm)
-    
+        node_to_comm, cut_edges = edge_coverage_helper(
+            i, j, comm, cut_edges, node_to_comm
+        )
+
     # Update the hard partition
     for n, c in node_to_comm.items():
         if n not in partition[c]:
@@ -181,7 +189,6 @@ def oslom_algorithm(
     if len(homeless_nodes) > 0:
         partition[len(lines)] = homeless_nodes
     return partition
-
 
 
 def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame):

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 from typing import Any
 
@@ -45,7 +47,7 @@ def screen_projections(
     return global_graph
 
 
-def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data, cov):
+def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data):
     """
     Fuse subgraphs by taking the union and resolving conflicts by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
@@ -55,7 +57,6 @@ def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data,
 
         local_cd_adj_mats (list[np.ndarray]): list of adjacency matrices for each local subgraph
         data (): ...
-        cov (): ...
 
     Returns:
         nx.DiGraph: the final global directed graph with all nodes and edges
@@ -66,22 +67,36 @@ def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data,
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
     cor = np.corrcoef(data.T)
-    
+
     comms = [set(p) for p in partition.values()]
     overlaps = set.intersection(*comms)
+
     def remove_elements(S, i, j):
         new_S = S.copy()
         new_S.remove(i)
         new_S.remove(j)
         return new_S
+
     # Sort the list of possible overlapping edges accordinng to their p-value
-    suffstat = {'n':data.shape[0], 'C':cor}
+    suffstat = {"n": data.shape[0], "C": cor}
     overlap_edges = list(itertools.combinations(overlaps, 2))
     if len(overlap_edges) > 0:
-        conditioning_set = [set.union(*[set(global_graph.predecessors(i)),set(global_graph.predecessors(j)), remove_elements(overlaps,i,j)]) for i,j in overlap_edges]
-        p_value = [partial_correlation_test(suffstat, i,j,S)['p_value'] for (i,j), S in zip(overlap_edges, conditioning_set)]
+        conditioning_set = [
+            set.union(
+                *[
+                    set(global_graph.predecessors(i)),
+                    set(global_graph.predecessors(j)),
+                    remove_elements(overlaps, i, j),
+                ]
+            )
+            for i, j in overlap_edges
+        ]
+        p_value = [
+            partial_correlation_test(suffstat, i, j, S)["p_value"]
+            for (i, j), S in zip(overlap_edges, conditioning_set)
+        ]
         p_value, overlap_edges = zip(*sorted(zip(p_value, overlap_edges)))
-        
+
     # Loop through the edge options and favor lower ric_score
     for i, j in overlap_edges:
         if global_graph.has_edge(j, i):
@@ -91,9 +106,7 @@ def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data,
 
         pa_i = list(global_graph.predecessors(i))
         pa_j = list(global_graph.predecessors(j))
-        edge = _resolve_w_ric_score(
-            global_graph, data, cor, i, j, pa_i, pa_j
-        )
+        edge = _resolve_w_ric_score(global_graph, data, cor, i, j, pa_i, pa_j)
 
         if edge:
             global_graph.add_edge(edge[0], edge[1])
@@ -154,7 +167,6 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
         subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
         subgraph = nx.relabel_nodes(
             subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=True
-
         )
         local_cd_graphs.append(subgraph)
     return local_cd_graphs
@@ -243,7 +255,6 @@ def _resolve_w_ric_score(G, data, cov, i, j, pa_i, pa_j):
             return (j, i)
     else:
         return None
-
 
 
 def _loglikelihood(samples, node, parents, correlation):
