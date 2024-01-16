@@ -13,7 +13,6 @@ from cd_v_partition.fusion import screen_projections, fusion, fusion_basic
 import functools
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
-import itertools
 import matplotlib.patches as mpatches
 
 
@@ -219,45 +218,39 @@ def define_rand_edge_coverage(partition, graph, vis=True):
 
     return partition
 
-
 def run():
     num_repeats = 30
-    scores_edge_cover = []
-    scores_hard_partition = []
-    scores_causal_partition = []
     sample_range = [1e2, 1e3, 1e4, 1e5, 1e6, 1e7]
-    for ns in sample_range:
-        score_ec = []
-        score_hp = []
-        score_cp = []
-        for i in range(num_repeats):
-            print(i)
-            init_partition, graph = create_two_comms(
-                "scale_free", n=25, m1=1, m2=2, p1=0.5, p2=0.5, vis=True
-            )
+    scores_edge_cover = np.zeros((num_repeats, len(sample_range)))
+    scores_hard_partition = np.zeros((num_repeats, len(sample_range)))
+    scores_causal_partition = np.zeros((num_repeats, len(sample_range)))
+    for i in range(num_repeats):
+        init_partition, graph = create_two_comms(
+            "scale_free", n=25, m1=1, m2=2, p1=0.5, p2=0.5, vis=True
+        )
+        num_nodes = len(graph.nodes())
+        bias = np.random.normal(0, 1, size=num_nodes)
+        var = np.abs(np.random.normal(0, 1, size=num_nodes))
+        for j,ns in enumerate(sample_range):
             # Generate data
-            num_nodes = len(graph.nodes())
             (edges, nodes, _, _), df = get_data_from_graph(
                 list(np.arange(num_nodes)),
                 list(graph.edges()),
                 nsamples=int(ns),
-                iv_samples=0,
+                iv_samples=0,bias=bias, var=var
             )
             G_star = edge_to_adj(edges, nodes)
             d_tpr_hard = run_causal_discovery(init_partition, df, G_star)
-            score_hp.append(d_tpr_hard)
+            scores_hard_partition[i][j] = d_tpr_hard
 
             partition = define_rand_edge_coverage(init_partition, graph, vis=False)
             d_tpr_ec = run_causal_discovery(partition, df, G_star)
-            score_ec.append(d_tpr_ec)
+            scores_edge_cover[i][j] = d_tpr_ec
 
             partition = expansive_causal_partition(init_partition, graph)
             d_tpr_cp = run_causal_discovery(partition, df, G_star)
-            score_cp.append(d_tpr_cp)
+            scores_causal_partition[i][j] = d_tpr_cp
 
-        scores_edge_cover.append(score_ec)
-        scores_hard_partition.append(score_hp)
-        scores_causal_partition.append(score_cp)
 
     labels = []
 
@@ -282,7 +275,7 @@ def run():
 
     ax.set_xticks(
         np.arange(1, len(sample_range) + 1),
-        labels=["1e{}".format(i) for i in range(len(1,sample_range+1))],
+        labels=["1e{}".format(i) for i in range(2,len(sample_range)+2)],
         rotation=45,
     )
     ax.set_xlabel("Number of samples")
@@ -290,7 +283,7 @@ def run():
     ax.set_title("Comparison of partition types for 2 community scale free networks")
     plt.legend(*zip(*labels), loc=2)
     plt.savefig(
-        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_no_local_skel_fusion.png"
+        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_fusion_same_dist.png"
     )
 
 

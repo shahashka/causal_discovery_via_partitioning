@@ -209,7 +209,7 @@ def get_random_graph_data(
     return (dag.arcs, nodes_inds, bias, var), df
 
 
-def get_data_from_graph(nodes, edges, nsamples, iv_samples, save=False, outdir=None):
+def get_data_from_graph(nodes, edges, bias,var, nsamples, iv_samples, save=False, outdir=None):
     """
     Get data set from a predefined graph using the Gaussian DAG generative model (same as get_random_graph_data)
     Save a data.csv file containing the observational and interventional data samples and target vector
@@ -227,8 +227,8 @@ def get_data_from_graph(nodes, edges, nsamples, iv_samples, save=False, outdir=N
                     edges (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
                     var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled observational, interventional data and target indices)
     """
-    bias = np.random.normal(0, 1, size=len(nodes))
-    var = np.abs(np.random.normal(0, 1, size=len(nodes)))
+    # bias = np.random.normal(0, 1, size=len(nodes))
+    # var = np.abs(np.random.normal(0, 1, size=len(nodes)))
     bn = GaussDAG(nodes=nodes, arcs=edges, biases=bias, variances=var)
     data = bn.sample(nsamples)
 

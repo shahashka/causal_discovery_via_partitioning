@@ -27,7 +27,7 @@ def create_partition_plot(G, nodes, partition, save_name, edge_color = None, pos
     save_name -- Save the matplotlib figure to this path
 
     """
-    _, ax = plt.subplots(figsize=(50, 50), dpi=80)
+    _, ax = plt.subplots()#figsize=(50, 50), dpi=80)
 
     node_to_partition = dict(
         zip(np.arange(len(nodes)), [[] for _ in np.arange(len(nodes))])
