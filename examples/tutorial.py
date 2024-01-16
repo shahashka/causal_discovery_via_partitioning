@@ -19,7 +19,7 @@ outdir = "./examples/"
 
 # Generate a random network and corresponding dataset
 (edges, nodes, _, _), df = get_random_graph_data(
-    graph_type="scale_free", iv_samples=0, num_nodes=50, nsamples=int(1e4), p=0.5, k=1
+    graph_type="scale_free", iv_samples=0, num_nodes=50, nsamples=int(1e4), p=0.5, m=1
 )
 G_star = edge_to_adj(list(edges), nodes=nodes)
 

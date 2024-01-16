@@ -72,10 +72,10 @@ def create_two_comms(graph_type, n, m1, m2, p1, p2, vis=True):
     """
     # generate the edges set
     comm_1 = get_random_graph_data(
-        graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p1, k=m1
+        graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p1, m=m1
     )[0][0]
     comm_2 = get_random_graph_data(
-        graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p2, k=m2
+        graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p2, m=m2
     )[0][0]
 
     comm_1 = nx.DiGraph(comm_1)
@@ -185,29 +185,36 @@ def expansive_causal_partition(partition, graph):
     return causal_partition
 
 
+def edge_cover(partition, graph):
+    def edge_coverage_helper(i,j,comm, cut_edges, node_to_comm):
+        node_to_comm[i] = comm
+        node_to_comm[j] = comm
+        cut_edges.remove((i,j))
+        for edge in cut_edges:
+            if i in edge or j in edge:
+                edge_coverage_helper(edge[0], edge[1], comm, cut_edges, node_to_comm)
+        return node_to_comm, cut_edges
+    node_to_comm = dict()
+    for comm_id, comm in partition.items():
+        for node in comm:
+            node_to_comm[node] = comm_id
+    cut_edges = []
+    for edge in graph.edges():
+        if node_to_comm[edge[0]] != node_to_comm[edge[1]]:
+            cut_edges.append(edge)
+    while len(cut_edges) > 0:
+        edge_ind = np.random.choice(np.arange(len(cut_edges)))
+        i = cut_edges[edge_ind][0]
+        j = cut_edges[edge_ind][1]
+        comm = np.random.choice([node_to_comm[i], node_to_comm[j]])
+        node_to_comm, cut_edges = edge_coverage_helper(i,j,comm, cut_edges, node_to_comm)
+    for n, c in node_to_comm.items():
+        if n not in partition[c]:
+            partition[c] += [n]
+    return partition
+
 def define_rand_edge_coverage(partition, graph, vis=True):
-    num_nodes = len(graph.nodes)
-    unmarked_nodes = list(np.arange(num_nodes))
-    for n in graph.nodes():
-        comm_n = int(n >= num_nodes / 2)
-        for m in nx.neighbors(graph, n):
-            n_unmarked = n in unmarked_nodes
-            m_unmarked = m in unmarked_nodes
-            if n_unmarked or m_unmarked:
-                comm_m = int(m >= num_nodes / 2)
-                if comm_n != comm_m:
-                    if (
-                        m % 2
-                    ):  # Randomly assign the cut nodes to one or the other partition to ensure edge coverage
-                        partition[comm_n] += [m]
-                    else:
-                        partition[comm_m] += [n]
-                    if m_unmarked:
-                        unmarked_nodes.remove(m)
-                    if n_unmarked:
-                        unmarked_nodes.remove(n)
-    partition[0] = list(set(partition[0]))
-    partition[1] = list(set(partition[1]))
+    partition = edge_cover(partition, graph)
     if vis:
         create_partition_plot(
             graph,
@@ -243,7 +250,7 @@ def run():
             d_tpr_hard = run_causal_discovery(init_partition, df, G_star)
             scores_hard_partition[i][j] = d_tpr_hard
 
-            partition = define_rand_edge_coverage(init_partition, graph, vis=False)
+            partition = define_rand_edge_coverage(init_partition, graph, vis=True)
             d_tpr_ec = run_causal_discovery(partition, df, G_star)
             scores_edge_cover[i][j] = d_tpr_ec
 

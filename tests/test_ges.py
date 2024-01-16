@@ -52,7 +52,7 @@ print("All tests passed!")
 # Test sample efficiency for larger graphs
 nnodes=50
 (arcs, _, _, _), data = get_random_graph_data(
-    graph_type='scale_free',num_nodes=nnodes, k=2, p=0.5, nsamples=0, iv_samples=0, save=False, outdir=None
+    graph_type='scale_free',num_nodes=nnodes, m=2, p=0.5, nsamples=0, iv_samples=0, save=False, outdir=None
 )
 nodes = np.arange(nnodes)
 samples = [1e6, 1e5, 1e4, 1e3, 1e2]

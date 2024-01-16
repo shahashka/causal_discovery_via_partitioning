@@ -141,7 +141,7 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
 
 
 def get_random_graph_data(
-    graph_type, num_nodes, nsamples, iv_samples, p, k, seed=42, save=False, outdir=None
+    graph_type, num_nodes, nsamples, iv_samples, p, m, seed=42, save=False, outdir=None
 ):
     """
     Create a random Gaussian DAG and corresponding observational and interventional dataset.
@@ -156,7 +156,7 @@ def get_random_graph_data(
                     nsamples (int): number of observational samples to generate
                     iv_samples (int) : number of interventional samples to generate
                     p (float): probability of edge creation (erdos_renyi) or rewiring (small_world)
-                    k (int): number of edges to attach from a new node to existing nodes (scale_free) or number of nearest neighbors connected in ring (small_world)
+                    m (int): number of edges to attach from a new node to existing nodes (scale_free) or number of nearest neighbors connected in ring (small_world)
                     seed (int): random seed
                     save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
                     outdir (str): directory to save the data to if save is True
@@ -168,11 +168,11 @@ def get_random_graph_data(
         random_graph_model = lambda nnodes: nx.erdos_renyi_graph(nnodes, p=p, seed=seed)
     elif graph_type == "scale_free":
         random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
-            nnodes, m=k, seed=seed
+            nnodes, m=m, seed=seed
         )
     elif graph_type == "small_world":
         random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
-            nnodes, k=k, p=p, seed=seed
+            nnodes, k=m, p=p, seed=seed
         )
     else:
         print("Unsupported random graph")
@@ -338,3 +338,86 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)
     delta = [s - p for (s, p) in zip(scores_s, scores_p)]
     return delta
+
+def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
+    """Create a random network with k communities with the specified graph type and parameters
+
+    Args:
+        graph_type (_type_): _description_
+        n (_type_): _description_
+        m_list (_type_): _description_
+        p_list (_type_): _description_
+        k (_type_): _description_
+        tune_mod (int, optional): _description_. Defaults to 1.
+
+    Returns:
+        _type_: _description_
+    """
+    comms = []
+    for i in np.arange(k):
+        if type(m_list) == int:
+            m=m_list
+        else:
+            m=m_list[i]
+        if type(p_list) == int:
+            p=p_list
+        else:
+            p=p_list[i]
+        comm_k = get_random_graph_data(
+            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m
+        )[0][0]
+
+        comms.append(nx.DiGraph(comm_k))
+
+    # connect the communities using preferential attachment
+    degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
+    dmax = max(degree_sequence)
+
+    # First add all communities as disjoint graphs
+    comm_graph = nx.disjoint_union_all(comms)
+
+    # Each node is preferentially attached to other nodes
+    # The number of attached nodes is given by a probability distribution over
+    # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
+    # in the community
+    A = np.min([dmax, 4])
+    in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
+    leftover = n - sum(in_degree_a)
+    in_degree_a[-1] += leftover
+    probs = np.array(in_degree_a) / (n)
+
+    # Add connections based on random choice over probability distribution
+    while tune_mod > 0:
+        for t in range(1, k):
+            for i in range(n):
+                node_label = t * n + i
+                if len(list(comm_graph.predecessors(node_label))) == 0:
+                    num_connected = np.random.choice(np.arange(A), size=1, p=probs)
+                    dest = np.random.choice(np.arange(t * n), size=num_connected)
+                    connections = [(node_label, d) for d in dest]
+                    comm_graph.add_edges_from(connections)
+                    tune_mod -= num_connected
+                
+    init_partition=dict()
+    for i in np.arange(k):
+        init_partition[i] = list(np.arange(i*n, (i+1) * n))
+    comm_graph = _remove_cycles(comm_graph)
+    return init_partition, comm_graph
+
+
+def _remove_cycles(G):
+    # find and remove cycles
+    G.remove_edges_from(nx.selfloop_edges(G))
+    try:
+        cycle_list = nx.find_cycle(G, orientation="original")
+        while len(cycle_list) > 0:
+            edge_data = cycle_list[-1]
+            G.remove_edge(edge_data[0], edge_data[1])
+            # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle when all cycles have been removed
+            try:
+                cycle_list = nx.find_cycle(G, orientation="original")
+            except:
+                break
+        return G
+    except:
+        return G
