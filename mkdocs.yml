@@ -1,0 +1,99 @@
+site_name: Causal Partitioning
+theme:
+  name: material
+  language: en
+  font:
+    text: Open Sans
+    code: Source Code Pro # Roboto Mono
+    features:
+      - content.code.annotate
+      - content.code.copy
+      - content.code.select
+      - navigation.footer
+      - navigation.path
+      - navigation.tabs
+      - navigation.tabs.sticky
+      - navigation.top
+      - navigation.tracking
+      - search.highlight
+      - search.share
+      - search.suggest
+      - toc.follow
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - mermaid2
+  - search
+  - section-index
+  - gen-files:
+      scripts:
+        - docs/generate_api.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - mkdocstrings:
+      custom_templates: docs/templates
+      enable_inventory: true
+      handlers:
+        python:
+          setup_commands:
+            - import pytkdocs_tweaks
+            - pytkdocs_tweaks.main()
+          paths: [ cd_v_partition ]
+          load_external_modules: true
+          options:
+            docstring_section_style: spacy # list
+            docstring_style: google
+            inherited_members: yes
+            line_length: 60
+            members_order: source # alphabetical
+            merge_init_into_class: yes
+            separate_signature: yes
+            show_root_full_path: yes
+            show_signature_annotations: yes
+            show_source: false
+            show_submodules: no
+            # summary: true
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+      # Math typesetting
+  - pymdownx.arithmatex:
+      generic: true
+
+  # Syntax highlighting for code blocks
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.superfences:
+      # make exceptions to highlighting of code:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.mark
+  - footnotes
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+      # Javascript for math typesetting
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

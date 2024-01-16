@@ -1,26 +1,46 @@
 # Relevant graph operations, metrics, and data generation
+import itertools
+import math
+import os
+from pathlib import Path
+
+import causaldag as cd
+import cdt
 import networkx as nx
 import numpy as np
-import itertools
-import cdt
-from graphical_models import rand, GaussDAG
-import causaldag as cd
 import pandas as pd
-import os
+from graphical_models import rand, GaussDAG
+from numpy.random import RandomState
 from sklearn.metrics import roc_curve
-import math
 
 
-def adj_to_edge(adj, nodes, ignore_weights=False):
-    """
+def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
+    match random_state:
+        case None:
+            return RandomState()
+        case RandomState():
+            return random_state
+        case int():
+            return RandomState(random_state)
+        case _:
+            raise ValueError(
+                "Illegal value for `load_random_state()` Must be either an instance of "
+                "`RandomState`, an integer to seed with, or None."
+            )
+
+
+def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False):
+    r"""
     Helper function to convert an adjacency matrix into an edge list. Optionally include weights so that
-    the edge tuple is (i,j, weight)
-            Parameters:
-                    adj (np.ndarray): p x p adjacency matrix
-                    nodes (list): a list of node names in order corresponding to rows/cols of adj
-                    ignore_weights: flag to include weights, where the weight is the value in the adj
-            Returns:
-                    list of edges corresponding to nonzero values in adj
+    the edge tuple is (i, j, weight).
+
+    Args:
+        adj (np.ndarray): Adjacency  matrix of dimensionality $p \times p$.
+        nodes (list[str]): List of node names—in order corresponding to rows/cols of `adj`.
+        ignore_weights (bool): Ignore the weights if `True`; include them if `False`. Defaults to `False`.
+
+    Returns:
+        Edge list (of nonzero values) from the given adjacency matrix.
     """
     edges = []
     for row, col in itertools.product(np.arange(adj.shape[0]), np.arange(adj.shape[1])):
@@ -32,29 +52,32 @@ def adj_to_edge(adj, nodes, ignore_weights=False):
     return edges
 
 
-def adj_to_dag(adj):
-    """
-    Helper function to convert an adjacency matrix into a Networkx DiGraph
-            Parameters:
-                    adj (np.ndarray): p x p adjacency matrix
-                    nodes (list): a list of node names in order corresponding to rows/cols of adj
-            Returns:
-                    nx.DiGraph
+
+def adj_to_dag(adj: np.ndarray, nodes: list[str]) -> nx.DiGraph:
+    r"""
+    Helper function to convert an adjacency matrix into a directed graph.
+
+    Args:
+        adj (np.ndarray): Adjacency matrix of dimensionality $p \times p$.
+        nodes (list[str]): List of node names—in order corresponding to rows/cols of `adj`.
+
+    Returns:
+        Directed acyclic graph from the given adjacency matrix.
     """
     dag = nx.from_numpy_array(adj, create_using=nx.DiGraph)
     return dag
 
+def edge_to_adj(edges: list[tuple], nodes: list[str]) -> np.ndarray:
+    r"""
+    Helper function to convert an edge list into an adjacency matrix.
 
-def edge_to_adj(edges, nodes):
-    """
-    Helper function to convert a list of edges into an adjacency matrix
-            Parameters:
-                    edges (list): list of (i,j) tuples corresponding to directed edges
-                    nodes (list): a list of node names in order corresponding to rows/cols of adj
-            Returns:
-                    np.ndarray representing the adjacency matrix
-    """
+    Args:
+        edges (list[tuple]): List of (i,j) tuples corresponding to directed edges.
+        nodes (list[str]): List of node names in order corresponding to rows/cols of adj.
 
+    Returns:
+        Adjacency matrix.
+    """
     adj_mat = np.zeros((len(nodes), len(nodes)))
     for e in edges:
         start = nodes.index(e[0])
@@ -63,31 +86,38 @@ def edge_to_adj(edges, nodes):
     return adj_mat
 
 
-def edge_to_dag(edges):
+def edge_to_dag(edges) -> nx.DiGraph:
     """
     Helper function to convert a list of edges into a Networkx DiGraph
-            Parameters:
-                    edges (list): list of (i,j) tuples corresponding to directed edges
-            Returns:
-                    nx.DiGraph
+
+    Args:
+        edges (list[tuple]): Edge list of directed edges.
+
+    Returns:
+        Directed acyclic graph.
     """
     dag = nx.DiGraph()
     dag.add_edges_from(edges)
     return dag
 
 
-def tpr_fpr_score(y_true, y_pred):
+
+def tpr_fpr_score(
+    y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+) -> tuple[float, float]:
     """
     Calculate the true positive rate and false positive scores between a true graph and predicted graph using
     sklearn.roc_curve. We choose the point correponding to the maximum threshold i.e if the adjacency matrix
     only has 1s or 0s, the max threshold is 1 and the tpr corresponds to the number of correct 1s.
 
-            Parameters:
-                    y_true (np.ndarray or nx.DiGraph): ground truth adjacency matrix or directed graph
-                    y_pred (np.ndarray or nx.DiGraph): estimated adjancecy matrix or directed graph
-            Returns:
-                    (float, float) corresponding to true positive rate and false positive rate in ROC curve
-                    at the maximum threshold value
+
+    Args:
+        y_true (np.ndarray | nx.DiGraph): Ground truth topology (either adjacency matrix or directed graph).
+        y_pred (np.ndarray | nx.DiGraph): Estimated topology (either adjacency matrix or directed graph).
+
+    Returns:
+        Tuple of floats corresponding to true positive rate and false positive rate in ROC curve
+        at the maximum threshold value
     """
     if type(y_pred) == nx.DiGraph:
         y_pred = nx.adjacency_matrix(y_pred)
@@ -101,19 +131,26 @@ def tpr_fpr_score(y_true, y_pred):
     return tpr[1], fpr[1]
 
 
-def get_scores(alg_names, networks, ground_truth, get_sid=False):
+def get_scores(
+    alg_names: list[str],
+    networks: list[np.ndarray] | list[nx.DiGraph],
+    ground_truth: np.ndarray | nx.DiGraph,
+    get_sid: bool = False,
+) -> tuple[float, float, float, float, float]:
     """
     Calculate metrics Structural Hamming Distance (SHD), Structural Interventional Distance
-    (SID), AUC, TPR,FPR for a set of algorithms and networks
-    Also handles averaging over several sets of networks (e.g the random comparison averages over several different generated graphs)
-    Default turn off sid, since it is computationally expensive
-            Parameters:
-                    alg_names (list of str): list of algorithm names
-                    networks (list of np.ndarray or list of nx.DiGraph): list of estimated graphs corresponding to algorithm names
-                    ground_truth (np.ndarray or nx.DiGraph): the true graph to compare to
-                    get_sid (bool) : flag to calculate SID which is computationally expensive, returned SID is 0 if this is False
-            Returns:
-                    floats corresponding to SHD, SID, AUC, (TPR, FPR)
+    (SID), AUC, TPR,FPR for a set of algorithms and networks. Also handles averaging over several
+    sets of networks (e.g the random comparison averages over several different generated graphs)
+    Default turn off sid, since it is computationally expensive.
+
+    Args:
+        alg_names (list[str]): list of algorithm names.
+        networks (list[np.ndarray] | list[nx.DiGraph]): list of estimated graphs corresponding to algorithm names.
+        ground_truth (np.ndarray | nx.DiGraph): the true graph to compare to.
+        get_sid (bool) : flag to calculate SID which is computationally expensive, returned SID is 0 if this is `False`.
+
+    Returns:
+        floats corresponding to SHD, SID, AUC, (TPR, FPR)
     """
     if type(ground_truth) == nx.DiGraph:
         ground_truth = nx.adjacency_matrix(ground_truth, nodelist=np.arange(len(ground_truth.nodes()))).todense()
@@ -141,7 +178,17 @@ def get_scores(alg_names, networks, ground_truth, get_sid=False):
 
 
 def get_random_graph_data(
-    graph_type, num_nodes, nsamples, iv_samples, p, k, seed=42, save=False, outdir=None
+
+    graph_type: str,
+    num_nodes: int,
+    nsamples: int,
+    iv_samples: int,
+    p: float,
+    k: int,
+    seed: int = 42,
+    save: bool = False,
+    outdir: Path | str = None,
+    # TODO: Add return type,  -> tuple[tuple[set[tuple], list[int], float, float], pd.DataFrame]:
 ):
     """
     Create a random Gaussian DAG and corresponding observational and interventional dataset.
@@ -150,33 +197,39 @@ def get_random_graph_data(
     bias and variance from which Gaussian data is generated (children are sums of their parents)
     Save a data.csv file containing the observational and interventional data samples and target column
     Save a ground.txt file containing the edge list of the generated graph.
-            Parameters:
-                    graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
-                    num_nodes (int): number of nodes in the generated graph
-                    nsamples (int): number of observational samples to generate
-                    iv_samples (int) : number of interventional samples to generate
-                    p (float): probability of edge creation (erdos_renyi) or rewiring (small_world)
-                    k (int): number of edges to attach from a new node to existing nodes (scale_free) or number of nearest neighbors connected in ring (small_world)
-                    seed (int): random seed
-                    save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
-                    outdir (str): directory to save the data to if save is True
-            Returns:
-                    arcs (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
-                    var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled observational, interventional data and target indices)
+
+    Parameters:
+        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
+        num_nodes (int): number of nodes in the generated graph
+        nsamples (int): number of observational samples to generate
+        iv_samples (int) : number of interventional samples to generate
+        p (float): probability of edge creation (erdos_renyi) or rewiring (small_world)
+        k (int): number of edges to attach from a new node to existing nodes (scale_free) or number of
+            nearest neighbors connected in ring (small_world)
+        seed (int): random seed
+        save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
+        outdir (str): directory to save the data to if save is True
+    Returns:
+        arcs (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
+            var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
+            observational, interventional data and target indices)
     """
-    if graph_type == "erdos_renyi":
-        random_graph_model = lambda nnodes: nx.erdos_renyi_graph(nnodes, p=p, seed=seed)
-    elif graph_type == "scale_free":
-        random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
-            nnodes, m=k, seed=seed
-        )
-    elif graph_type == "small_world":
-        random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
-            nnodes, k=k, p=p, seed=seed
-        )
-    else:
-        print("Unsupported random graph")
-        return
+    match graph_type:
+        case "erdos_renyi":
+            random_graph_model = lambda nnodes: nx.erdos_renyi_graph(
+                nnodes, p=p, seed=seed
+            )
+        case "scale_free":
+            random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
+                nnodes, m=k, seed=seed
+            )
+        case "small_world":
+            random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
+                nnodes, k=k, p=p, seed=seed
+            )
+        case _:
+            raise ValueError("Unsupported random graph")
+
     dag = rand.directed_random_graph(num_nodes, random_graph_model)
     nodes_inds = list(dag.nodes)
     bias = np.random.normal(0, 1, size=len(nodes_inds))
@@ -209,26 +262,37 @@ def get_random_graph_data(
     return (dag.arcs, nodes_inds, bias, var), df
 
 
-def get_data_from_graph(nodes, edges, bias,var, nsamples, iv_samples, save=False, outdir=None):
+def get_data_from_graph(
+    nodes: list[str],
+    edges: list[tuple],
+    nsamples: int,
+    iv_samples: int,
+    save: bool = False,
+    outdir: Path | str = None,
+):
     """
     Get data set from a predefined graph using the Gaussian DAG generative model (same as get_random_graph_data)
     Save a data.csv file containing the observational and interventional data samples and target vector
     Save a ground.txt file containing the edge list of the generated graph
     Save a data.csv file containing the observational and interventional data samples and target column
     Save a ground.txt file containing the edge list of the generated graph.
-            Parameters:
-                    nodes (list): list of node names
-                    edges (list of tuples): list of directed edge tuples (i,j) where i and j are in nodes
-                    nsamples (int): number of observational samples to generate
-                    iv_samples (int) : number of interventional samples to generate
-                    save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
-                    outdir (str): directory to save the data to if save is True
-            Returns:
-                    edges (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
-                    var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled observational, interventional data and target indices)
+
+    Args:
+        nodes (list[str]): list of node names
+        edges (list[tuple]): list of directed edge tuples (i,j) where i and j are in nodes
+        nsamples (int): number of observational samples to generate
+        iv_samples (int) : number of interventional samples to generate
+        save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
+        outdir (Path | str): directory to save the data to if save is True
+
+    Returns:
+        edges (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
+            var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
+            observational, interventional data and target indices)
     """
-    # bias = np.random.normal(0, 1, size=len(nodes))
-    # var = np.abs(np.random.normal(0, 1, size=len(nodes)))
+    bias = np.random.normal(0, 1, size=len(nodes))
+    var = np.abs(np.random.normal(0, 1, size=len(nodes)))
+    
     bn = GaussDAG(nodes=nodes, arcs=edges, biases=bias, variances=var)
     data = bn.sample(nsamples)
 
@@ -327,12 +391,15 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     is calculated as serial_score - partition_score.
 
     Args:
-        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from running the causal discovery algorithm on the entire data and node set
-        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph from running the causal discovery algorithm on the partitioned data and node sets
+        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from running the causal 
+            discovery algorithm on the entire data and node set
+        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph from running the causal 
+            discovery algorithm on the partitioned data and node sets
         true_graph (np.ndarray or nx.DiGraph): the ground truth graph to compare to
 
     Returns:
-        list (float, float, float, float, float): Delta SHD, AUC, SID, TPR, FPR. Note that the sign here is relative to the serial implmentation (we do not take the aboslute value)
+        list (float, float, float, float, float): Delta SHD, AUC, SID, TPR, FPR. Note that the sign 
+            here is relative to the serial implmentation (we do not take the aboslute value)
     """
     scores_s = get_scores(["CD serial"], [est_graph_serial], true_graph)
     scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)

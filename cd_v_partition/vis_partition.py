@@ -1,34 +1,36 @@
-import numpy as np
+import itertools
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import networkx as nx
-from scipy.spatial.distance import cdist
-from scipy.spatial.ckdtree import cKDTree
-from scipy.ndimage import gaussian_filter
-from matplotlib.patches import PathPatch
+import numpy as np
 import pylab
-import itertools
+
+from matplotlib.patches import PathPatch
 from netgraph import Graph, get_curved_edge_paths
+from scipy.ndimage import gaussian_filter
+from scipy.spatial.ckdtree import cKDTree
+from scipy.spatial.distance import cdist
 
 
-def create_partition_plot(G, nodes, partition, save_name, edge_color = None, pos_global=None):
+def create_partition_plot(
+    G: nx.Graph | nx.DiGraph,
+    nodes: list[str],
+    partition: dict[int, list[int]],
+    save_name: Path | str,
+):
     """
-    Create plot of overlapping partitions with patches
+    Create plot of overlapping partitions with patches.
 
-    Arguments:
-    ----------
-    G -- networkx.Graph or networkx.DiGraph instance
-        graph to plot
+    Args:
+        G (nx.Graph | nx.DiGraph): Graph to plot.
+        nodes (list[str]): List of node names.
+        partition (dict[int, list[int]]): Partition.
+        save_name (Path | str):
 
-    nodes -- list of node names
-
-    partition -- dict mapping partition -> list of nodes in
-        graph partitions
-
-    save_name -- Save the matplotlib figure to this path
-
+    Returns:
+        ...
     """
-    _, ax = plt.subplots()#figsize=(50, 50), dpi=80)
-
     node_to_partition = dict(
         zip(np.arange(len(nodes)), [[] for _ in np.arange(len(nodes))])
     )
@@ -40,6 +42,7 @@ def create_partition_plot(G, nodes, partition, save_name, edge_color = None, pos
                 node_to_partition[node] = comm
     pos, overlaps = _partition_layout(G, node_to_partition)
 
+    _, ax = plt.subplots()
     cm = pylab.get_cmap("plasma")
     colors = []
     num_colors = len(partition)
@@ -57,17 +60,11 @@ def create_partition_plot(G, nodes, partition, save_name, edge_color = None, pos
         )
     )
 
-    if pos_global is not None:
-        pos = pos_global
-    if edge_color is not None:
-        edge_color_graph =edge_color
-    else:
-        edge_color_graph='black'
     Graph(
         G,
-        edge_width=1,
-        node_size=5,
-        edge_color=edge_color_graph,
+        edge_width=5,
+        node_size=10,
+        edge_color="black",
         node_layout=pos,
         node_color=colors,
         arrows=True,
@@ -149,41 +146,28 @@ def _create_patches(node_positions, ax, subset, color):
     ax.add_patch(patch)
 
 
-def _partition_layout(g, partition):
+def _partition_layout(
+    g: nx.Graph | nx.DiGraph, partition: dict[int, list[int]]
+) -> tuple[dict[int, tuple[float, float]], list]:
     """
     Compute the layout for a modular graph.
 
-
-    Arguments:
-    ----------
-    g -- networkx.Graph or networkx.DiGraph instance
-        graph to plot
-
-    partition -- dict mapping int node -> list of ints partition
-        graph partitions
-
+    Args:
+        g (nx.Graph | nx.DiGraph): Graph to plot.
+        partition (dict[int, list[int]]): Graph partitions.
 
     Returns:
-    --------
-    pos -- dict mapping int node -> (float x, float y)
-        node positions
-
+        Node positions.
     """
 
     pos_partitions = _position_partitions(g, partition, scale=3.0)
-
     pos_nodes = _position_nodes(g, partition, scale=1.0)
-
-    # combine positions
-    pos = dict()
-    for node in g.nodes():
-        pos[node] = pos_partitions[node] + pos_nodes[node]
-
+    pos = {node: pos_partitions[node] + pos_nodes[node] for node in g.nodes()}
     overlaps = _find_overlaps(partition)
     return pos, overlaps
 
-
-def _position_partitions(g, partition,  **kwargs):
+  
+def _position_partitions(g, partition, **kwargs):
     # create a weighted graph, in which each node corresponds to a partition,
     # and each edge weight to the number of edges between partitions
     between_partition_edges = _find_between_partition_edges(g, partition)
@@ -199,7 +183,7 @@ def _position_partitions(g, partition,  **kwargs):
 
     # find layout for partitions
     pos_partitions = nx.spring_layout(
-        hypergraph, k=len(g.nodes()) / np.sqrt(len(partitions)), **kwargs
+        hypergraph, k=10 / np.sqrt(len(partitions)), **kwargs
     )
 
     # set node positions to position of partition
@@ -219,8 +203,7 @@ def _find_overlaps(partition):
 
 
 def _find_between_partition_edges(g, partition):
-    edges = dict()
-
+    edges = {}
     for ni, nj in g.edges():
         ci = partition[ni]
         cj = partition[nj]
