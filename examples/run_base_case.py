@@ -148,7 +148,7 @@ def create_base_case_net(
 
     # Create a random 'base' network
     (arcs, nodes, _, _), _ = get_random_graph_data(
-        graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, k=k, save=False
+        graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=k, save=False
     )
     net = nx.DiGraph()
     net.add_edges_from(arcs)

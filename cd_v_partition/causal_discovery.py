@@ -1,54 +1,63 @@
-# Causal discovery methods: cuPC, SP-GIES, etc... each with a specific set of assumptions that are assumed to be satisfied on subgraph
-# Runs local causal discovery on subgraphs to be merged later
-import pandas as pd
-import numpy as np
-import os
-import itertools
+from __future__ import annotations
 
-from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
+# Causal discovery methods: cuPC, SP-GIES, etc... each with a specific set of
+# assumptions that are assumed to be satisfied on subgraph. Runs local causal discovery on
+# subgraphs to be merged later.
+import itertools
 import logging
+import os
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
+
+CUPC_DIR = Path("./cupc/cuPC.R")
 
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
-from rpy2.robjects.packages import importr
 import rpy2.robjects as ro
 import rpy2.robjects.numpy2ri
-from rpy2.robjects.packages import SignatureTranslatedAnonymousPackage
+from rpy2.robjects.packages import importr, SignatureTranslatedAnonymousPackage
 
 rpy2.robjects.numpy2ri.activate()
+
 
 pcalg = importr("pcalg")
 base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
-def pc(data, alpha, outdir, num_cores=8):
-    """
-    Python wrapper for PC.
+def pc(
+    data: np.ndarray, alpha: float, outdir: Path | str, num_cores: int = 8
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""
+    Python wrapper for the PC algorithm.
 
-             Parameters:
-                     data (numpy ndarray): Observational data with dimensions n x p
-                     alpha (float): significance threshold to trim edges
-                     outdir (str): directory to save adjacency matrix to
-                     num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm
+    Args:
+        data (np.ndarray): Observational data with dimensions $n \times p$.
+        alpha (float): Significance threshold to trim edges.
+        outdir (Path | str): Directory to save adjacency matrix to.
+        num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
 
-             Returns:
-                     np.ndarray representing the adjancency matrix for the cpdag with dimensions p x p
-                     np.ndarray representing the signifance level of each edge with dimensions p x p
+    Returns:
+        A tuple containing two numpy arrays of dimensionality $p \times p$. The former
+        `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
+        significance level of each edge.
     """
 
     print("Running multicore CPU implementation of PC algorithm")
     ro.r.assign("data", data)
     rcode = "cor(data)"
     corMat = ro.r(rcode)
-    ro.r.assign("corrolationMatrix", corMat)
+    ro.r.assign("correlationMatrix", corMat)
 
     p = data.shape[1]
     ro.r.assign("p", p)
 
-    rcode = "list(C = corrolationMatrix, n = nrow(data))"
+    rcode = "list(C = correlationMatrix, n = nrow(data))"
     suffStat = ro.r(rcode)
     ro.r.assign("suffStat", suffStat)
-
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
     rcode = 'pc(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
@@ -63,30 +72,32 @@ def pc(data, alpha, outdir, num_cores=8):
     p_values = ro.r(rcode)
 
     if outdir:
-        rcode = "write.csv(pdag,row.names = FALSE, file = paste('{}/', 'pc-adj_mat.csv',sep = ''))".format(
-            outdir
-        )
+        d = str(outdir)
+        rcode = f"write.csv(pdag,row.names = FALSE, file = paste('{d}/', 'pc-adj_mat.csv',sep = ''))"
         ro.r(rcode)
     return pdag, p_values
 
 
-def cu_pc(data, alpha, outdir):
-    """
+def cu_pc(
+    data: np.ndarray, alpha: float, outdir: Path | str
+) -> tuple[np.ndarray, np.ndarray] | None:
+    r"""
     Python wrapper for cuPC. CUDA implementation of the PC algorithm
 
-             Parameters:
-                     data (numpy ndarray): Observational data with dimensions n x p
-                     alpha (float): significance threshold to trim edges
-                     outdir (str): directory to save adjacency matrix to
-             Returns:
-                     np.ndarray representing the adjancency matrix for the cpdag with dimensions p x p
-                     np.ndarray representing the signifance level of each edge with dimensions p x p
+    Args:
+        data (np.ndarray): Observational data with dimensions $n \times p$.
+        alpha (float): Significance threshold to trim edges.
+        outdir (Path | str): The directory to save adjacency matrix to.
+
+    Returns:
+        Tuple of numpy arrays of dimension $p \times p$. The former array is the adjacency matrix
+        for the CPDAG; the latter represents the significance level of each edge.
     """
     if not GPU_AVAILABLE:
         print("No compiled Skeleton.so file")
         return
     print("Running GPU implementation of PC algorithm")
-    with open("./cupc/cuPC.R") as file:
+    with open(CUPC_DIR) as file:
         string = "".join(file.readlines())
     cupc = SignatureTranslatedAnonymousPackage(string, "cupc")
     ro.r.assign("data", data)
@@ -120,33 +131,38 @@ def cu_pc(data, alpha, outdir):
 
 
 def sp_gies(
-    data,
-    outdir,
-    alpha=1e-3,
-    skel=None,
-    use_pc=True,
-    multifactor_targets=None,
-    adaptive=True,
+    data: pd.DataFrame,
+    outdir: Path | str,
+    alpha: float = 1e-3,
+    skel: np.ndarray = None,
+    use_pc: bool = True,
+    multifactor_targets: list[list[Any]] = None,
+    adaptive: bool = True,
 ):
-    """
+    r"""
     Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
 
-             Parameters:
-                     data (pandas DataFrame): DataFrame containing observational and interventional samples.
-                                              Must contain a column named 'target' which specifies the index of the node
-                                              that was intervened on to obtain the sample (assumes single interventions only).
-                                              This indexes from 1 for R convenience.
-                                              For observational samples the corresponding target should be 0
-                     outdir (str): The directory to save the final adjacency matrix named sp-gies-adj_mat.csv. Set to None to skip saving files
-                     skel (numpy ndarray): an optional initial skeleton with dimensions p x p
-                     use_pc (bool): a flag to indicate if skeleton estimation should be done with the PC. If False
-                                  and no skel is specified, then assumed no skeleton i.e. reverts to GIES algorithm.
-                                  Will use the GPU accelerated version of the PC if avaiable, otherwise reverts to pcalg
-                                  implementation of PC
-                      multifactor_targets (list): An optional list of lists for when there are multinode targets. In this case it is
-                                                  assumed that the 'target' column of the data DataFrame contains the index into this list
-             Returns:
-                     np.ndarray representing the adjancency matrix for the final learned graph
+    Args:
+        data (pd.DataFrame): DataFrame containing observational and interventional samples.
+            Must contain a column named 'target' which specifies the index of the node that
+            was intervened on to obtain the sample (assumes single interventions only). This
+            indexes from 1 for R convenience. For observational samples the corresponding
+            target should be 0.
+        outdir (Path | str): The directory to save the final adjacency matrix named
+            `sp-gies-adj_mat.csv`. Set to None to skip saving files.
+        alpha (float): Significance threshold to trim edges.
+        skel (np.ndarray): An optional initial skeleton with dimensions $p \times p$.
+        use_pc (bool): A flag to indicate if skeleton estimation should be done with the PC. If `False`
+            and no skel is specified, then assumed no skeleton i.e., reverts to GIES algorithm.
+            Will use the GPU accelerated version of the PC if available, otherwise reverts to pcalg
+            implementation of PC.
+        multifactor_targets (list[list[Any]]): An optional list of lists for when there are
+            multinode targets. In this case it is assumed that the 'target' column of the
+            data DataFrame contains the index into this list.
+        adaptive (bool): # TODO
+
+    Returns:
+        Array representing the adjacency matrix for the final learned graph.
     """
     # When the dataset only has one node (possible when partitioning)
     if data.shape[1] == 2:
@@ -154,6 +170,7 @@ def sp_gies(
         df = pd.DataFrame(data=adj_mat)
         df.to_csv("{}/sp-gies-adj_mat.csv".format(outdir), header=False, index=False)
         return adj_mat
+
     if skel is None:
         obs_data = data.loc[data["target"] == 0]
         obs_data = obs_data.drop(columns=["target"])
@@ -162,8 +179,10 @@ def sp_gies(
             skel = pc(obs_data, alpha, outdir, num_cores=8)[
                 0
             ]  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
+
         else:
             skel = np.ones((data.shape[1], data.shape[1]))
+
     fixed_gaps = np.array((skel == 0), dtype=int)
     target_index = data.loc[:, "target"].to_numpy()
     targets = (
@@ -233,15 +252,17 @@ def sp_gies(
     return adj_mat
 
 
-def weight_colliders(adj_mat, weight=1):
-    """
+def weight_colliders(adj_mat: np.ndarray, weight: int = 1):
+    r"""
     Find and add weights to collider sets in a given adjacency matrix. Collider sets are x->y<-z
-    when there is no edge between (x,z)
-            Parameters:
-                    adj_mat (np.ndarray): p x p adjacency matrix
-                    weight (int): edges that are part of a collider set are weighted with this weight
-            Returns:
-                    np.ndarray representing the weighted adjancency matrix
+    when there is no edge between $(x,z)$.
+
+    Args:
+        adj_mat (np.ndarray): $p \times p$ adjacency matrix.
+        weight (int): Edges that are part of a collider set are weighted with this weight.
+
+    Returns:
+        An array representing the weighted adjacency matrix.
     """
     weighted_adj_mat = adj_mat
     for col in np.arange(adj_mat.shape[1]):
