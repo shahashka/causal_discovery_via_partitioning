@@ -7,6 +7,7 @@ from cd_v_partition.utils import (
     delta_causality,
     edge_to_adj,
     adj_to_dag,
+    adj_to_edge,
     evaluate_partition,
     create_k_comms
 )
@@ -14,7 +15,7 @@ from cd_v_partition.causal_discovery import pc, sp_gies
 from cd_v_partition.overlapping_partition import modularity_partition, rand_edge_cover_partition, expansive_causal_partition, partition_problem
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import fusion
-
+import pandas as pd
 
 num_nodes=50
 num_samples=1e4
@@ -24,8 +25,9 @@ hard_partition, comm_graph = create_k_comms(graph_type="scale_free", n=int(num_n
                                                         m_list=[1,2], 
                                                         p_list=num_comms*[0.2], 
                                                         k=num_comms,tune_mod=1)
+print(hard_partition)
 # Generate a random network and corresponding dataset
-(edges, nodes, _, _), df = get_data_from_graph(
+(edges, nodes, bias, var), df = get_data_from_graph(
                 list(np.arange(num_nodes)),
                 list(comm_graph.edges()),
                 nsamples=int(num_samples),
@@ -44,13 +46,15 @@ A_X_v = sp_gies(df, skel=superstructure, outdir=None)
 
 # Partition the superstructure and the dataset
 mod_partition = modularity_partition(superstructure)
-causal_partition =expansive_causal_partition(superstructure, mod_partition) # adapt the modularity partition
+causal_partition = expansive_causal_partition(superstructure, mod_partition) # adapt the modularity partition
 edge_cover_partition = rand_edge_cover_partition(superstructure, mod_partition) # adapt the modularity partition randomly 
 
 partition_schemes = {"default":hard_partition, "modularity":mod_partition, "causal":causal_partition, "edge_cover":edge_cover_partition}
 
 # For each partition scheme run parallel causal discovery
 for name, partition in partition_schemes.items():
+    print(name)
+    print(partition)
     subproblems = partition_problem(partition, superstructure, df)
 
     # Visualize the partition
@@ -91,9 +95,11 @@ for name, partition in partition_schemes.items():
     delta_causality(A_X_v, fused_A_X_s, G_star)
     
     # Save the partition adjacency matrix
-    np.savetxt("./examples/adj_{}_partition.txt".format(name), fused_A_X_s)
-    # np.savetxt("./examples/{}_partition.txt".format(name), partition)
+    
+    pd.DataFrame(list(fused_A_X_s.edges(data=True))).to_csv("./examples/edges_{}_partition.csv".format(name), header=["node1", "node2", "weight"], index=False)
+    pd.DataFrame(list(zip(partition.keys(), partition.values()))).to_csv("./examples/{}_partition.csv".format(name), header=["comm id", "node list"], index=False)
 
 # Save 
-np.savetxt("./examples/adj_serial.txt", A_X_v)
-np.savetxt("./examples/adj_true.txt", G_star)
+pd.DataFrame(adj_to_edge(A_X_v, np.arange(num_nodes))).to_csv("./examples/edges_serial.csv", header=["node1", "node2", "weight"], index=False)
+pd.DataFrame(adj_to_edge(G_star, np.arange(num_nodes))).to_csv("./examples/edges_true.csv", header=["node1", "node2", "weight"], index=False)
+pd.DataFrame(list(zip(np.arange(len(bias)),bias, var))).to_csv("./examples/data_gen_true.csv", header=["node id","bias", "var"], index=False)

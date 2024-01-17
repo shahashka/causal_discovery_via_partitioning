@@ -149,8 +149,8 @@ def run_causal_discovery(partition, df, G_star):
             results.append(result)
 
     # Merge globally
-    est_graph_partition = fusion(partition, results, data_obs)
-    #est_graph_partition = screen_projections(partition, results)
+    #est_graph_partition = fusion(partition, results, data_obs)
+    est_graph_partition = screen_projections(partition, results)
 
     # Call serial method
     est_graph_serial = _local_structure_learn([superstructure, df])
@@ -290,7 +290,7 @@ def run():
     ax.set_title("Comparison of partition types for 2 community scale free networks")
     plt.legend(*zip(*labels), loc=2)
     plt.savefig(
-        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_fusion_same_dist.png"
+        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_fusion_same_dist_screen_projections.png"
     )
 
 
