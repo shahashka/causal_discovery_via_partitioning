@@ -3,135 +3,27 @@ import numpy as np
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.utils import (
-    get_random_graph_data,
+    adj_to_dag,
     get_data_from_graph,
     delta_causality,
     edge_to_adj,
+    create_k_comms
 )
 from cd_v_partition.causal_discovery import sp_gies, pc
 from cd_v_partition.fusion import screen_projections, fusion, fusion_basic
+from cd_v_partition.overlapping_partition import rand_edge_cover_partition, expansive_causal_partition
 import functools
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-
-
-def apply_causal_order(undirected_graph):
-    """Apply a causal order to an undirected graph and return a DAG. The order is determined
-    by the degree distribution. A highly connected node is more likely to be a source node and
-    upstream in the topological order
-
-    Args:
-        undirected_graph (nx.Graph): undirected skeleton of the graph
-
-    Returns:
-        nx.DiGraph: a directed graph without cycles
-    """
-    deg_dist = np.array(list(undirected_graph.degree()), dtype=int)[:, 1]
-    num_nodes = len(deg_dist)
-    normalize = np.sum(np.array(list(undirected_graph.degree()), dtype=int)[:, 1])
-    prob = [deg_dist[i] / normalize for i in np.arange(num_nodes)]
-    # Higher degree is chosen first
-    causal_order = list(
-        np.random.choice(np.arange(num_nodes), size=num_nodes, p=prob, replace=False)
-    )
-
-    # Loop through the undirected edges, reverse any edges that are not consistent with
-    # the topological order
-    undirected_edges = undirected_graph.edges()
-    directed_edges = []
-    for e in undirected_edges:
-        if causal_order.index(e[0]) > causal_order.index(e[1]):
-            directed_edge = e[::-1]
-        else:
-            directed_edge = e
-
-        # Make sure there are no self loops
-        if directed_edge[::-1] not in directed_edges:
-            directed_edges.append(directed_edge)
-    directed_graph = nx.DiGraph()
-    directed_graph.add_edges_from(directed_edges)
-    return directed_graph
-
-
-def create_two_comms(graph_type, n, m1, m2, p1, p2, vis=True):
-    """Create a graph with two communities for the specified graph type and parameters. Use
-    preferential attachment to connect two disjoint subgraphs. Also apply a causal order based on the degree distribution so that the
-    resulting graph is a DAG.
-
-    Args:
-        graph_type (str): erdos_renyi, scale_free, small_world
-        n (int): number of nodes in one community
-        m1 (int): number of edges to attach from a new node to existing nodes (scale_free) or number of nearest neighbors connected in ring (small_world) for community 1
-        m2 (int): number of edges to attach from a new node to existing nodes (scale_free) or number of nearest neighbors connected in ring (small_world) for community 2
-        p1 (float): probability of edge creation (erdos_renyi) or rewiring (small_world) for community 1
-        p2 (float): probability of edge creation (erdos_renyi) or rewiring (small_world) form community 2
-
-    Returns:
-        dict, nx.DiGraph: a dictionary for the partition into two communities, DAG for the two community network
-    """
-    # generate the edges set
-    comm_1 = get_random_graph_data(
-        graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p1, m=m1
-    )[0][0]
-    comm_2 = get_random_graph_data(
-        graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p2, m=m2
-    )[0][0]
-
-    comm_1 = nx.DiGraph(comm_1)
-    comm_2 = nx.DiGraph(comm_2)
-
-    # connect the two communities using preferential attachment
-    num_tiles = 2
-    degree_sequence = sorted((d for _, d in comm_1.in_degree()), reverse=True)
-    dmax = max(degree_sequence)
-    tiles = [comm_1, comm_2]
-
-    # First add all communities as disjoint graphs
-    tiled_graph = nx.disjoint_union_all(tiles)
-
-    # Each node is preferentially attached to other nodes
-    # The number of attached nodes is given by a probability distribution over
-    # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
-    # in the community
-    A = np.min([dmax, 4])
-    in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
-    leftover = n - sum(in_degree_a)
-    in_degree_a[-1] += leftover
-    probs = np.array(in_degree_a) / (n)
-
-    # Add connections based on random choice over probability distribution
-    for t in range(1, num_tiles):
-        for i in range(n):
-            node_label = t * n + i
-            if len(list(tiled_graph.predecessors(node_label))) == 0:
-                num_connected = np.random.choice(np.arange(A), size=1, p=probs)
-                dest = np.random.choice(np.arange(t * n), size=num_connected)
-                connections = [(node_label, d) for d in dest]
-                tiled_graph.add_edges_from(connections)
-
-    causal_tiled_graph = apply_causal_order(tiled_graph)
-
-    init_partition = {0: list(np.arange(n)), 1: list(np.arange(n, 2 * n))}
-    if vis:
-        create_partition_plot(
-            causal_tiled_graph,
-            list(causal_tiled_graph.nodes()),
-            init_partition,
-            "{}/two_comm.png".format("./tests/empirical_tests"),
-        )
-    return init_partition, causal_tiled_graph
+import random 
 
 def _local_structure_learn(subproblem):
     skel, data = subproblem
     adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
     
-def run_causal_discovery(partition, df, G_star):
-    # Find superstructure
-    df_obs = df.drop(columns=["target"])
-    data_obs = df_obs.to_numpy()
-    superstructure, _ = pc(data_obs, alpha=0.5, outdir=None)
+def run_causal_discovery(superstructure, partition, df, G_star):
 
     # Break up problem according to provided partition
     subproblems = partition_problem(partition, superstructure, df)
@@ -149,8 +41,9 @@ def run_causal_discovery(partition, df, G_star):
             results.append(result)
 
     # Merge globally
-    #est_graph_partition = fusion(partition, results, data_obs)
-    est_graph_partition = screen_projections(partition, results)
+    data_obs = df.drop(columns=["target"]).to_numpy()
+    est_graph_partition = fusion(partition, results, data_obs)
+    #est_graph_partition = screen_projections(partition, results)
 
     # Call serial method
     est_graph_serial = _local_structure_learn([superstructure, df])
@@ -159,41 +52,68 @@ def run_causal_discovery(partition, df, G_star):
     d_scores = delta_causality(est_graph_serial, est_graph_partition, G_star)
     return d_scores[-2]  # this is the delta true positive rate
 
+def vis(name, partition, superstructure):
+    superstructure = adj_to_dag(superstructure)
+    create_partition_plot(superstructure, nodes=np.arange(len(superstructure.nodes())),
+                          partition=partition, save_name="./tests/empirical_tests/{}_partition.png".format(name))
 
-def expansive_causal_partition(partition, graph):
-    """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
+
+def artificial_superstructure(
+    G_star_adj_mat, frac_retain_direction=0.1, frac_extraneous=0.5
+):
+    """Creates a superstructure by discarding some of the directions in edges of G_star and adding
+    extraneous edges.
 
     Args:
-        adj_mat (np.ndarray): the adjacency matrix for the superstructure
+        G_star_adj_mat (np.ndarray): the adjacency matrix for the target graph
+        frac_retain_direction (float): what percentage of edges will retain their direction information
+        frac_extraneous (float): adds frac_extraneous*m many additional edges, for m the number of edges in G_star
+
+    Returns:
+        super_adj_mat (np.ndarray): an adjacency matrix for the superstructure we've created
+    """
+    G_star = nx.from_numpy_array(G_star_adj_mat, create_using=nx.DiGraph())
+    true_edge_set = set(G_star.edges())
+
+    # returns a deepcopy
+    G_super = G_star.to_undirected()
+    # add extraneous edges
+    m = G_star.number_of_edges()
+    nodes = list(G_star.nodes())
+    G_super.add_edges_from(pick_k_random_edges(k=int(frac_extraneous * m), nodes=nodes))
+
+    return nx.adjacency_matrix(G_super).toarray()
+
+def pick_k_random_edges(k, nodes):
+    return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
+
+def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
+    """Creates a random edge covering partition from an initial hard partition.
+
+    Randomly chooses cut edges and randomly assigns endpoints to communities. Recursively
+    adds any shared endpoints to the same community
+    Args:
+        adj_mat (np.ndarray): Adjacency matrix for the graph
         partition (dict): the estimated partition as a dictionary {comm_id : [nodes]}
 
     Returns:
-        dict: the causal partition as a dictionary {comm_id : [nodes]}
+        dict: the overlapping partition as a dictionary {comm_id : [nodes]}
     """
-    causal_partition = dict()
-    for idx, c in enumerate(list(partition.values())):
-        outer_node_boundary = nx.node_boundary(graph, c)
-        expanded_cluster = set(c).union(outer_node_boundary)
-        causal_partition[idx] = list(expanded_cluster)
-    create_partition_plot(
-        graph,
-        list(graph.nodes()),
-        partition,
-        "./tests/empirical_tests/expansive_causal_cover.png",
-    )
+    graph = nx.from_numpy_array(adj_mat)
 
-    return causal_partition
-
-
-def edge_cover(partition, graph):
-    def edge_coverage_helper(i,j,comm, cut_edges, node_to_comm):
+    def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
         node_to_comm[i] = comm
         node_to_comm[j] = comm
-        cut_edges.remove((i,j))
+        cut_edges.remove((i, j))
+
+        # Any other edges that share the same endpoint must be in the same community
+        # E.g. if edges (1,2) and (2,3) are cut then nodes 1,2,3 must all be in the
+        # same community to ensure edge coverage
         for edge in cut_edges:
             if i in edge or j in edge:
                 edge_coverage_helper(edge[0], edge[1], comm, cut_edges, node_to_comm)
         return node_to_comm, cut_edges
+
     node_to_comm = dict()
     for comm_id, comm in partition.items():
         for node in comm:
@@ -202,43 +122,46 @@ def edge_cover(partition, graph):
     for edge in graph.edges():
         if node_to_comm[edge[0]] != node_to_comm[edge[1]]:
             cut_edges.append(edge)
+
+    # Randomly choose a cut edge until all edges are covered
     while len(cut_edges) > 0:
         edge_ind = np.random.choice(np.arange(len(cut_edges)))
         i = cut_edges[edge_ind][0]
         j = cut_edges[edge_ind][1]
-        comm = np.random.choice([node_to_comm[i], node_to_comm[j]])
-        node_to_comm, cut_edges = edge_coverage_helper(i,j,comm, cut_edges, node_to_comm)
-    for n, c in node_to_comm.items():
-        if n not in partition[c]:
-            partition[c] += [n]
-    return partition
 
-def define_rand_edge_coverage(partition, graph, vis=True):
-    partition = edge_cover(partition, graph)
-    if vis:
-        create_partition_plot(
-            graph,
-            list(graph.nodes()),
-            partition,
-            "./tests/empirical_tests/edge_cover.png",
+        # Randomly choose an endpoint and associated community to start
+        # putting all endpoints into.
+        comm = np.random.choice([node_to_comm[i], node_to_comm[j]])
+        node_to_comm, cut_edges = edge_coverage_helper(
+            i, j, comm, cut_edges, node_to_comm
         )
 
-    return partition
+    edge_cover_partition = dict()
+    # Update the hard partition
+    for n, c in node_to_comm.items():
+        if c in edge_cover_partition.keys():
+            edge_cover_partition[c] += [n]
+        else:
+            edge_cover_partition[c] = [n]
+    return edge_cover_partition
+
 
 def run():
-    num_repeats = 30
-    sample_range = [1e2, 1e3, 1e4, 1e5, 1e6, 1e7]
+    num_repeats = 5
+    sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
+    alpha=0.5
     scores_edge_cover = np.zeros((num_repeats, len(sample_range)))
     scores_hard_partition = np.zeros((num_repeats, len(sample_range)))
     scores_causal_partition = np.zeros((num_repeats, len(sample_range)))
     for i in range(num_repeats):
-        init_partition, graph = create_two_comms(
-            "scale_free", n=25, m1=1, m2=2, p1=0.5, p2=0.5, vis=True
+        init_partition, graph = create_k_comms(
+            "scale_free", n=25, m_list=[1,2], p_list=[0.5,0.5], k=2
         )
         num_nodes = len(graph.nodes())
         bias = np.random.normal(0, 1, size=num_nodes)
         var = np.abs(np.random.normal(0, 1, size=num_nodes))
         for j,ns in enumerate(sample_range):
+            print("Number of samples {}".format(ns))
             # Generate data
             (edges, nodes, _, _), df = get_data_from_graph(
                 list(np.arange(num_nodes)),
@@ -247,15 +170,23 @@ def run():
                 iv_samples=0,bias=bias, var=var
             )
             G_star = edge_to_adj(edges, nodes)
-            d_tpr_hard = run_causal_discovery(init_partition, df, G_star)
+            superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
+            # data_obs = df.drop(columns=["target"]).to_numpy()
+            # superstructure, _ = pc(data_obs, alpha=alpha, outdir=None)
+
+
+            d_tpr_hard = run_causal_discovery(superstructure, init_partition, df, G_star)
+            vis("init", init_partition, G_star)
             scores_hard_partition[i][j] = d_tpr_hard
 
-            partition = define_rand_edge_coverage(init_partition, graph, vis=True)
-            d_tpr_ec = run_causal_discovery(partition, df, G_star)
+            partition = rand_edge_cover_partition(superstructure, init_partition)
+            vis("edge_cover", partition, G_star)
+            d_tpr_ec = run_causal_discovery(superstructure, partition, df, G_star)
             scores_edge_cover[i][j] = d_tpr_ec
 
-            partition = expansive_causal_partition(init_partition, graph)
-            d_tpr_cp = run_causal_discovery(partition, df, G_star)
+            partition = expansive_causal_partition(superstructure, init_partition)
+            vis("causal", partition, G_star)
+            d_tpr_cp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_causal_partition[i][j] = d_tpr_cp
 
 
@@ -290,7 +221,7 @@ def run():
     ax.set_title("Comparison of partition types for 2 community scale free networks")
     plt.legend(*zip(*labels), loc=2)
     plt.savefig(
-        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_fusion_same_dist_screen_projections.png"
+        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_fusion_update.png"
     )
 
 
