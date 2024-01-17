@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import pdb
+
 
 def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
     """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
@@ -29,7 +31,7 @@ def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
 
 
 def modularity_partition(
-    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 2, best_n: int = 2
+    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 1, best_n=None
 ):
     """Creates disjoint partition by greedily maximizing modularity. Using networkx built-in implementaiton.
 
@@ -43,6 +45,8 @@ def modularity_partition(
     Returns:
         dict: the estimated partition as a dictionary {comm_id : [nodes]}
     """
+    print("ENTERED FUNCTION")
+    pdb.set_trace()
     G = nx.from_numpy_array(adj_mat)
     community_lists = nx.community.greedy_modularity_communities(
         G, cutoff=cutoff, best_n=best_n
