@@ -410,7 +410,7 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
 
 
 # TODO modify k_comm to take a parameter pho rather than number of edges
-def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, tune_mod: int =1):
+def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, rho: int = 0.01):
     """Create a random network with k communities with the specified graph type and parameters. Create this by
     generating k disjoint communities adn using preferential attachment. Remove any cycles to 
     make this a DAG
@@ -422,7 +422,8 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
                             nearest neighbors connected in ring (small_world)
         p_list (list[float]): probability of edge creation (erdos_renyi) or rewiring (small_world)
         k (int): number of communities
-        tune_mod (int, optional): Max number of connections between communities. Defaults to 1.
+        rho (int, optional): Parameter to tune the strength of community structure. This is the fraction of total possible edges
+                            between communities. Defaults to 0.01
 
     Returns:
         tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
@@ -460,8 +461,9 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
     in_degree_a[-1] += leftover
     probs = np.array(in_degree_a) / (n)
 
-    # Add connections based on random choice over probability distribution
-    while tune_mod > 0:
+    # Add connections from one community to the previous communities based on probability distribution
+    num_edges = rho * n**2 * k
+    while num_edges > 0:
         for t in range(1, k):
             for i in range(n):
                 node_label = t * n + i
@@ -470,7 +472,7 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
                     dest = np.random.choice(np.arange(t * n), size=num_connected)
                     connections = [(node_label, d) for d in dest]
                     comm_graph.add_edges_from(connections)
-                    tune_mod -= num_connected
+                    num_edges -= num_connected
 
     init_partition = dict()
     for i in np.arange(k):

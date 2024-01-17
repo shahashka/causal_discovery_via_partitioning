@@ -90,7 +90,7 @@ def pick_k_random_edges(k, nodes):
 
 def run():
     num_repeats = 30
-    sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
+    sample_range = [1e2, 1e3, 1e4, 1e5, 1e6, 1e7]
     alpha=0.5
     scores_edge_cover = np.zeros((num_repeats, len(sample_range)))
     scores_hard_partition = np.zeros((num_repeats, len(sample_range)))
@@ -114,7 +114,7 @@ def run():
                 iv_samples=0,bias=bias, var=var
             )
             G_star = edge_to_adj(edges, nodes)
-            # superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
+            #superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
             data_obs = df.drop(columns=["target"]).to_numpy()
             superstructure, _ = pc(data_obs, alpha=alpha, outdir=None)
 
@@ -122,21 +122,25 @@ def run():
             d_tpr_hard = run_causal_discovery(superstructure, init_partition, df, G_star)
             vis("init", init_partition, G_star)
             scores_hard_partition[i][j] = d_tpr_hard
+            print(init_partition)
 
             partition = rand_edge_cover_partition(superstructure, init_partition)
             vis("edge_cover", partition, G_star)
             d_tpr_ec = run_causal_discovery(superstructure, partition, df, G_star)
             scores_edge_cover[i][j] = d_tpr_ec
-
+            print(partition)
+            
             partition = expansive_causal_partition(superstructure, init_partition)
             vis("causal", partition, G_star)
             d_tpr_cp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_causal_partition[i][j] = d_tpr_cp
-
+            print(partition)
+            
             partition = modularity_partition(superstructure, cutoff=1, best_n=2)
             vis("mod", partition, G_star)
             d_tpr_mod = run_causal_discovery(superstructure, partition, df, G_star)
             scores_mod_partition[i][j] = d_tpr_mod
+            print(partition)
 
     labels = []
 
@@ -172,7 +176,7 @@ def run():
     ax.set_title("Comparison of partition types for 2 community scale free networks")
     plt.legend(*zip(*labels), loc=2)
     plt.savefig(
-        "./tests/empirical_tests/causal_part_test_ss_alpha_0_3.png"
+        "./tests/empirical_tests/causal_part_test_ss.png"
     )
 
 
