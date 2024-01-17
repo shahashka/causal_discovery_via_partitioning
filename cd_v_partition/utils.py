@@ -162,7 +162,6 @@ def get_scores(
                 net, nodelist=np.arange(len(net.nodes()))
             ).todense()
         sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
-        auc = 0
         if name != "NULL":
             tpr_fpr = tpr_fpr_score(ground_truth, net)
         else:
