@@ -11,7 +11,7 @@ from cd_v_partition.utils import (
 )
 from cd_v_partition.causal_discovery import sp_gies, pc
 from cd_v_partition.fusion import screen_projections, fusion, fusion_basic
-from cd_v_partition.overlapping_partition import rand_edge_cover_partition, expansive_causal_partition
+from cd_v_partition.overlapping_partition import rand_edge_cover_partition, expansive_causal_partition, modularity_partition
 import functools
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
@@ -87,72 +87,16 @@ def artificial_superstructure(
 def pick_k_random_edges(k, nodes):
     return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
 
-def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
-    """Creates a random edge covering partition from an initial hard partition.
-
-    Randomly chooses cut edges and randomly assigns endpoints to communities. Recursively
-    adds any shared endpoints to the same community
-    Args:
-        adj_mat (np.ndarray): Adjacency matrix for the graph
-        partition (dict): the estimated partition as a dictionary {comm_id : [nodes]}
-
-    Returns:
-        dict: the overlapping partition as a dictionary {comm_id : [nodes]}
-    """
-    graph = nx.from_numpy_array(adj_mat)
-
-    def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
-        node_to_comm[i] = comm
-        node_to_comm[j] = comm
-        cut_edges.remove((i, j))
-
-        # Any other edges that share the same endpoint must be in the same community
-        # E.g. if edges (1,2) and (2,3) are cut then nodes 1,2,3 must all be in the
-        # same community to ensure edge coverage
-        for edge in cut_edges:
-            if i in edge or j in edge:
-                edge_coverage_helper(edge[0], edge[1], comm, cut_edges, node_to_comm)
-        return node_to_comm, cut_edges
-
-    node_to_comm = dict()
-    for comm_id, comm in partition.items():
-        for node in comm:
-            node_to_comm[node] = comm_id
-    cut_edges = []
-    for edge in graph.edges():
-        if node_to_comm[edge[0]] != node_to_comm[edge[1]]:
-            cut_edges.append(edge)
-
-    # Randomly choose a cut edge until all edges are covered
-    while len(cut_edges) > 0:
-        edge_ind = np.random.choice(np.arange(len(cut_edges)))
-        i = cut_edges[edge_ind][0]
-        j = cut_edges[edge_ind][1]
-
-        # Randomly choose an endpoint and associated community to start
-        # putting all endpoints into.
-        comm = np.random.choice([node_to_comm[i], node_to_comm[j]])
-        node_to_comm, cut_edges = edge_coverage_helper(
-            i, j, comm, cut_edges, node_to_comm
-        )
-
-    edge_cover_partition = dict()
-    # Update the hard partition
-    for n, c in node_to_comm.items():
-        if c in edge_cover_partition.keys():
-            edge_cover_partition[c] += [n]
-        else:
-            edge_cover_partition[c] = [n]
-    return edge_cover_partition
-
 
 def run():
-    num_repeats = 5
+    num_repeats = 30
     sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
     scores_edge_cover = np.zeros((num_repeats, len(sample_range)))
     scores_hard_partition = np.zeros((num_repeats, len(sample_range)))
     scores_causal_partition = np.zeros((num_repeats, len(sample_range)))
+    scores_mod_partition = np.zeros((num_repeats, len(sample_range)))
+
     for i in range(num_repeats):
         init_partition, graph = create_k_comms(
             "scale_free", n=25, m_list=[1,2], p_list=[0.5,0.5], k=2
@@ -170,9 +114,9 @@ def run():
                 iv_samples=0,bias=bias, var=var
             )
             G_star = edge_to_adj(edges, nodes)
-            superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
-            # data_obs = df.drop(columns=["target"]).to_numpy()
-            # superstructure, _ = pc(data_obs, alpha=alpha, outdir=None)
+            # superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
+            data_obs = df.drop(columns=["target"]).to_numpy()
+            superstructure, _ = pc(data_obs, alpha=alpha, outdir=None)
 
 
             d_tpr_hard = run_causal_discovery(superstructure, init_partition, df, G_star)
@@ -189,6 +133,10 @@ def run():
             d_tpr_cp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_causal_partition[i][j] = d_tpr_cp
 
+            partition = modularity_partition(superstructure, cutoff=1, best_n=2)
+            vis("mod", partition, G_star)
+            d_tpr_mod = run_causal_discovery(superstructure, partition, df, G_star)
+            scores_mod_partition[i][j] = d_tpr_mod
 
     labels = []
 
@@ -210,7 +158,10 @@ def run():
         ax.violinplot(scores_causal_partition, showmeans=True, showmedians=False),
         label="expansive_causal_partition",
     )
-
+    add_label(
+        ax.violinplot(scores_mod_partition, showmeans=True, showmedians=False),
+        label="modularity_partition",
+    )
     ax.set_xticks(
         np.arange(1, len(sample_range) + 1),
         labels=["1e{}".format(i) for i in range(2,len(sample_range)+2)],
@@ -221,7 +172,7 @@ def run():
     ax.set_title("Comparison of partition types for 2 community scale free networks")
     plt.legend(*zip(*labels), loc=2)
     plt.savefig(
-        "./tests/empirical_tests/causal_part_test_sparse_w_expansive_fusion_update.png"
+        "./tests/empirical_tests/causal_part_test_ss_alpha_0_3.png"
     )
 
 

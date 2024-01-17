@@ -410,19 +410,22 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
 
 
 # TODO modify k_comm to take a parameter pho rather than number of edges
-def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
-    """Create a random network with k communities with the specified graph type and parameters
+def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, tune_mod: int =1):
+    """Create a random network with k communities with the specified graph type and parameters. Create this by
+    generating k disjoint communities adn using preferential attachment. Remove any cycles to 
+    make this a DAG
 
     Args:
-        graph_type (_type_): _description_
-        n (_type_): _description_
-        m_list (_type_): _description_
-        p_list (_type_): _description_
-        k (_type_): _description_
-        tune_mod (int, optional): _description_. Defaults to 1.
+        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
+        n (int): number of nodes per community 
+        m_list (list[int]): number of edges to attach from a new node to existing nodes (scale_free) or number of
+                            nearest neighbors connected in ring (small_world)
+        p_list (list[float]): probability of edge creation (erdos_renyi) or rewiring (small_world)
+        k (int): number of communities
+        tune_mod (int, optional): Max number of connections between communities. Defaults to 1.
 
     Returns:
-        _type_: _description_
+        tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
     comms = []
     for i in np.arange(k):
