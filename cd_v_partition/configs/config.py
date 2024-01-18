@@ -33,14 +33,13 @@ class SimulationConfig:
     graph_kind: list[str] = MISSING
     num_nodes: list[int] = MISSING
     edge_params: list[int] = MISSING
-    causal_learn_fn: list[str] = MISSING
-    partition_fn: list[str] = MISSING
-    merge_fn: list[str] = MISSING
+    causal_learn_fn: list[str] = MISSING  # default to SPGIES
+    partition_fn: list[str] = MISSING  # default to Adela's modularity partition
+    merge_fn: list[str] = MISSING  # default to fusion
 
     def __iter__(self) -> Iterator[SimulationSpec]:
         """
-        Iterates through all the combinations of iterable items in config
-        (see ``itertools.product``).
+        Iterates through all the combinations of iterable items in config (see ``itertools.product``).
 
         Returns:
             Iterator item.

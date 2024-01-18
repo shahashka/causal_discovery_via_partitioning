@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,8 +15,11 @@ from numpy.random import RandomState
 from cd_v_partition.utils import load_random_state
 
 ArcList: TypeAlias = set[tuple[Hashable, Hashable]]
+"""List of arcs (or edges/links)."""
 NodeList: TypeAlias = list[Hashable]
+"""List of node IDs."""
 GraphKind = Literal["barabasi_albert", "erdos_renyi", "watts_strogatz"]
+"""Literal values for the different kinds of random graphs that can be generated."""
 
 
 @dataclass
@@ -44,7 +49,7 @@ class GraphFactory:
             **kwargs: Additional kw-args for the random graph model.
 
         Returns:
-
+            The resulting DAG topology.
         """
         random_state = load_random_state(random_state)
         seed = random_state.randint(low=0, high=2**32 - 1)
@@ -89,6 +94,19 @@ class GraphFactory:
         outdir: Path | str | None = None,
         random_state: RandomState | int | None = None,
     ) -> tuple[tuple[ArcList, NodeList, np.ndarray, np.ndarray], pd.DataFrame]:
+        """
+        Generates observational data of a random graph of the given ``kind``.
+
+        Args:
+            kind (GraphKind): The kind of random graph to generate.
+            num_observations (int): The number of observations of the true graph to generate.
+            num_interventions (int): The number of interventions to introduce.
+            outdir (Path | str | None): The output directory.
+            random_state (RandomState | int | None): The random state object or random seed. Defaults to ``None``.
+
+        Returns:
+            Observational data of the true graph, which is randomly generated using the designated random graph model.
+        """
         random_state = load_random_state(random_state)
 
         dag = self.create_graph(kind, random_state)

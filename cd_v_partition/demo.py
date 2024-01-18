@@ -3,10 +3,9 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
-from cd_v_partition.causal_discovery import pc, sp_gies
+from cd_v_partition.algorithms.causal_discovery import pc, sp_gies
+from cd_v_partition.algorithms.partitioning.overlapping_partition import partition_problem
 from cd_v_partition.configs import SimulationSpec
-from cd_v_partition.fusion import fusion
-from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.utils import (
     get_random_graph_data,
     edge_to_adj,

@@ -28,15 +28,14 @@ class Simulation:
             graphs.append(g)
 
     def run_simulation(self, spec: Spec):
-        """
-        true_graph = GraphFactory.create_graph()
-        superstructure = self.structure_learner.learn(true_graph)
-        parts = self.partition(superstructure)
-
-        learned_structs = {}
-        for i, part in enumerate(parts):
-            learned_structs[i] = self.causal_learner(part)
-
-        predicted_graph = self.merge(learned_structs)
-        self.evaluate(predicted_graph)
-        """
+        # true_graph = GraphFactory.create_graph()
+        # superstructure = self.structure_learner.learn(true_graph)
+        # parts = self.partition(superstructure)
+        #
+        # learned_structs = {}
+        # for i, part in enumerate(parts):
+        #     learned_structs[i] = self.causal_learner(part)
+        #
+        # predicted_graph = self.merge(learned_structs)
+        # self.evaluate(predicted_graph)
+        pass

@@ -1,27 +1,42 @@
 site_name: Causal Partitioning
+
+# nav:
+#  - Home:
+#    - index.md
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+extra_css:
+  - stylesheets/extra.css
+  - stylesheets/mkdocstrings.css
+
 theme:
   name: material
   language: en
   font:
     text: Open Sans
     code: Source Code Pro # Roboto Mono
-    features:
-      - content.code.annotate
-      - content.code.copy
-      - content.code.select
-      - navigation.footer
-      - navigation.path
-      - navigation.tabs
-      - navigation.tabs.sticky
-      - navigation.top
-      - navigation.tracking
-      - search.highlight
-      - search.share
-      - search.suggest
-      - toc.follow
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - navigation.footer
+    - navigation.path
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
 
-extra_css:
-  - stylesheets/extra.css
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
 
 plugins:
   - mermaid2
@@ -67,7 +82,6 @@ markdown_extensions:
       emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
 
-      # Math typesetting
   - pymdownx.arithmatex:
       generic: true
 
@@ -92,7 +106,7 @@ markdown_extensions:
       emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
 
-      # Javascript for math typesetting
+# Javascript for math typesetting
 extra_javascript:
   - javascripts/mathjax.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6

@@ -1,3 +1,16 @@
+/**
+ * Styling for code snippets.
+ */
+.md-typeset code,
+.md-typeset kbd,
+.md-typeset pre {
+    font-feature-settings: "kern", "liga";
+    font-variant-ligatures: normal;
+}
+
+/**
+ * Styling for MERMAID figures (centering them).
+ */
 .mermaid {
     text-align: center;
  }
