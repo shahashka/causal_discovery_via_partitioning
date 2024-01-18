@@ -154,8 +154,11 @@ def run_single_heirarchical_trial(verbose=True):
         # SID: 'ignore this one'
         # AUC: 'auroc where edge is 1, no edge is 0',
         # TPR,FPR: ('true positive rate', 'false positive rate')
+        # delta_causality(
+        #     A_X_v, nx.to_numpy_array(fused_A_X_s), nx.to_numpy_array(G_star_graph)
+        # )
         delta_causality(
-            A_X_v, nx.to_numpy_array(fused_A_X_s), nx.to_numpy_array(G_star_graph)
+            A_X_v, fused_A_X_s, G_star_graph
         )
         shd, _, auc, tpr, fpr = get_scores(["CD serial "], [A_X_v], G_star_graph)
         shd, _, auc, tpr, fpr = get_scores(
@@ -276,4 +279,5 @@ def multiple_heirarchical_trials(num_trials=10):
     return
 
 
-multiple_heirarchical_trials(num_trials=50)
+#multiple_heirarchical_trials(num_trials=50)
+run_single_heirarchical_trial()
