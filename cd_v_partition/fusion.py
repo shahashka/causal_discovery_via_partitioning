@@ -164,10 +164,14 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
     local_cd_graphs = []
     for part, adj in zip(partition.items(), local_cd_adj_mats):
         _, node_ids = part
-        subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
-        subgraph = nx.relabel_nodes(
-            subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=True
-        )
+        if len(node_ids) == 1:
+            subgraph = nx.DiGraph()
+            subgraph.add_nodes_from(node_ids)
+        else:
+            subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
+            subgraph = nx.relabel_nodes(
+                subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=True
+            )
         local_cd_graphs.append(subgraph)
     return local_cd_graphs
 
