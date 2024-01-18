@@ -5,6 +5,7 @@ import itertools
 import math
 import os
 from pathlib import Path
+import random 
 
 import causaldag as cd
 import cdt
@@ -409,7 +410,6 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     return delta
 
 
-# TODO modify k_comm to take a parameter pho rather than number of edges
 def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, rho: int = 0.01):
     """Create a random network with k communities with the specified graph type and parameters. Create this by
     generating k disjoint communities adn using preferential attachment. Remove any cycles to 
@@ -497,3 +497,31 @@ def _remove_cycles(G):
         return G
     except:
         return G
+
+def artificial_superstructure(
+    G_star_adj_mat, frac_retain_direction=0.1, frac_extraneous=0.5
+):
+    """Creates a superstructure by discarding some of the directions in edges of G_star and adding
+    extraneous edges.
+
+    Args:
+        G_star_adj_mat (np.ndarray): the adjacency matrix for the target graph
+        frac_retain_direction (float): what percentage of edges will retain their direction information
+        frac_extraneous (float): adds frac_extraneous*m many additional edges, for m the number of edges in G_star
+
+    Returns:
+        super_adj_mat (np.ndarray): an adjacency matrix for the superstructure we've created
+    """
+    G_star = nx.from_numpy_array(G_star_adj_mat, create_using=nx.DiGraph())
+
+    # returns a deepcopy
+    G_super = G_star.to_undirected()
+    # add extraneous edges
+    m = G_star.number_of_edges()
+    nodes = list(G_star.nodes())
+    G_super.add_edges_from(pick_k_random_edges(k=int(frac_extraneous * m), nodes=nodes))
+
+    return nx.adjacency_matrix(G_super).toarray()
+
+def pick_k_random_edges(k, nodes):
+    return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
