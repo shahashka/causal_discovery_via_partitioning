@@ -99,8 +99,10 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
     graph = nx.from_numpy_array(adj_mat)
 
     def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
-        node_to_comm[i] = comm
-        node_to_comm[j] = comm
+        if comm not in node_to_comm[i] :
+            node_to_comm[i] += [comm]
+        if comm not in node_to_comm[j] :
+            node_to_comm[j] += [comm]
         cut_edges.remove((i, j))
 
         # Any other edges that share the same endpoint must be in the same community
@@ -114,7 +116,7 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
     node_to_comm = dict()
     for comm_id, comm in partition.items():
         for node in comm:
-            node_to_comm[node] = comm_id
+            node_to_comm[node] = [comm_id]
     cut_edges = []
     for edge in graph.edges():
         if node_to_comm[edge[0]] != node_to_comm[edge[1]]:
@@ -128,16 +130,22 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
 
         # Randomly choose an endpoint and associated community to start
         # putting all endpoints into.
-        comm = np.random.choice([node_to_comm[i], node_to_comm[j]])
+        possible_comms = list(set(node_to_comm[i] + node_to_comm[j]))
+        comm = np.random.choice(possible_comms)
         node_to_comm, cut_edges = edge_coverage_helper(
             i, j, comm, cut_edges, node_to_comm
         )
 
+    edge_cover_partition = dict()
     # Update the hard partition
-    for n, c in node_to_comm.items():
-        if n not in partition[c]:
-            partition[c] += [n]
-    return partition
+    for n, comms in node_to_comm.items():
+        for c in comms:
+            if c in edge_cover_partition.keys():
+                edge_cover_partition[c] += [n]
+            else:
+                edge_cover_partition[c] = [n]
+    return edge_cover_partition
+
 
 
 def oslom_algorithm(

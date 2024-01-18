@@ -168,7 +168,8 @@ def sp_gies(
     if data.shape[1] == 2:
         adj_mat = np.ones(1)
         df = pd.DataFrame(data=adj_mat)
-        df.to_csv("{}/sp-gies-adj_mat.csv".format(outdir), header=False, index=False)
+        if outdir:
+            df.to_csv("{}/sp-gies-adj_mat.csv".format(outdir), header=False, index=False)
         return adj_mat
 
     if skel is None:

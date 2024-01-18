@@ -162,7 +162,6 @@ def get_scores(
                 net, nodelist=np.arange(len(net.nodes()))
             ).todense()
         sid = cdt.metrics.SID(ground_truth, net) if get_sid else 0
-        auc = 0
         if name != "NULL":
             tpr_fpr = tpr_fpr_score(ground_truth, net)
         else:
@@ -411,19 +410,23 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
 
 
 # TODO modify k_comm to take a parameter pho rather than number of edges
-def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
-    """Create a random network with k communities with the specified graph type and parameters
+def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, rho: int = 0.01):
+    """Create a random network with k communities with the specified graph type and parameters. Create this by
+    generating k disjoint communities adn using preferential attachment. Remove any cycles to 
+    make this a DAG
 
     Args:
-        graph_type (_type_): _description_
-        n (_type_): _description_
-        m_list (_type_): _description_
-        p_list (_type_): _description_
-        k (_type_): _description_
-        tune_mod (int, optional): _description_. Defaults to 1.
+        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
+        n (int): number of nodes per community 
+        m_list (list[int]): number of edges to attach from a new node to existing nodes (scale_free) or number of
+                            nearest neighbors connected in ring (small_world)
+        p_list (list[float]): probability of edge creation (erdos_renyi) or rewiring (small_world)
+        k (int): number of communities
+        rho (int, optional): Parameter to tune the strength of community structure. This is the fraction of total possible edges
+                            between communities. Defaults to 0.01
 
     Returns:
-        _type_: _description_
+        tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
     comms = []
     for i in np.arange(k):
@@ -458,8 +461,9 @@ def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
     in_degree_a[-1] += leftover
     probs = np.array(in_degree_a) / (n)
 
-    # Add connections based on random choice over probability distribution
-    while tune_mod > 0:
+    # Add connections from one community to the previous communities based on probability distribution
+    num_edges = rho * n**2 * k
+    while num_edges > 0:
         for t in range(1, k):
             for i in range(n):
                 node_label = t * n + i
@@ -468,7 +472,7 @@ def create_k_comms(graph_type, n, m_list, p_list, k, tune_mod=1):
                     dest = np.random.choice(np.arange(t * n), size=num_connected)
                     connections = [(node_label, d) for d in dest]
                     comm_graph.add_edges_from(connections)
-                    tune_mod -= num_connected
+                    num_edges -= num_connected
 
     init_partition = dict()
     for i in np.arange(k):

@@ -4,11 +4,11 @@ import numpy as np
 import networkx as nx
 
 # Generate 5 comm graphs with varying modularity 
-num_edges = np.arange(1,200,50)
+num_edges = np.arange(0,0.1,0.01)
 for n in num_edges:
-    hard_partition, comm_graph = create_k_comms(graph_type="scale_free", n=25, 
-                                                           m_list=5*[2], 
-                                                           p_list=5*[0.2], 
-                                                           k=5,tune_mod=n)
+    hard_partition, comm_graph = create_k_comms(graph_type="scale_free", n=10, 
+                                                           m_list=5*[1], 
+                                                           p_list=5*[0.1], 
+                                                           k=5,rho=n)
     create_partition_plot(comm_graph, list(comm_graph.nodes()), hard_partition, save_name="./tests/comm_{}.png".format(n))
     print(nx.community.modularity(comm_graph, hard_partition.values()))
