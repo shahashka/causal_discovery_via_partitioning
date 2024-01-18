@@ -76,6 +76,8 @@ def create_partition_plot(
     for comm, nodes in partition.items():
         _create_patches(pos, ax, nodes, color_map[comm])
     plt.savefig(save_name)
+    plt.show()
+    return
 
 
 # https://stackoverflow.com/questions/73265089/networkx-how-to-draw-bounding-area-containing-a-set-of-nodes
