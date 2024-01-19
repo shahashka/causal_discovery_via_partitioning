@@ -104,13 +104,6 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
         if comm not in node_to_comm[j] :
             node_to_comm[j] += [comm]
         cut_edges.remove((i, j))
-
-        # Any other edges that share the same endpoint must be in the same community
-        # E.g. if edges (1,2) and (2,3) are cut then nodes 1,2,3 must all be in the
-        # same community to ensure edge coverage
-        for edge in cut_edges:
-            if i in edge or j in edge:
-                edge_coverage_helper(edge[0], edge[1], comm, cut_edges, node_to_comm)
         return node_to_comm, cut_edges
 
     node_to_comm = dict()
@@ -128,8 +121,7 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
         i = cut_edges[edge_ind][0]
         j = cut_edges[edge_ind][1]
 
-        # Randomly choose an endpoint and associated community to start
-        # putting all endpoints into.
+        # Randomly choose an endpoint and associated community
         possible_comms = list(set(node_to_comm[i] + node_to_comm[j]))
         comm = np.random.choice(possible_comms)
         node_to_comm, cut_edges = edge_coverage_helper(

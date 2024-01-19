@@ -47,7 +47,7 @@ def screen_projections(
     return global_graph
 
 
-def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data):
+def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data: np.ndarray, full_cand_set: bool =False):
     """
     Fuse subgraphs by taking the union and resolving conflicts by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
@@ -71,34 +71,37 @@ def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data)
     comms = [set(p) for p in partition.values()]
     overlaps = set.intersection(*comms)
 
-    def remove_elements(S, i, j):
-        new_S = S.copy()
-        new_S.remove(i)
-        new_S.remove(j)
-        return new_S
+    def get_parents_in_cand_set(cand_set, i, j):
+        parents = []
+        for (a,b) in cand_set:
+            if a==i or a==j:
+                parents.append(b)
+            elif a==j or b==j:
+                parents.append(a)
+        return parents
 
     # Sort the list of possible overlapping edges accordinng to their p-value
     suffstat = {"n": data.shape[0], "C": cor}
-    overlap_edges = list(itertools.combinations(overlaps, 2))
-    if len(overlap_edges) > 0:
+    candidate_edges = list(itertools.combinations(overlaps, 2)) if not full_cand_set else _candidate_edges_(partition, suffstat, global_graph, alpha=1e-3)
+    if len(candidate_edges) > 0:
         conditioning_set = [
             set.union(
                 *[
                     set(global_graph.predecessors(i)),
                     set(global_graph.predecessors(j)),
-                    remove_elements(overlaps, i, j),
+                    get_parents_in_cand_set(candidate_edges, i, j),
                 ]
             )
-            for i, j in overlap_edges
+            for i, j in candidate_edges
         ]
         p_value = [
             partial_correlation_test(suffstat, i, j, S)["p_value"]
-            for (i, j), S in zip(overlap_edges, conditioning_set)
+            for (i, j), S in zip(candidate_edges, conditioning_set)
         ]
-        p_value, overlap_edges = zip(*sorted(zip(p_value, overlap_edges)))
+        p_value, candidate_edges = zip(*sorted(zip(p_value, candidate_edges)))
 
     # Loop through the edge options and favor lower ric_score
-    for i, j in overlap_edges:
+    for i, j in candidate_edges:
         if global_graph.has_edge(j, i):
             global_graph.remove_edge(j, i)
         if global_graph.has_edge(i, j):
@@ -164,10 +167,14 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
     local_cd_graphs = []
     for part, adj in zip(partition.items(), local_cd_adj_mats):
         _, node_ids = part
-        subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
-        subgraph = nx.relabel_nodes(
-            subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=True
-        )
+        if len(node_ids) == 1:
+            subgraph = nx.DiGraph()
+            subgraph.add_nodes_from(node_ids)
+        else:
+            subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
+            subgraph = nx.relabel_nodes(
+                subgraph, mapping=dict(zip(np.arange(len(node_ids)), node_ids)), copy=True
+            )
         local_cd_graphs.append(subgraph)
     return local_cd_graphs
 
@@ -275,3 +282,21 @@ def _loglikelihood(samples, node, parents, correlation):
     rss = cor_nn - cor_pn.T.dot(np.linalg.inv(cor_pp)).dot(cor_pn)
     N = samples.shape[0]
     return 0.5 * (-N * (np.log(2 * np.pi) + 1 - np.log(N) + np.log(rss * (N - 1))))
+
+def _candidate_edges_(partition, suffstat, global_graph, alpha):
+    A = []
+    all_comms = itertools.combinations(partition.values(),2)
+    all_edges = []
+    for pair_comm in all_comms:
+        all_edges += list(itertools.product(pair_comm[0], pair_comm[1]))
+    for edge in all_edges:
+        i = edge[0]
+        j = edge[1]
+        if i!=j: # ignore self loops
+            N_i = set(global_graph.predecessors(i))
+            N_j = set(global_graph.predecessors(j))
+            rho = partial_correlation_test(suffstat,i,j,cond_set=N_i.union(N_j),alpha=alpha)
+            if rho['reject']:
+                A.append((i,j))
+    return A
+    

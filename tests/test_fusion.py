@@ -26,7 +26,8 @@ local_adj_mats = [
 ]
 test1 = screen_projections(partition, local_adj_mats)
 assert(test1.edges() == chain.edges())  # 0->1->2->3
-test1 = fusion(partition, local_adj_mats, samples)
+test1 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
+print(test1.edges())
 assert list(test1.edges()) == G_star_edges  # 0->1->2->3
 
 # Directed edges conflict over direction
@@ -41,7 +42,7 @@ local_adj_mats = [
 test2 = screen_projections(partition, local_adj_mats)
 chain.add_edge(2, 1)
 assert test2.edges() == chain.edges()  # 0->1-2->3
-test2 = fusion(partition, local_adj_mats, samples)
+test2 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
 assert (
     list(test2.edges()) == G_star_edges
 )  # 0->1->2->3 
@@ -58,7 +59,7 @@ test3 = screen_projections(partition, local_adj_mats)
 chain.remove_edge(2, 1)
 chain.remove_edge(1, 2)
 assert test3.edges() == chain.edges()  # 0->1,2->3
-test3 = fusion(partition, local_adj_mats, samples)
+test3 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
 assert list(test3.edges()) == G_star_edges  # 0->1->2->3
 
 # Comm1 has no edge, Comm2 has directed edge
@@ -72,6 +73,6 @@ local_adj_mats = [
 ]
 test4 = screen_projections(partition, local_adj_mats)
 assert test4.edges() == chain.edges()  # 0->1,2->3
-test4 = fusion(partition, local_adj_mats, samples)
+test4 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
 assert list(test4.edges()) == G_star_edges  # 0->1->2->3
 print("All tests passed!")
