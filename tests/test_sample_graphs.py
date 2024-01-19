@@ -43,9 +43,7 @@ def sample_and_check_sanity(
     )
 
     # Use the data to generate a superstructure using the pc algorithm
-    data = df.drop(columns=["target"])
-    data = data.to_numpy()
-    superstructure, p_values = pc(data, alpha=alpha, outdir=outdir)
+    superstructure, p_values = pc(df, alpha=alpha, outdir=outdir)
     superstructure = weight_colliders(superstructure, weight=collider_weight)
 
     # Checks for sanity

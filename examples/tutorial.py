@@ -24,10 +24,7 @@ outdir = "./examples/"
 G_star = edge_to_adj(list(edges), nodes=nodes)
 
 # Find the 'superstructure'
-df_obs = df.drop(columns=["target"])
-data_obs = df_obs.to_numpy()
-print(data_obs)
-superstructure, p_values = pc(data_obs, alpha=0.5, outdir=None)
+superstructure, p_values = pc(df, alpha=0.5, outdir=None)
 print("Found superstructure")
 
 # Call the causal learner on the full data A(X_v) and superstructure
@@ -70,6 +67,8 @@ with ProcessPoolExecutor(max_workers=nthreads) as executor:
         results.append(result)
 
 # Merge the subset learned graphs
+df_obs = df.drop(columns=["target"])
+data_obs = df_obs.to_numpy()
 fused_A_X_s = fusion(rand_partition, results, data_obs)
 
 # Compare the results of the A(X_v) and F({A(X_s)})

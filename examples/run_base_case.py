@@ -178,9 +178,7 @@ def create_base_case_net(
     )
 
     # Use the data to generate a superstructure using the pc algorithm
-    data = df.drop(columns=["target"])
-    data = data.to_numpy()
-    superstructure, p_values = pc(data, alpha=alpha, outdir=outdir)
+    superstructure, p_values = pc(df, alpha=alpha, outdir=outdir)
     superstructure_w = weight_colliders(superstructure, weight=collider_weight)
     weights = superstructure_w  # np.multiply(superstructure_w, np.abs(p_values)) # p_values are negative? pc algorithm pMax matrix is confusing, for now take absolute value
     superstructure_net = nx.from_numpy_array(weights, create_using=nx.Graph)
