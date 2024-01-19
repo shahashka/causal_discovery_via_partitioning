@@ -35,7 +35,12 @@ def pc(
     Python wrapper for the PC algorithm.
 
     Args:
-        data (np.ndarray): Observational data with dimensions $n \times p$.
+        data (pd.DataFrame): DataFrame containing observational and interventional samples.
+            Must contain a column named 'target' which specifies the index of the node that
+            was intervened on to obtain the sample (assumes single interventions only). This
+            indexes from 1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for uniformity with 
+            interventional learners like SP-GIES  
         alpha (float): Significance threshold to trim edges.
         outdir (Path | str): Directory to save adjacency matrix to.
         num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
@@ -85,7 +90,12 @@ def cu_pc(
     Python wrapper for cuPC. CUDA implementation of the PC algorithm
 
     Args:
-        data (np.ndarray): Observational data with dimensions $n \times p$.
+        data (pd.DataFrame): DataFrame containing observational and interventional samples.
+            Must contain a column named 'target' which specifies the index of the node that
+            was intervened on to obtain the sample (assumes single interventions only). This
+            indexes from 1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for uniformity with 
+            interventional learners like SP-GIES      
         alpha (float): Significance threshold to trim edges.
         outdir (Path | str): The directory to save adjacency matrix to.
 
