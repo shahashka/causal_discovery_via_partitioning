@@ -122,39 +122,8 @@ def run():
             _, sp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_mod_partition[i][j] = sp
 
-    # labels = []
-
-    # def add_label(violin, label):
-    #     color = violin["bodies"][0].get_facecolor().flatten()
-    #     labels.append((mpatches.Patch(color=color), label))
-
     plt.clf()
     _, ax = plt.subplots()
-    # add_label(
-    #     ax.violinplot(scores_serial, showmeans=True, showmedians=False),
-    #     label="serial",
-    # )
-    # add_label(
-    #     ax.violinplot(scores_edge_cover, showmeans=True, showmedians=False),
-    #     label="edge_cover",
-    # )
-    # add_label(
-    #     ax.violinplot(scores_hard_partition, showmeans=True, showmedians=False),
-    #     label="hard_partition",
-    # )
-    # add_label(
-    #     ax.violinplot(scores_causal_partition, showmeans=True, showmedians=False),
-    #     label="expansive_causal_partition",
-    # )
-    # add_label(
-    #     ax.violinplot(scores_mod_partition, showmeans=True, showmedians=False),
-    #     label="modularity_partition",
-    # )
-    # ax.set_xticks(
-    #     np.arange(1, len(sample_range) + 1),
-    #     labels=["1e{}".format(i) for i in range(2,len(sample_range)+2)],
-    #     rotation=45,
-    # )
 
     data = [scores_serial, scores_edge_cover, scores_causal_partition, scores_hard_partition, scores_mod_partition]
     data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
