@@ -86,8 +86,7 @@ def run():
         )[-1]
         G_star = nx.adjacency_matrix(sf_graph, nodelist=np.arange(num_nodes)).todense()
 
-        data_obs = df.drop(columns=["target"]).to_numpy()
-        superstructure, _ = pc(data_obs, alpha, outdir=None)
+        superstructure, _ = pc(df, alpha=alpha, outdir=None)
         full_adj = sp_gies(
             df, outdir=None, skel=superstructure, use_pc=True, alpha=alpha
         )

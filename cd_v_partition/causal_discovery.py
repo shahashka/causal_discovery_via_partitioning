@@ -29,13 +29,18 @@ GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
 def pc(
-    data: np.ndarray, alpha: float, outdir: Path | str, num_cores: int = 8
+    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""
     Python wrapper for the PC algorithm.
 
     Args:
-        data (np.ndarray): Observational data with dimensions $n \times p$.
+        data (pd.DataFrame): DataFrame containing observational and interventional samples.
+            Must contain a column named 'target' which specifies the index of the node that
+            was intervened on to obtain the sample (assumes single interventions only). This
+            indexes from 1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for uniformity with 
+            interventional learners like SP-GIES  
         alpha (float): Significance threshold to trim edges.
         outdir (Path | str): Directory to save adjacency matrix to.
         num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
@@ -45,7 +50,7 @@ def pc(
         `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
         significance level of each edge.
     """
-
+    data = data.drop(columns=['target']).to_numpy(dtype=float)
     print("Running multicore CPU implementation of PC algorithm")
     ro.r.assign("data", data)
     rcode = "cor(data)"
@@ -79,13 +84,18 @@ def pc(
 
 
 def cu_pc(
-    data: np.ndarray, alpha: float, outdir: Path | str
+    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3
 ) -> tuple[np.ndarray, np.ndarray] | None:
     r"""
     Python wrapper for cuPC. CUDA implementation of the PC algorithm
 
     Args:
-        data (np.ndarray): Observational data with dimensions $n \times p$.
+        data (pd.DataFrame): DataFrame containing observational and interventional samples.
+            Must contain a column named 'target' which specifies the index of the node that
+            was intervened on to obtain the sample (assumes single interventions only). This
+            indexes from 1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for uniformity with 
+            interventional learners like SP-GIES      
         alpha (float): Significance threshold to trim edges.
         outdir (Path | str): The directory to save adjacency matrix to.
 
@@ -96,6 +106,7 @@ def cu_pc(
     if not GPU_AVAILABLE:
         print("No compiled Skeleton.so file")
         return
+    data = data.drop(columns=['target']).to_numpy(dtype=float)
     print("Running GPU implementation of PC algorithm")
     with open(CUPC_DIR) as file:
         string = "".join(file.readlines())
@@ -173,11 +184,8 @@ def sp_gies(
         return adj_mat
 
     if skel is None:
-        obs_data = data.loc[data["target"] == 0]
-        obs_data = obs_data.drop(columns=["target"])
-        obs_data = obs_data.to_numpy(dtype=float)
         if use_pc:
-            skel = pc(obs_data, alpha, outdir, num_cores=8)[
+            skel = pc(data, outdir, alpha, num_cores=8)[
                 0
             ]  # cu_pc(obs_data, alpha, outdir) if GPU_AVAILABLE else
 

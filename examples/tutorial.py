@@ -14,11 +14,8 @@ from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import fusion
 
-import pdb
-from tqdm import tqdm
 
-
-outdir = "./"
+outdir = "./examples/"
 
 # Generate a random network and corresponding dataset
 (edges, nodes, _, _), df = get_random_graph_data(
@@ -27,15 +24,11 @@ outdir = "./"
 G_star = edge_to_adj(list(edges), nodes=nodes)
 
 # Find the 'superstructure'
-df_obs = df.drop(columns=["target"])
-data_obs = df_obs.to_numpy()
-# print(data_obs)
-superstructure, p_values = pc(data_obs, alpha=0.5, outdir=None)
+superstructure, p_values = pc(df, alpha=0.5, outdir=None)
 print("Found superstructure")
 
 # Call the causal learner on the full data A(X_v) and superstructure
 A_X_v = sp_gies(df, skel=superstructure, outdir=None)
-print("Successfully learned over superstructure.")
 
 # Partition the superstructure and the dataset
 rand_partition = {0: np.arange(25), 1: np.arange(25, 50)}
@@ -55,41 +48,33 @@ create_partition_plot(
 
 # Call the causal learner on subsets of the data F({A(X_s)}) and sub-structures
 num_partitions = 2
-results = []
+nthreads = 2  # each thread handles one partition
 
 
 def _local_structure_learn(subproblem):
     skel, data = subproblem
-    adj_mat = sp_gies(
-        data, skel=skel, outdir=None
-    )  # AD: I tried changing to './' to solve "looping" issue, didn't work
+    adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
 
 
-# non-parallelized version
-for subproblem in tqdm(subproblems):
-    results.append(_local_structure_learn(subproblem))
+func_partial = functools.partial(_local_structure_learn)
+results = []
 
-# # parallelized version.
-# nthreads = 2  # each thread handles one partition
+chunksize = max(1, num_partitions // nthreads)
 
-
-# func_partial = functools.partial(_local_structure_learn)
-
-# chunksize = max(1, num_partitions // nthreads)
-# print("Beginning learning over partitions.")
-# with ProcessPoolExecutor(max_workers=nthreads) as executor:
-#     for result in executor.map(func_partial, subproblems, chunksize=chunksize):
-#         results.append(result)
+with ProcessPoolExecutor(max_workers=nthreads) as executor:
+    for result in executor.map(func_partial, subproblems, chunksize=chunksize):
+        results.append(result)
 
 # Merge the subset learned graphs
+df_obs = df.drop(columns=["target"])
+data_obs = df_obs.to_numpy()
 fused_A_X_s = fusion(rand_partition, results, data_obs)
-print("Successfully fused partition output.")
 
 # Compare the results of the A(X_v) and F({A(X_s)})
 # You see the following printed for 'CD-serial' and 'CD-partition'
-# SHD: 'number of wrong edges'
-# SID: 'ignore this one'
-# AUC: 'auroc where edge is 1, no edge is 0',
+# SHD: 'number of wrong edges' 
+# SID: 'ignore this one' 
+# AUC: 'auroc where edge is 1, no edge is 0', 
 # TPR,FPR: ('true positive rate', 'false positive rate')
 delta_causality(A_X_v, fused_A_X_s, G_star)

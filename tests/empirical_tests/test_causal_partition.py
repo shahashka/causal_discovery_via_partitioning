@@ -2,6 +2,8 @@ import networkx as nx
 import numpy as np
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.overlapping_partition import partition_problem
+import seaborn as sns
+import pandas as pd
 from cd_v_partition.utils import (
     adj_to_dag,
     get_data_from_graph,
@@ -53,9 +55,9 @@ def run_causal_discovery(superstructure, partition, df, G_star):
     # Compare causal metrics
     # d_scores = delta_causality(est_graph_serial, est_graph_partition, G_star)
     scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
-    scores_part = get_scores(["CD-partition"], [est_graph_serial], G_star)
+    scores_part = get_scores(["CD-partition"], [est_graph_partition], G_star)
 
-    return scores_serial[-2], scores_part[-1]  # this is the  true positive rate
+    return scores_serial[-2], scores_part[-2]  # this is the  true positive rate
 
 def vis(name, partition, superstructure):
     superstructure = adj_to_dag(superstructure)
@@ -63,10 +65,14 @@ def vis(name, partition, superstructure):
                           partition=partition, save_name="./tests/empirical_tests/{}_partition.png".format(name))
 
 
+def vis_violin_plot(ax, scores, score_names, samples):
+    sns.violinplot(data=scores, x='samples', y='TPR', hue='variable',
+               order=samples, hue_order=score_names,
+               inner='point', common_norm=False, ax=ax)
 
 def run():
     num_repeats = 10
-    sample_range = [1e2, 1e3, 1e4, 1e5, 1e6, 1e7]
+    sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
     scores_serial = np.zeros((num_repeats, len(sample_range)))
     scores_edge_cover = np.zeros((num_repeats, len(sample_range)))
@@ -116,46 +122,65 @@ def run():
             _, sp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_mod_partition[i][j] = sp
 
-    labels = []
+    # labels = []
 
-    def add_label(violin, label):
-        color = violin["bodies"][0].get_facecolor().flatten()
-        labels.append((mpatches.Patch(color=color), label))
+    # def add_label(violin, label):
+    #     color = violin["bodies"][0].get_facecolor().flatten()
+    #     labels.append((mpatches.Patch(color=color), label))
 
     plt.clf()
     _, ax = plt.subplots()
-    add_label(
-        ax.violinplot(scores_serial, showmeans=True, showmedians=False),
-        label="serial",
-    )
-    add_label(
-        ax.violinplot(scores_edge_cover, showmeans=True, showmedians=False),
-        label="edge_cover",
-    )
-    add_label(
-        ax.violinplot(scores_hard_partition, showmeans=True, showmedians=False),
-        label="hard_partition",
-    )
-    add_label(
-        ax.violinplot(scores_causal_partition, showmeans=True, showmedians=False),
-        label="expansive_causal_partition",
-    )
-    add_label(
-        ax.violinplot(scores_mod_partition, showmeans=True, showmedians=False),
-        label="modularity_partition",
-    )
-    ax.set_xticks(
-        np.arange(1, len(sample_range) + 1),
-        labels=["1e{}".format(i) for i in range(2,len(sample_range)+2)],
-        rotation=45,
-    )
+    # add_label(
+    #     ax.violinplot(scores_serial, showmeans=True, showmedians=False),
+    #     label="serial",
+    # )
+    # add_label(
+    #     ax.violinplot(scores_edge_cover, showmeans=True, showmedians=False),
+    #     label="edge_cover",
+    # )
+    # add_label(
+    #     ax.violinplot(scores_hard_partition, showmeans=True, showmedians=False),
+    #     label="hard_partition",
+    # )
+    # add_label(
+    #     ax.violinplot(scores_causal_partition, showmeans=True, showmedians=False),
+    #     label="expansive_causal_partition",
+    # )
+    # add_label(
+    #     ax.violinplot(scores_mod_partition, showmeans=True, showmedians=False),
+    #     label="modularity_partition",
+    # )
+    # ax.set_xticks(
+    #     np.arange(1, len(sample_range) + 1),
+    #     labels=["1e{}".format(i) for i in range(2,len(sample_range)+2)],
+    #     rotation=45,
+    # )
+
+    data = [scores_serial, scores_edge_cover, scores_causal_partition, scores_hard_partition, scores_mod_partition]
+    data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
+    print(data)
+    labels = [ 'serial', 'edge_cover' ,'expansive_causal','hard', 'mod']
+    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+    df['samples'] = np.repeat(sample_range, num_repeats)
+    print(df.head)
+    df = df.melt(id_vars='samples', value_vars=labels)
+    print(df.head)
+    x_order = np.unique(df['samples'])
+    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=ax)
     ax.set_xlabel("Number of samples")
-    ax.set_ylabel("Delta TPR (Serial - Partition)")
+    ax.set_ylabel("TPR)")
     ax.set_title("Comparison of partition types for 2 community scale free networks")
-    plt.legend(*zip(*labels), loc=2)
+    #plt.legend(*zip(*labels), loc=2)
+    plt.tight_layout()
     plt.savefig(
         "./tests/empirical_tests/causal_part_test_artificial_ss.png"
     )
+    
+    np.savetxt("./tests/empirical_tests/scores_serial.txt", scores_serial)
+    np.savetxt( "./tests/empirical_tests/scores_edge_cover.txt", scores_edge_cover)
+    np.savetxt( "./tests/empirical_tests/scores_hard_partition.txt", scores_hard_partition)
+    np.savetxt( "./tests/empirical_tests/scores_causal_partition.txt", scores_causal_partition) 
+    np.savetxt( "./tests/empirical_tests/scores_mod_partition.txt", scores_mod_partition)
 
 
 if __name__ == "__main__":

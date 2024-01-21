@@ -55,9 +55,7 @@ def simulation():
     G_star = edge_to_adj(list(edges), nodes=nodes)
 
     # Find the 'superstructure'
-    df_obs = df.drop(columns=["target"])
-    data_obs = df_obs.to_numpy()
-    superstructure, p_values = pc(data_obs, alpha=alpha, outdir=None)
+    superstructure, p_values = pc(df, alpha=alpha, outdir=None)
     print("Found superstructure")
 
     # Call the causal learner on the full data A(X_v) and superstructure
@@ -102,6 +100,8 @@ def simulation():
                 results.append(result)
 
         # Merge the subset learned graphs
+        df_obs = df.drop(columns=["target"])
+        data_obs = df_obs.to_numpy()
         fused_A_X_s = fusion(partition, results, data_obs)
 
         delta_causality(A_X_v, fused_A_X_s, G_star)
