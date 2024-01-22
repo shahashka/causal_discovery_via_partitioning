@@ -227,6 +227,18 @@ def get_random_graph_data(
         random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
             nnodes, k=m, p=p, seed=seed
         )
+    elif graph_type == "heirarchical":
+        random_graph_model = lambda nnodes: nx.Graph(
+            nx.scale_free_graph(
+                nnodes,
+                alpha=0.2,
+                gamma=0.5,
+                beta=0.3,
+                delta_in=0.0,
+                delta_out=0.0,
+                seed=seed,
+            ).to_undirected()
+        )
     else:
         raise ValueError("Unsupported random graph")
 
@@ -525,3 +537,28 @@ def artificial_superstructure(
 
 def pick_k_random_edges(k, nodes):
     return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
+
+
+def directed_heirarchical_graph(num_nodes):
+    G = nx.DiGraph(
+        nx.scale_free_graph(
+            num_nodes,
+            alpha=0.2,
+            gamma=0.5,
+            beta=0.3,
+            delta_in=0.0,
+            delta_out=0.0,
+        )
+    )
+    # find and remove cycles
+    G.remove_edges_from(nx.selfloop_edges(G))
+    cycle_list = nx.find_cycle(G, orientation="original")
+    while len(cycle_list) > 0:
+        edge_data = cycle_list[-1]
+        G.remove_edge(edge_data[0], edge_data[1])
+        # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle when all cycles have been removed
+        try:
+            cycle_list = nx.find_cycle(G, orientation="original")
+        except:
+            break
+    return G

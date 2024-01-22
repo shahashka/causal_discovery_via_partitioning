@@ -3,10 +3,10 @@ from __future__ import annotations
 import subprocess
 import networkx as nx
 from pathlib import Path
-
+import warnings
 import numpy as np
 import pandas as pd
-
+from scipy.cluster.hierarchy import linkage, cut_tree
 
 def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
     """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
@@ -210,3 +210,132 @@ def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame
         sub_data = data.iloc[:, sub_nodes]
         sub_problems.append((sub_structure, sub_data))
     return sub_problems
+
+def PEF_partition(data: pd.DataFrame, min_size_frac: float = 0.05):
+    """Perform the modified hierarchical clustering on the data, as described in
+    `Learning Big Gaussian Bayesian Networks: Partition, Estimation and Fusion'
+    Args:
+        data (pd.DataFrame): the dataset, columns correspond to nodes in the graph
+        min_size_frac (float): determines the minimimum returned cluster size
+    Returns:
+        dict: The estimated partition as a dictionary {comm_id : [nodes]}
+    """
+    ## Compute agglomerative clustering matrix
+    # data_mat has shape num_nodes x num_samples
+    data_mat = data.drop(["target"], axis=1).to_numpy().T
+    # Using average linkage
+    # Datapoint distance is determined by correlation of df columns
+    linkage_matrix = linkage(data_mat, method="average", metric="correlation")
+    clusters = cut_tree(linkage_matrix, n_clusters=range(1, data_mat.shape[0]))
+
+    ## Extract partitions
+    # for each level, we'll want to compute how many big clusters are in that partition
+    min_size = int(min_size_frac * data_mat.shape[0])
+
+    # a cluster is big if it has size min_size
+    def num_big_clusters(partition, min_size=min_size):
+        """Counts how many clusters in an input partition are of size at least min_size
+        Args:
+            partition (list): the partition, as a list of sets or list of lists
+            min_size (int): the size threshold over which clusters are considered "big"
+        Returns:
+            int: the number of clusters of size at least min_size
+        """
+        return np.sum([len(cluster) >= min_size for cluster in partition])
+
+    # k_list stores the number of big clusters per partition
+    k_list = []
+
+    # For each level, find the clusters for that level
+    partitions_list = []
+    dct = dict([(i, {i}) for i in range(data_mat.shape[0])])
+    k_list.append(num_big_clusters(list(dct.values())))
+    # get the partition where every node is in its own cluster
+    partitions_list.append(list(dct.values()))
+    for i, row in enumerate(linkage_matrix, data_mat.shape[0]):
+        dct[i] = dct[row[0]].union(dct[row[1]])
+        del dct[row[0]]
+        del dct[row[1]]
+        current_partition = list(dct.values())
+        # save partition with clusters ordered from largest to smallest
+        current_partition.sort(key=len, reverse=True)
+        partitions_list.append(current_partition)
+        k_list.append(num_big_clusters(current_partition))
+
+    # select the first partition to hit the largest count of "big clusters"
+    max_k = max(k_list)
+    max_k_idx = k_list.index(max_k)
+    max_k_partition = partitions_list[max_k_idx]
+
+    # reduce the size of max_k_partition until it only contains max_k clusters.
+    # do this by merging smaller clusters into larger clusters
+    # merging procedure is based on correlation distance
+    corr_mat = data.drop(["target"], axis=1).corr().to_numpy()
+    dist_mat = np.subtract(1, np.abs(corr_mat))
+
+    # partition should be sorted so that largest clusters appear first
+    def cluster_distance(C1, C2, dist_mat=dist_mat):
+        """Computes the distance between two clusters, defined as the MINIMUM pairwise distance
+        between their elements
+        Args:
+            C1 (set): the indices of nodes in the first cluster
+            C2 (set): the indices of nodes in the second cluster
+            dist_mat (np.ndarray): matrix of pairwise distances between all nodes
+        Returns:
+            float: the minimum pairwise distance
+        """
+        # subselect distance matrix to get all entries corresponding to
+        # pairs with one elt in C1 and one elt in C2
+        eltwise_dists = dist_mat[np.ix_(list(C1), list(C2))]
+        return np.min(eltwise_dists)
+
+    def cluster_distance_matrix(partition):
+        """Given a partition, computes the pairwise distance between pairs of clusters
+        according to cluster_distance. Only computes distance between "big" clusters and
+        "small" clusters.
+        Args:
+            partition (list): the partition, as a list of sets or list of lists
+        Returns:
+            np.ndarray: a matrix of pairwise distances between clusters. np.nan entries
+                        signfiy a pair of clusters was not compared.
+        """
+        partition.sort(key=len, reverse=True)
+        cluster_dist_mat = np.full(
+            shape=(len(partition), len(partition)), fill_value=np.nan
+        )
+        # the small clusters have index max_k to len(partition)
+        for jj in range(max_k, len(partition)):
+            for ii in range(0, jj):
+                # find minimum pairwise distance between any pair of elements in the cluster
+                cluster_dist_mat[ii, jj] = cluster_distance(
+                    partition[ii], partition[jj]
+                )
+        return cluster_dist_mat
+
+    while len(max_k_partition) > max_k:
+        cluster_dist_mat = cluster_distance_matrix(max_k_partition)
+        # find indices of clusters that have minimal pairwise distance
+        ii_star, jj_star = np.unravel_index(
+            np.nanargmin(cluster_dist_mat), cluster_dist_mat.shape
+        )
+        # merge the smaller cluster into the larger cluster
+        C_ii_star = max_k_partition[ii_star].union(max_k_partition[jj_star])
+        # need to delete jj_star first in order to avoid changing the index of ii_star, because ii_star <jj_star
+        assert ii_star < jj_star
+        del max_k_partition[jj_star]
+        del max_k_partition[ii_star]
+
+        max_k_partition.append(C_ii_star)
+        max_k_partition.sort(key=len, reverse=True)
+
+    if min([len(cluster) for cluster in max_k_partition]) == 1:
+        warnings.warn(
+            "Warning: PEF partition produced at least one cluster with size 1."
+        )
+
+    # convert partition to dict form
+    partition_dict = dict()
+    for idx, cluster in enumerate(max_k_partition):
+        partition_dict[idx] = list(cluster)
+
+    return partition_dict
