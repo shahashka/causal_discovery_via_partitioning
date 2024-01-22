@@ -4,13 +4,9 @@ import subprocess
 import networkx as nx
 from pathlib import Path
 import warnings
-
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, cut_tree
-
-import pdb
-
 
 def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
     """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
@@ -33,7 +29,7 @@ def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
 
 
 def modularity_partition(
-    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 1, best_n=None
+    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 2, best_n: int = 2
 ):
     """Creates disjoint partition by greedily maximizing modularity. Using networkx built-in implementaiton.
 
@@ -47,8 +43,6 @@ def modularity_partition(
     Returns:
         dict: the estimated partition as a dictionary {comm_id : [nodes]}
     """
-    print("ENTERED FUNCTION")
-    pdb.set_trace()
     G = nx.from_numpy_array(adj_mat)
     community_lists = nx.community.greedy_modularity_communities(
         G, cutoff=cutoff, best_n=best_n
@@ -60,7 +54,7 @@ def modularity_partition(
     return partition
 
 
-def heirarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
+def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
     """Creates disjoint partition via heirarchical community detection
 
     Args:
@@ -101,9 +95,9 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
     graph = nx.from_numpy_array(adj_mat)
 
     def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
-        if comm not in node_to_comm[i]:
+        if comm not in node_to_comm[i] :
             node_to_comm[i] += [comm]
-        if comm not in node_to_comm[j]:
+        if comm not in node_to_comm[j] :
             node_to_comm[j] += [comm]
         cut_edges.remove((i, j))
         return node_to_comm, cut_edges
@@ -139,6 +133,7 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
             else:
                 edge_cover_partition[c] = [n]
     return edge_cover_partition
+
 
 
 def oslom_algorithm(
@@ -216,15 +211,12 @@ def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame
         sub_problems.append((sub_structure, sub_data))
     return sub_problems
 
-
-def PEF_partition(data: pd.DataFrame, min_size_frac: float):
+def PEF_partition(data: pd.DataFrame, min_size_frac: float = 0.05):
     """Perform the modified hierarchical clustering on the data, as described in
     `Learning Big Gaussian Bayesian Networks: Partition, Estimation and Fusion'
-
     Args:
         data (pd.DataFrame): the dataset, columns correspond to nodes in the graph
         min_size_frac (float): determines the minimimum returned cluster size
-
     Returns:
         dict: The estimated partition as a dictionary {comm_id : [nodes]}
     """
@@ -243,11 +235,9 @@ def PEF_partition(data: pd.DataFrame, min_size_frac: float):
     # a cluster is big if it has size min_size
     def num_big_clusters(partition, min_size=min_size):
         """Counts how many clusters in an input partition are of size at least min_size
-
         Args:
             partition (list): the partition, as a list of sets or list of lists
             min_size (int): the size threshold over which clusters are considered "big"
-
         Returns:
             int: the number of clusters of size at least min_size
         """
@@ -287,12 +277,10 @@ def PEF_partition(data: pd.DataFrame, min_size_frac: float):
     def cluster_distance(C1, C2, dist_mat=dist_mat):
         """Computes the distance between two clusters, defined as the MINIMUM pairwise distance
         between their elements
-
         Args:
             C1 (set): the indices of nodes in the first cluster
             C2 (set): the indices of nodes in the second cluster
             dist_mat (np.ndarray): matrix of pairwise distances between all nodes
-
         Returns:
             float: the minimum pairwise distance
         """
@@ -305,10 +293,8 @@ def PEF_partition(data: pd.DataFrame, min_size_frac: float):
         """Given a partition, computes the pairwise distance between pairs of clusters
         according to cluster_distance. Only computes distance between "big" clusters and
         "small" clusters.
-
         Args:
             partition (list): the partition, as a list of sets or list of lists
-
         Returns:
             np.ndarray: a matrix of pairwise distances between clusters. np.nan entries
                         signfiy a pair of clusters was not compared.

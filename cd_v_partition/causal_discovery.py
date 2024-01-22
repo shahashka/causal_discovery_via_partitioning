@@ -28,6 +28,7 @@ base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
+
 def pc(
     data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -81,6 +82,59 @@ def pc(
         rcode = f"write.csv(pdag,row.names = FALSE, file = paste('{d}/', 'pc-adj_mat.csv',sep = ''))"
         ro.r(rcode)
     return pdag, p_values
+
+
+
+def fci(
+    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""
+    Python wrapper for the FCI algorithm.
+
+    Args:
+        data (pd.DataFrame): DataFrame containing observational and interventional samples.
+            Must contain a column named 'target' which specifies the index of the node that
+            was intervened on to obtain the sample (assumes single interventions only). This
+            indexes from 1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for uniformity with 
+            interventional learners like SP-GIES  
+        alpha (float): Significance threshold to trim edges.
+        outdir (Path | str): Directory to save adjacency matrix to.
+        num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
+
+    Returns:
+        A tuple containing two numpy arrays of dimensionality $p \times p$. The former
+        `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
+        significance level of each edge.
+    """
+    data = data.drop(columns=['target']).to_numpy(dtype=float)
+    ro.r.assign("data", data)
+    rcode = "cor(data)"
+    corMat = ro.r(rcode)
+    ro.r.assign("correlationMatrix", corMat)
+
+    p = data.shape[1]
+    ro.r.assign("p", p)
+
+    rcode = "list(C = correlationMatrix, n = nrow(data))"
+    suffStat = ro.r(rcode)
+    ro.r.assign("suffStat", suffStat)
+    ro.r.assign("alpha", alpha)
+    ro.r.assign("num_cores", num_cores)
+    rcode = 'fci(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    pc_fit = ro.r(rcode)
+    ro.r.assign("fci_fit", pc_fit)
+
+    rcode = 'as(fci_fit@amat, "matrix")'
+    pag = ro.r(rcode)
+    ro.r.assign("pag", pag)
+
+    if outdir:
+        d = str(outdir)
+        rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'fci-adj_mat.csv',sep = ''))"
+        ro.r(rcode)
+    return pag
+
 
 
 def cu_pc(

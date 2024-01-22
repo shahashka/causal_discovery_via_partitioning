@@ -20,6 +20,7 @@ def create_partition_plot(
     nodes: list[str],
     partition: dict[int, list[int]],
     save_name: Path | str,
+    ax = None
 ):
     """
     Create plot of overlapping partitions with patches.
@@ -34,17 +35,15 @@ def create_partition_plot(
         ...
     """
     node_to_partition = dict(
-        zip(np.arange(len(nodes)), [[] for _ in np.arange(len(nodes))])
+        zip(nodes, [[] for _ in np.arange(len(nodes))])
     )
-    for node in np.arange(len(nodes)):
-        for key, value in partition.items():
-            if node in value:
-                comm = node_to_partition[node]
-                comm.append(key)
-                node_to_partition[node] = comm
+    for key, value in partition.items():
+        for node in value:
+            node_to_partition[node] += [key]
     pos, overlaps = _partition_layout(G, node_to_partition)
 
-    _, ax = plt.subplots()
+    if ax is None: 
+        _, ax = plt.subplots()
     cm = pylab.get_cmap("plasma")
     colors = []
     num_colors = len(partition)
@@ -54,7 +53,7 @@ def create_partition_plot(
     color_map = dict(zip(np.arange(num_colors + 1), colors + ["gray"]))
     colors = dict(
         zip(
-            np.arange(len(nodes)),
+            nodes,
             [
                 color_map[comm[0]] if node not in overlaps else color_map[num_colors]
                 for node, comm in node_to_partition.items()
@@ -64,8 +63,8 @@ def create_partition_plot(
 
     Graph(
         G,
-        edge_width=5,
-        node_size=10,
+        edge_width=1,
+        node_size=2,
         edge_color="black",
         node_layout=pos,
         node_color=colors,
