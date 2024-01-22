@@ -64,12 +64,103 @@ def vis(name, partition, superstructure):
                           partition=partition, save_name="./tests/empirical_tests/{}_partition.png".format(name))
 
 
-def vis_violin_plot(ax, scores, score_names, samples):
-    sns.violinplot(data=scores, x='samples', y='TPR', hue='variable',
+def vis_box_plot(ax, scores, score_names, samples):
+    sns.boxplot(data=scores, x='samples', y='TPR', hue='variable',
                order=samples, hue_order=score_names,
                inner='point', common_norm=False, ax=ax)
+
+
+def run_tune_mod():
+    num_repeats = 10
+    ns=1e5
+    alpha=0.5
+    tune_mod = list(np.arange(0,0.1,0.01))
+    scores_serial = np.zeros((num_repeats, len(tune_mod)))
+    scores_edge_cover = np.zeros((num_repeats, len(tune_mod)))
+    scores_hard_partition = np.zeros((num_repeats, len(tune_mod)))
+    scores_causal_partition = np.zeros((num_repeats, len(tune_mod)))
+    scores_mod_partition = np.zeros((num_repeats, len(tune_mod)))
+    scores_pef = np.zeros((num_repeats, len(tune_mod)))
+
+    for i in range(num_repeats):
+        for j,mod in enumerate(tune_mod):
+
+            init_partition, graph = create_k_comms(
+                "scale_free", n=25, m_list=[1,2], p_list=[0.5,0.5], k=2, rho=mod
+            )
+            num_nodes = len(graph.nodes())
+            bias = np.random.normal(0, 1, size=num_nodes)
+            var = np.abs(np.random.normal(0, 1, size=num_nodes))
+            print("Rho {}".format(mod))
+            # Generate data
+            (edges, nodes, _, _), df = get_data_from_graph(
+                list(np.arange(num_nodes)),
+                list(graph.edges()),
+                nsamples=int(ns),
+                iv_samples=0,bias=bias, var=var
+            )
+            G_star = edge_to_adj(edges, nodes)
+            #superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
+            superstructure, _ = pc(df, alpha=alpha, outdir=None)
+
+            print("Modularity is {}".format(nx.community.modularity(nx.from_numpy_array(G_star), init_partition.values())))
+
+            # ss, sp = run_causal_discovery(superstructure, init_partition, df, G_star)
+            # vis("init", init_partition, G_star)
+            # scores_serial[i][j] = ss
+            # scores_hard_partition[i][j] = sp
+
+
+            
+            mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
+            
+            vis("mod", mod_partition, G_star)
+            ss, sp = run_causal_discovery(superstructure, mod_partition, df, G_star)
+            scores_serial[i][j] = ss
+            scores_mod_partition[i][j] = sp
+            
+            partition = rand_edge_cover_partition(superstructure, mod_partition)
+            vis("edge_cover", partition, G_star)
+            _, sp = run_causal_discovery(superstructure, partition, df, G_star)
+            scores_edge_cover[i][j] = sp
+            
+            partition = expansive_causal_partition(superstructure, mod_partition)
+            vis("causal", partition, G_star)
+            _, sp = run_causal_discovery(superstructure, partition, df, G_star)
+            scores_causal_partition[i][j] = sp
+            
+            partition = PEF_partition(df)
+            vis("pef", partition, G_star)
+            _, sp = run_causal_discovery(superstructure, partition, df, G_star, full_cand_set=True)
+            scores_pef[i][j] = sp
+        
+
+
+    plt.clf()
+    _, ax = plt.subplots()
+
+    data = [scores_serial, scores_pef, scores_edge_cover, scores_causal_partition, scores_mod_partition] # scores_hard_partition
+    data = [np.reshape(d, num_repeats*len(tune_mod)) for d in data]
+    print(data)
+    labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] # 'hard'
+    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+    df['samples'] = np.repeat(tune_mod, num_repeats)
+    print(df.head)
+    df = df.melt(id_vars='samples', value_vars=labels)
+    print(df.head)
+    x_order = np.unique(df['samples'])
+    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=ax)
+    ax.set_xlabel("Number of samples")
+    ax.set_ylabel("TPR)")
+    ax.set_title("Comparison of partition types for 2 community scale free networks")
+    #plt.legend(*zip(*labels), loc=2)
+    plt.tight_layout()
+    plt.savefig(
+        "./tests/empirical_tests/causal_part_test_tune_mod.png"
+    )
+
     
-def run():
+def run_samples():
     num_repeats = 10
     sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
@@ -97,8 +188,8 @@ def run():
                 iv_samples=0,bias=bias, var=var
             )
             G_star = edge_to_adj(edges, nodes)
-            #superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
-            superstructure, _ = pc(df, alpha=alpha, outdir=None)
+            superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
+            #superstructure, _ = pc(df, alpha=alpha, outdir=None)
 
 
             # ss, sp = run_causal_discovery(superstructure, init_partition, df, G_star)
@@ -108,18 +199,18 @@ def run():
 
 
             
-            init_partition = modularity_partition(superstructure, cutoff=1, best_n=2)
-            vis("mod", init_partition, G_star)
-            ss, sp = run_causal_discovery(superstructure, init_partition, df, G_star)
+            mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
+            vis("mod", mod_partition, G_star)
+            ss, sp = run_causal_discovery(superstructure, mod_partition, df, G_star)
             scores_serial[i][j] = ss
             scores_mod_partition[i][j] = sp
             
-            partition = rand_edge_cover_partition(superstructure, init_partition)
+            partition = rand_edge_cover_partition(superstructure, mod_partition)
             vis("edge_cover", partition, G_star)
             _, sp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_edge_cover[i][j] = sp
             
-            partition = expansive_causal_partition(superstructure, init_partition)
+            partition = expansive_causal_partition(superstructure, mod_partition)
             vis("causal", partition, G_star)
             _, sp = run_causal_discovery(superstructure, partition, df, G_star)
             scores_causal_partition[i][j] = sp
@@ -151,15 +242,9 @@ def run():
     #plt.legend(*zip(*labels), loc=2)
     plt.tight_layout()
     plt.savefig(
-        "./tests/empirical_tests/causal_part_test_ss_pef.png"
+        "./tests/empirical_tests/causal_part_test_artificial_ss_pef.png"
     )
-    
-    np.savetxt("./tests/empirical_tests/scores_serial.txt", scores_serial)
-    np.savetxt( "./tests/empirical_tests/scores_edge_cover.txt", scores_edge_cover)
-    np.savetxt( "./tests/empirical_tests/scores_hard_partition.txt", scores_hard_partition)
-    np.savetxt( "./tests/empirical_tests/scores_causal_partition.txt", scores_causal_partition) 
-    np.savetxt( "./tests/empirical_tests/scores_mod_partition.txt", scores_mod_partition)
 
 
 if __name__ == "__main__":
-    run()
+    run_tune_mod()
