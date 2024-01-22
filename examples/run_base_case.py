@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from cd_v_partition.algorithms.causal_discovery import pc, weight_colliders, sp_gies
-from cd_v_partition.algorithms.partitioning.overlapping_partition import (
+from cd_v_partition.algorithms.partitioning.core import (
     oslom_algorithm,
     partition_problem,
 )
@@ -270,7 +270,7 @@ def _construct_tiling(net, num_tiles):
 
 
 def _count_colliders(G):
-    """Helper function to count the number of colliders in the graph G. For every
+    """Helper function to count the number of colliders in the graph graph. For every
     triple x-y-z determine if the edges are in a collider orientation. This counts
     as one collider set.
 
@@ -298,7 +298,7 @@ def _count_colliders(G):
 
 # Check that this is a superstructure
 def _check_superstructure(S, G):
-    """Make sure that S is a superstructure of G. This means all edges in G are constrained
+    """Make sure that S is a superstructure of graph. This means all edges in graph are constrained
        by S.
 
 

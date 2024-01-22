@@ -17,7 +17,22 @@ theme:
   language: en
   font:
     text: Open Sans
-    code: Source Code Pro # Roboto Mono
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+      primary: indigo
+      accent: deep orange
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+      primary: indigo
+      accent: amber
   features:
     - content.code.annotate
     - content.code.copy

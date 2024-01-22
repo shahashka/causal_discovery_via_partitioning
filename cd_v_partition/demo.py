@@ -4,8 +4,10 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 
 from cd_v_partition.algorithms.causal_discovery import pc, sp_gies
-from cd_v_partition.algorithms.partitioning.overlapping_partition import partition_problem
-from cd_v_partition.configs import SimulationSpec
+from cd_v_partition.algorithms.partitioning.core import (
+    partition_problem,
+)
+from cd_v_partition.configs import Spec
 from cd_v_partition.utils import (
     get_random_graph_data,
     edge_to_adj,
@@ -22,7 +24,7 @@ def local_structure_learn(subproblem):
     return adj_mat
 
 
-def tutorial(spec: SimulationSpec):
+def tutorial(spec: Spec):
     outdir = "./examples/"
 
     # Generate a random network and corresponding dataset

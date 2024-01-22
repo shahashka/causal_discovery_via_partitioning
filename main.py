@@ -3,7 +3,7 @@ from concurrent.futures import as_completed, ProcessPoolExecutor
 
 from tqdm import tqdm
 
-from cd_v_partition.configs import SimulationSpec
+from cd_v_partition.configs import Spec
 from cd_v_partition.demo import tutorial
 
 
@@ -16,8 +16,8 @@ def get_args() -> argparse.Namespace:
 def main(args: argparse.Namespace) -> None:
     with ProcessPoolExecutor(max_workers=8) as pool:
         futures = []
-        # for spec in SimulationConfig():
-        spec = SimulationSpec()
+        # for spec in Config():
+        spec = Spec()
         for _ in range(2):
             fut = pool.submit(tutorial, spec)
             futures.append(fut)

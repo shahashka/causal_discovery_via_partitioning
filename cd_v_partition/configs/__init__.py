@@ -1,3 +1,3 @@
-from cd_v_partition.configs.config import SimulationConfig, SimulationSpec
+from cd_v_partition.configs.config import Config, Spec
 
-__all__ = ["SimulationConfig", "SimulationSpec"]
+__all__ = ["Config", "Spec"]

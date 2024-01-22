@@ -95,7 +95,7 @@ def _construct_tiling(net, num_tiles):
 
 
 def _count_colliders(G):
-    """Helper function to count the number of colliders in the graph G. For every
+    """Helper function to count the number of colliders in the graph graph. For every
     triple x-y-z determine if the edges are in a collider orientation. This counts
     as one collider set.
 
@@ -123,7 +123,7 @@ def _count_colliders(G):
 
 # Check that this is a superstructure
 def _check_superstructure(S, G):
-    """Make sure that S is a superstructure of G. This means all edges in G are constrained
+    """Make sure that S is a superstructure of graph. This means all edges in graph are constrained
        by S.
 
 
@@ -137,7 +137,7 @@ def _check_superstructure(S, G):
             if G[row, col] == 1:
                 if S[row, col] == 0:
                     num_wrong += 1
-    # assert(np.sum(G>0) < np.sum(S>0))
+    # assert(np.sum(graph>0) < np.sum(S>0))
     return num_wrong / np.sum(G > 0)
 
 
@@ -179,5 +179,5 @@ if __name__ == "__main__":
                     np.arange(1, len(graph_types) + 1), labels=graph_types, rotation=45
                 )
                 axs[i][j].set_title("p={:.1f}, k={:.1f}".format(p, k))
-    fig.suptitle("Fraction of wrong superstructure edges compared to edges in G")
+    fig.suptitle("Fraction of wrong superstructure edges compared to edges in graph")
     plt.savefig("./tests/sample_ss_by_graph.png")
