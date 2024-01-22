@@ -54,7 +54,7 @@ def modularity_partition(
     return partition
 
 
-def heirarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
+def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
     """Creates disjoint partition via heirarchical community detection
 
     Args:
