@@ -4,7 +4,7 @@ from typing import Any, Iterator, Literal
 
 from omegaconf import OmegaConf, MISSING
 
-from cd_v_partition.typing import dataclass
+from dataclasses import dataclass, field
 
 ExecutorKind = Literal["parsl", "process", "thread"]
 
@@ -51,7 +51,7 @@ class Config:
     executor_args: dict[str, Any] = MISSING
 
     # Parameters included in a ``Spec`` instance.
-    graph_kind: list[str] = MISSING
+    graph_kind: list[str] = field(default_factory=lambda: ["random"])
     num_nodes: list[int] = MISSING
     edge_params: list[int] = MISSING
     causal_learn_fn: list[str] = MISSING  # default to SPGIES
