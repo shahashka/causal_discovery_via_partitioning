@@ -184,7 +184,7 @@ def _position_partitions(g, partition, **kwargs):
 
     # find layout for partitions
     pos_partitions = nx.spring_layout(
-        hypergraph, k=10 / np.sqrt(len(partitions)), **kwargs
+        hypergraph, k=10*len(g.nodes()) / np.sqrt(len(partitions)), **kwargs
     )
 
     # set node positions to position of partition

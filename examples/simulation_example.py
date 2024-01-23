@@ -114,7 +114,7 @@ def simulation():
     edge_list_to_df(adj_to_edge(A_X_v, np.arange(num_nodes))).to_csv("./examples/edges_serial.csv", header=["node1", "node2", "weight"], index=False)
     edge_list_to_df(adj_to_edge(G_star, np.arange(num_nodes))).to_csv("./examples/edges_true.csv", header=["node1", "node2", "weight"], index=False)
     pd.DataFrame(list(zip(np.arange(len(bias)),bias, var))).to_csv("./examples/data_gen_true.csv", header=["node id","bias", "var"], index=False)
-        
+    df.to_csv("./examples/data.csv", header=df.columns, index=False)
     
 if __name__ == "__main__":
     simulation()

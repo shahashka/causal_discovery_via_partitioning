@@ -20,6 +20,7 @@ from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import random 
+import os
 
 def _local_structure_learn(subproblem):
     skel, data = subproblem
@@ -45,8 +46,8 @@ def run_causal_discovery(superstructure, partition, df, G_star, full_cand_set=Fa
 
     # Merge globally
     data_obs = df.drop(columns=["target"]).to_numpy()
-    est_graph_partition = fusion(partition, results, data_obs, full_cand_set=full_cand_set)
-    #est_graph_partition = screen_projections(partition, results)
+    #est_graph_partition = fusion(partition, results, data_obs, full_cand_set=full_cand_set)
+    est_graph_partition = screen_projections(partition, results)
 
     # Call serial method
     est_graph_serial = _local_structure_learn([superstructure, df])
@@ -56,7 +57,7 @@ def run_causal_discovery(superstructure, partition, df, G_star, full_cand_set=Fa
     scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
     scores_part = get_scores(["CD-partition"], [est_graph_partition], G_star)
 
-    return scores_serial[-2], scores_part[-2]  # this is the  true positive rate
+    return scores_serial[-2:], scores_part[-2:]  # this is the  true positive rate
 
 def vis(name, partition, superstructure):
     superstructure = adj_to_dag(superstructure)
@@ -75,12 +76,12 @@ def run_tune_mod():
     ns=1e5
     alpha=0.5
     tune_mod = list(np.arange(0,0.1,0.01))
-    scores_serial = np.zeros((num_repeats, len(tune_mod)))
-    scores_edge_cover = np.zeros((num_repeats, len(tune_mod)))
-    scores_hard_partition = np.zeros((num_repeats, len(tune_mod)))
-    scores_causal_partition = np.zeros((num_repeats, len(tune_mod)))
-    scores_mod_partition = np.zeros((num_repeats, len(tune_mod)))
-    scores_pef = np.zeros((num_repeats, len(tune_mod)))
+    scores_serial = np.zeros((num_repeats, len(tune_mod), 2))
+    scores_edge_cover = np.zeros((num_repeats, len(tune_mod), 2))
+    scores_hard_partition = np.zeros((num_repeats, len(tune_mod), 2))
+    scores_causal_partition = np.zeros((num_repeats, len(tune_mod), 2))
+    scores_mod_partition = np.zeros((num_repeats, len(tune_mod), 2))
+    scores_pef = np.zeros((num_repeats, len(tune_mod), 2))
 
     for i in range(num_repeats):
         for j,mod in enumerate(tune_mod):
@@ -135,33 +136,42 @@ def run_tune_mod():
             scores_pef[i][j] = sp
         
 
-
     plt.clf()
-    _, ax = plt.subplots()
-
-    data = [scores_serial, scores_pef, scores_edge_cover, scores_causal_partition, scores_mod_partition] # scores_hard_partition
+    fig, axs = plt.subplots(2, figsize=(10,8),sharex=True)
+    plt.title("2 community scale free modularity sweep")
+    
+    data = [scores_serial[:,:,0], scores_pef[:,:,0], scores_edge_cover[:,:,0], scores_causal_partition[:,:,0], scores_mod_partition[:,:,0]] # scores_hard_partition
     data = [np.reshape(d, num_repeats*len(tune_mod)) for d in data]
     print(data)
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] # 'hard'
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df['samples'] = np.repeat(tune_mod, num_repeats)
-    print(df.head)
     df = df.melt(id_vars='samples', value_vars=labels)
-    print(df.head)
     x_order = np.unique(df['samples'])
-    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=ax)
-    ax.set_xlabel("Number of samples")
-    ax.set_ylabel("TPR)")
-    ax.set_title("Comparison of partition types for 2 community scale free networks")
-    #plt.legend(*zip(*labels), loc=2)
-    plt.tight_layout()
+    g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
+    axs[0].set_xlabel("Rho")
+    axs[0].set_ylabel("TPR")
+    
+    
+    data = [scores_serial[:,:,1], scores_pef[:,:,1], scores_edge_cover[:,:,1], scores_causal_partition[:,:,1], scores_mod_partition[:,:,1]] # scores_hard_partition
+    data = [np.reshape(d, num_repeats*len(tune_mod)) for d in data]
+    labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] # 'hard'
+    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+    df['samples'] = np.repeat(tune_mod, num_repeats)
+    df = df.melt(id_vars='samples', value_vars=labels)
+    x_order = np.unique(df['samples'])
+    sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1], legend=None)
+    axs[1].set_xlabel("Rho")
+    axs[1].set_ylabel("FPR")
+    sns.move_legend(g, "center left", bbox_to_anchor=(1, .5), title='Algorithm')
+
     plt.savefig(
         "./tests/empirical_tests/causal_part_test_tune_mod.png"
     )
 
     
 def run_samples():
-    num_repeats = 10
+    num_repeats = 5
     sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
     scores_serial = np.zeros((num_repeats, len(sample_range), 2))
@@ -179,6 +189,9 @@ def run_samples():
         bias = np.random.normal(0, 1, size=num_nodes)
         var = np.abs(np.random.normal(0, 1, size=num_nodes))
         for j,ns in enumerate(sample_range):
+            if not os.path.exists("./datasets/test_causal_partition_by_sample_{}".format(ns)):
+                os.makedirs("./datasets/test_causal_partition_by_sample_{}".format(ns))
+                
             print("Number of samples {}".format(ns))
             # Generate data
             (edges, nodes, _, _), df = get_data_from_graph(
@@ -187,6 +200,9 @@ def run_samples():
                 nsamples=int(ns),
                 iv_samples=0,bias=bias, var=var
             )
+            df.to_csv("./datasets/test_causal_partition_by_sample_{}/data_{}.csv".format(ns, i), header=True, index=False)
+            pd.DataFrame(data=np.array(edges), columns=['node1', 'node2']).to_csv("./datasets/test_causal_partition_by_sample_{}/edges_true_{}.csv".format(ns, i), index=False)
+
             G_star = edge_to_adj(edges, nodes)
             superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
             #superstructure, _ = pc(df, alpha=alpha, outdir=None)
@@ -223,7 +239,8 @@ def run_samples():
 
 
     plt.clf()
-    _, axs = plt.subplots(2)
+    fig, axs = plt.subplots(2, figsize=(10,8),sharex=True)
+    plt.title("Comparison of partition types for 2 community scale free networks")
 
     data = [scores_serial[:,:,0], scores_pef[:,:,0], scores_edge_cover[:,:,0], scores_causal_partition[:,:,0], scores_mod_partition[:,:,0]] # scores_hard_partition
     data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
@@ -233,10 +250,9 @@ def run_samples():
     df['samples'] = np.repeat(sample_range, num_repeats)
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
-    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
+    g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
     axs[0].set_xlabel("Number of samples")
     axs[0].set_ylabel("TPR")
-    #plt.legend(*zip(*labels), loc=2)
     
     
     data = [scores_serial[:,:,1], scores_pef[:,:,1], scores_edge_cover[:,:,1], scores_causal_partition[:,:,1], scores_mod_partition[:,:,1]] # scores_hard_partition
@@ -246,16 +262,16 @@ def run_samples():
     df['samples'] = np.repeat(sample_range, num_repeats)
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
-    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1])
+    sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1], legend=False)
     axs[1].set_xlabel("Number of samples")
     axs[1].set_ylabel("FPR")
     
-    
-    plt.title("Comparison of partition types for 2 community scale free networks")
+    sns.move_legend(g, "center left", bbox_to_anchor=(1, .5), title='Algorithm')
+
     plt.tight_layout()
-    plt.savefig(
-        "./tests/empirical_tests/causal_part_test_artificial_ss_pef.png"
-    )
+    # plt.savefig(
+    #     "./tests/empirical_tests/causal_part_test_artificial_ss_pef_screen_projections.png"
+    # )
 
 
 if __name__ == "__main__":
