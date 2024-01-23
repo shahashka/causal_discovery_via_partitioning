@@ -164,12 +164,12 @@ def run_samples():
     num_repeats = 10
     sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
-    scores_serial = np.zeros((num_repeats, len(sample_range)))
-    scores_edge_cover = np.zeros((num_repeats, len(sample_range)))
-    scores_hard_partition = np.zeros((num_repeats, len(sample_range)))
-    scores_causal_partition = np.zeros((num_repeats, len(sample_range)))
-    scores_mod_partition = np.zeros((num_repeats, len(sample_range)))
-    scores_pef = np.zeros((num_repeats, len(sample_range)))
+    scores_serial = np.zeros((num_repeats, len(sample_range), 2))
+    scores_edge_cover = np.zeros((num_repeats, len(sample_range), 2))
+    scores_hard_partition = np.zeros((num_repeats, len(sample_range), 2))
+    scores_causal_partition = np.zeros((num_repeats, len(sample_range), 2))
+    scores_mod_partition = np.zeros((num_repeats, len(sample_range), 2))
+    scores_pef = np.zeros((num_repeats, len(sample_range), 2))
 
     for i in range(num_repeats):
         init_partition, graph = create_k_comms(
@@ -223,23 +223,35 @@ def run_samples():
 
 
     plt.clf()
-    _, ax = plt.subplots()
+    _, axs = plt.subplots(2)
 
-    data = [scores_serial, scores_pef, scores_edge_cover, scores_causal_partition, scores_mod_partition] # scores_hard_partition
+    data = [scores_serial[:,:,0], scores_pef[:,:,0], scores_edge_cover[:,:,0], scores_causal_partition[:,:,0], scores_mod_partition[:,:,0]] # scores_hard_partition
     data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
     print(data)
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] # 'hard'
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df['samples'] = np.repeat(sample_range, num_repeats)
-    print(df.head)
     df = df.melt(id_vars='samples', value_vars=labels)
-    print(df.head)
     x_order = np.unique(df['samples'])
-    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=ax)
-    ax.set_xlabel("Number of samples")
-    ax.set_ylabel("TPR)")
-    ax.set_title("Comparison of partition types for 2 community scale free networks")
+    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
+    axs[0].set_xlabel("Number of samples")
+    axs[0].set_ylabel("TPR")
     #plt.legend(*zip(*labels), loc=2)
+    
+    
+    data = [scores_serial[:,:,1], scores_pef[:,:,1], scores_edge_cover[:,:,1], scores_causal_partition[:,:,1], scores_mod_partition[:,:,1]] # scores_hard_partition
+    data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
+    labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] # 'hard'
+    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+    df['samples'] = np.repeat(sample_range, num_repeats)
+    df = df.melt(id_vars='samples', value_vars=labels)
+    x_order = np.unique(df['samples'])
+    sns.violinplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1])
+    axs[1].set_xlabel("Number of samples")
+    axs[1].set_ylabel("FPR")
+    
+    
+    plt.title("Comparison of partition types for 2 community scale free networks")
     plt.tight_layout()
     plt.savefig(
         "./tests/empirical_tests/causal_part_test_artificial_ss_pef.png"
@@ -247,4 +259,5 @@ def run_samples():
 
 
 if __name__ == "__main__":
-    run_tune_mod()
+    #run_tune_mod()
+    run_samples()
