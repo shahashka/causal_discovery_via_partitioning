@@ -33,6 +33,7 @@ from cd_v_partition.overlapping_partition import (
     heirarchical_partition,
     expansive_causal_partition,
     rand_edge_cover_partition,
+    PEF_partition,
 )
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import fusion
@@ -76,6 +77,21 @@ def _local_structure_learn(subproblem):
     skel, data = subproblem
     adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
+
+
+def run_causal_discovery_nonparallelized(
+    partition, superstructure, df, full_cand_set=False
+):
+    subproblems = partition_problem(partition, superstructure, df)
+    results = []
+    for subproblem in tqdm(subproblems):
+        results.append(_local_structure_learn(subproblem))
+
+    df_obs = df.drop(columns=["target"])
+    data_obs = df_obs.to_numpy()
+
+    fused_graph = fusion(partition, results, data_obs, full_cand_set=full_cand_set)
+    return subproblems, results, fused_graph
 
 
 def visualize_partitions(
@@ -124,7 +140,7 @@ def visualize_partitions(
     return
 
 
-def heirarchical_vs_serial(verbose=True):
+def single_trial_local_performance(verbose=True):
     outdir = "./"
 
     ## Generate a random network with heirarchical structure and corresponding dataset
@@ -300,51 +316,6 @@ def heirarchical_vs_serial(verbose=True):
     return partition_learning_metrics, serial_learning_metrics
 
 
-def multiple_heirarchical_trials(num_trials=10):
-    partition_local_shd = []
-    partition_global_shd = []
-    serial_local_shd = []
-    serial_global_shd = []
-    for _ in range(num_trials):
-        partition_trial_results, serial_trial_results = heirarchical_vs_serial(
-            verbose=False
-        )
-        partition_local_shd.append(partition_trial_results["normalized_local_SHD"])
-        partition_global_shd.append(partition_trial_results["normalized_global_SHD"])
-        serial_local_shd.append(serial_trial_results["normalized_local_SHD"])
-        serial_global_shd.append(serial_trial_results["normalized_global_SHD"])
-
-    # plotting
-    _, ax = plt.subplots()
-    ax.violinplot(
-        [partition_local_shd, partition_global_shd, serial_local_shd, serial_global_shd]
-    )
-    ax.set_xticks(
-        [y + 1 for y in range(4)],
-        labels=[
-            "Learning on subset \n SHD/Subset size",
-            "Fused output \n SHD/number of nodes",
-            "Serial learning, result on subset \n SHD/Subset size",
-            "Serial learning, result on whole graph \n SHD/n",
-        ],
-    )
-    plt.show()
-    return
-
-
-def learn_on_partition(partition, superstructure, df):
-    subproblems = partition_problem(partition, superstructure, df)
-    results = []
-    for subproblem in tqdm(subproblems):
-        results.append(_local_structure_learn(subproblem))
-
-    df_obs = df.drop(columns=["target"])
-    data_obs = df_obs.to_numpy()
-
-    fused_graph = fusion(partition, results, data_obs)
-    return subproblems, results, fused_graph
-
-
 def single_trial_partition_comparison(verbose=True):
     outdir = "./"
 
@@ -364,6 +335,7 @@ def single_trial_partition_comparison(verbose=True):
     disjoint_partition, causal_partition, edge_cover_partition = generate_partitions(
         superstructure, disjoint_method=heirarchical_partition
     )
+    PEF_style_partition = PEF_partition(df, min_size_frac=0.05)
 
     if verbose:
         plt.figure()
@@ -379,6 +351,9 @@ def single_trial_partition_comparison(verbose=True):
         visualize_partitions(
             disjoint_partition, causal_partition, G_star_graph, superstructure, nodes
         )
+        visualize_partitions(
+            PEF_style_partition, causal_partition, G_star_graph, superstructure, nodes
+        )
 
     ## Learning Globally
     # call the causal learner on the full data A(X_v) and superstructure
@@ -390,17 +365,28 @@ def single_trial_partition_comparison(verbose=True):
     # non-parallelized version
     if verbose:
         print("Beginning local learning.")
-    causal_subproblems, causal_results, causal_fused_A_X_s = learn_on_partition(
-        causal_partition, superstructure, df
-    )
-    disjoint_subproblems, disjoint_results, disjoint_fused_A_X_s = learn_on_partition(
-        disjoint_partition, superstructure, df
-    )
+    (
+        causal_subproblems,
+        causal_results,
+        causal_fused_A_X_s,
+    ) = run_causal_discovery_nonparallelized(causal_partition, superstructure, df)
+    (
+        disjoint_subproblems,
+        disjoint_results,
+        disjoint_fused_A_X_s,
+    ) = run_causal_discovery_nonparallelized(disjoint_partition, superstructure, df)
     (
         edge_covering_subproblems,
         edge_covering_results,
         edge_covering_fused_A_X_s,
-    ) = learn_on_partition(edge_cover_partition, superstructure, df)
+    ) = run_causal_discovery_nonparallelized(edge_cover_partition, superstructure, df)
+    (
+        PEF_subproblems,
+        PEF_results,
+        PEF_fused_A_X_s,
+    ) = run_causal_discovery_nonparallelized(
+        PEF_style_partition, superstructure, df, full_cand_set=True
+    )
     if verbose:
         print("Successfully fused partition output.")
 
@@ -416,54 +402,20 @@ def single_trial_partition_comparison(verbose=True):
     edge_covering_shd, _, auc, tpr, fpr = get_scores(
         ["CD edge-covering partition"], [edge_covering_fused_A_X_s], G_star_graph
     )
-
-    return serial_shd, causal_shd, disjoint_shd, edge_covering_shd
-
-
-def multiple_trial_partition_comparisons(num_trials=10):
-    serial_shd_list = []
-    causal_shd_list = []
-    disjoint_shd_list = []
-    edge_covering_shd_list = []
-    for _ in range(num_trials):
-        (
-            serial_shd,
-            causal_shd,
-            disjoint_shd,
-            edge_covering_shd,
-        ) = single_trial_partition_comparison(verbose=False)
-        serial_shd_list.append(serial_shd)
-        causal_shd_list.append(causal_shd)
-        disjoint_shd_list.append(disjoint_shd)
-        edge_covering_shd_list.append(edge_covering_shd)
-
-    # plotting
-    _, ax = plt.subplots()
-    ax.violinplot(
-        [serial_shd_list, causal_shd_list, disjoint_shd_list, edge_covering_shd_list]
+    PEF_shd, _, auc, tpr, fpr = get_scores(
+        ["CD PEF partition"], [PEF_fused_A_X_s], G_star_graph
     )
-    ax.set_xticks(
-        [y + 1 for y in range(4)],
-        labels=[
-            "Serial results",
-            "Fused causal partition",
-            "Fused disjoint partition",
-            "Fused edge-covering partition",
-        ],
-    )
-    ax.set_ylabel("SHD")
-    ax.set_title(f"Results over {num_trials} independent trials")
-    plt.show()
-    return
+
+    return serial_shd, causal_shd, disjoint_shd, edge_covering_shd, PEF_shd
 
 
-def multiple_heirarchical_trials(num_trials=10):
+def multiple_trial_local_performance(num_trials=10):
     partition_local_shd = []
     partition_global_shd = []
     serial_local_shd = []
     serial_global_shd = []
     for _ in range(num_trials):
-        partition_trial_results, serial_trial_results = heirarchical_vs_serial(
+        partition_trial_results, serial_trial_results = single_trial_local_performance(
             verbose=False
         )
         partition_local_shd.append(partition_trial_results["normalized_local_SHD"])
@@ -489,4 +441,51 @@ def multiple_heirarchical_trials(num_trials=10):
     return
 
 
-multiple_trial_partition_comparisons(num_trials=20)
+def multiple_trial_partition_comparisons(num_trials=10):
+    serial_shd_list = []
+    causal_shd_list = []
+    disjoint_shd_list = []
+    edge_covering_shd_list = []
+    PEF_shd_list = []
+    for _ in range(num_trials):
+        (
+            serial_shd,
+            causal_shd,
+            disjoint_shd,
+            edge_covering_shd,
+            PEF_shd,
+        ) = single_trial_partition_comparison(verbose=False)
+        serial_shd_list.append(serial_shd)
+        causal_shd_list.append(causal_shd)
+        disjoint_shd_list.append(disjoint_shd)
+        edge_covering_shd_list.append(edge_covering_shd)
+        PEF_shd_list.append(PEF_shd)
+
+    # plotting
+    _, ax = plt.subplots()
+    ax.violinplot(
+        [
+            serial_shd_list,
+            causal_shd_list,
+            disjoint_shd_list,
+            edge_covering_shd_list,
+            PEF_shd_list,
+        ]
+    )
+    ax.set_xticks(
+        [y + 1 for y in range(5)],
+        labels=[
+            "Serial results",
+            "Fused causal partition",
+            "Fused disjoint partition",
+            "Fused edge-covering partition",
+            "Fused PEF partition",
+        ],
+    )
+    ax.set_ylabel("SHD")
+    ax.set_title(f"Results over {num_trials} independent trials")
+    plt.show()
+    return
+
+
+single_trial_local_performance(verbose=True)
