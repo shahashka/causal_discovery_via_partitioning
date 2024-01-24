@@ -136,10 +136,10 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
     data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(sample_range, num_repeats)
+    df['samples'] = np.repeat([sample_range], num_repeats, axis=0).flatten() # samples go 1e2->1e7 1e2->1e7 etc
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
-    g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
+    g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0], showfliers=False)
     axs[0].set_xlabel("Number of samples")
     axs[0].set_ylabel("TPR")
     
@@ -148,10 +148,10 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
     data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(sample_range, num_repeats)
+    df['samples'] = np.repeat([sample_range], num_repeats, axis=0).flatten() # samples go 1e2->1e7 1e2->1e7 etc
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
-    sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1], legend=False)
+    sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1], legend=False, showfliers=False)
     axs[1].set_xlabel("Number of samples")
     axs[1].set_ylabel("FPR")
     
@@ -160,10 +160,10 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
     data = [np.reshape(d, num_repeats*len(sample_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(sample_range, num_repeats)
+    df['samples'] = np.repeat([sample_range], num_repeats, axis=0).flatten() # samples go 1e2->1e7 1e2->1e7 etc
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
-    sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[2], legend=False)
+    sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[2], legend=False, showfliers=False)
     axs[2].set_xlabel("Number of samples")
     axs[2].set_ylabel("SHD")
     
@@ -172,7 +172,18 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
     plt.tight_layout()
     plot_dir = "./{}/screen_projections/".format(experiment_dir) if screen else "./{}/fusion/".format(experiment_dir)
     plt.savefig("{}/fig.png".format(plot_dir))
+    
+    # Save score matrices
+    np.savetxt("{}/scores_serial.txt".format(plot_dir), scores_serial.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_pef.txt".format(plot_dir), scores_pef.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_edge_cover.txt".format(plot_dir), scores_edge_cover.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_causal_partition.txt".format(plot_dir), scores_causal_partition.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_mod.txt".format(plot_dir), scores_mod_partition.reshape(num_repeats, -1))
 
 if __name__ == "__main__":
-    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=50, sample_range=[10**i for i in range(1,7)], screen=False)
-    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=50, sample_range=[10**i for i in range(1,7)], screen=True)
+    # Simple version for debugging
+    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=5, sample_range=[10**i for i in range(1,6)], screen=False)
+    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=5, sample_range=[10**i for i in range(1,6)], screen=True)
+    
+    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=50, sample_range=[10**i for i in range(1,8)], screen=False)
+    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=50, sample_range=[10**i for i in range(1,8)], screen=True)

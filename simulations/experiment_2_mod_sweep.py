@@ -1,4 +1,4 @@
-# Experiment 2: two community, scale free, num samples 1e4, num_nodes=50, 
+# Experiment 2: two community, scale free, num samples 1e5, num_nodes=50, 
 # num_trials=30, artificial superstructure with 10% extraneous edges,
 # fusion + screen projections
 # Sweep rho parameter which controls the number of edges between the 
@@ -69,7 +69,7 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
     return scores_serial, scores_part, time_serial, time_partition
     
 def run_mod(experiment_dir, num_repeats, rho_range, nthreads=16, screen=False):
-    nsamples = 1e4
+    nsamples = 1e5
     scores_serial = np.zeros((num_repeats, len(rho_range), 5))
     scores_edge_cover = np.zeros((num_repeats, len(rho_range), 5))
     scores_causal_partition = np.zeros((num_repeats, len(rho_range), 5))
@@ -137,7 +137,7 @@ def run_mod(experiment_dir, num_repeats, rho_range, nthreads=16, screen=False):
     data = [np.reshape(d, num_repeats*len(rho_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(rho_range, num_repeats)
+    df['samples'] = np.repeat([rho_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
     g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
@@ -149,7 +149,7 @@ def run_mod(experiment_dir, num_repeats, rho_range, nthreads=16, screen=False):
     data = [np.reshape(d, num_repeats*len(rho_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(rho_range, num_repeats)
+    df['samples'] = np.repeat([rho_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
     sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1], legend=False)
@@ -161,7 +161,7 @@ def run_mod(experiment_dir, num_repeats, rho_range, nthreads=16, screen=False):
     data = [np.reshape(d, num_repeats*len(rho_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(rho_range, num_repeats)
+    df['samples'] = np.repeat([rho_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
     sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[2], legend=False)
@@ -173,7 +173,19 @@ def run_mod(experiment_dir, num_repeats, rho_range, nthreads=16, screen=False):
     plt.tight_layout()
     plot_dir = "./{}/screen_projections/".format(experiment_dir) if screen else "./{}/fusion/".format(experiment_dir)
     plt.savefig("{}/fig.png".format(plot_dir))
+    
+    # Save score matrices
+    np.savetxt("{}/scores_serial.txt".format(plot_dir), scores_serial.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_pef.txt".format(plot_dir), scores_pef.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_edge_cover.txt".format(plot_dir), scores_edge_cover.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_causal_partition.txt".format(plot_dir), scores_causal_partition.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_mod.txt".format(plot_dir), scores_mod_partition.reshape(num_repeats, -1))
+
 
 if __name__ == "__main__":
-    run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=10, rho_range=np.arange(0,0.1,0.025), screen=False)
-    run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=10, rho_range=np.arange(0,0.1,0.025), screen=True)
+    # Simple version for debugging
+    # run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=2, rho_range=np.arange(0,0.1,0.025), screen=False)
+    # run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=2, rho_range=np.arange(0,0.1,0.025), screen=True)
+
+    run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=50, rho_range=np.arange(0,0.5,0.05), screen=False)
+    run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=50, rho_range=np.arange(0,0.5,0.05), screen=True)

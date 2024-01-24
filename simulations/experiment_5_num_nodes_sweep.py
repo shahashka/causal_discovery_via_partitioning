@@ -1,4 +1,4 @@
-# Experiment 5: hierarchical network, num samples 1e4, 
+# Experiment 5: hierarchical networks, num samples 1e4, artificial ss 10%,
 # num_trials=30, default modularity (rho=0.01), fusion + screen projections
 # Sweep the number of nodes 50 5e4
 
@@ -66,20 +66,21 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
 
     return scores_serial, scores_part, time_serial, time_partition
     
-def run_samples(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False):
+def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False):
     nsamples = 1e4
-    scores_serial = np.zeros((num_repeats, len(nnodes_range), 5))
-    scores_edge_cover = np.zeros((num_repeats, len(nnodes_range), 5))
-    scores_causal_partition = np.zeros((num_repeats, len(nnodes_range), 5))
-    scores_mod_partition = np.zeros((num_repeats, len(nnodes_range), 5))
-    scores_pef = np.zeros((num_repeats, len(nnodes_range), 5))
+    scores_serial = np.zeros((num_repeats, len(nnodes_range), 6))
+    scores_edge_cover = np.zeros((num_repeats, len(nnodes_range), 6))
+    scores_causal_partition = np.zeros((num_repeats, len(nnodes_range), 6))
+    scores_mod_partition = np.zeros((num_repeats, len(nnodes_range), 6))
+    scores_pef = np.zeros((num_repeats, len(nnodes_range), 6))
 
     for i in range(num_repeats):
         for j,nnodes in enumerate(nnodes_range):
             print("Number of nodes per comm {}".format(nnodes))
 
             # Generate data
-            (edges, nodes, _, _), df = get_random_graph_data("hierarchical", num_nodes=nnodes, nsamples=nsamples, iv_samples=0, p=0.5, k=2)
+            directed_heirarchical_graph
+            (edges, nodes, _, _), df = get_random_graph_data("hierarchical", num_nodes=nnodes, nsamples=int(nsamples), iv_samples=0, p=0.5, m=2)
             
             dir_name = "./{}/screen_projections/nnodes_{}/{}/".format(experiment_dir, nnodes, i) if screen else "./{}/fusion/nnodes_{}/{}/".format(experiment_dir, nnodes, i)
             if not os.path.exists(dir_name):
@@ -97,46 +98,65 @@ def run_samples(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=F
 
             
             # Run each partition and get scores 
+            start = time.time()
             mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
+            tm = time.time() - start
+            
             ss, sp, ts, tp = run_causal_discovery(superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
             scores_serial[i][j] = ss
             scores_mod_partition[i][j] = sp
             
+            scores_serial[i][j][-1] = ts
+            scores_mod_partition[i][j][-1] = tp + tm 
+
+            start = time.time()
             partition = rand_edge_cover_partition(superstructure, mod_partition)
+            tec = time.time() - start
+
             _, sp, _ , tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
             scores_edge_cover[i][j] = sp
-            
+            scores_edge_cover[i][j][-1] = tp + tec + tm 
+
+            start = time.time()
             partition = expansive_causal_partition(superstructure, mod_partition)
+            tca = time.time() - start
+            
             _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
             scores_causal_partition[i][j] = sp
-            
+            scores_causal_partition[i][j][-1] = tp + tca + tm 
+
+            start = time.time()
             partition = PEF_partition(df)
+            tpef = time.time()-start
+            
             _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
             scores_pef[i][j] = sp
+            scores_pef[i][j][-1] = tp + tpef 
+
             
 
 
     plt.clf()
     fig, axs = plt.subplots(3, figsize=(10,12),sharex=True)
 
-    tpr_ind = -2
+    tpr_ind = -3
     data = [scores_serial[:,:,tpr_ind], scores_pef[:,:,tpr_ind], scores_edge_cover[:,:,tpr_ind], scores_causal_partition[:,:,tpr_ind], scores_mod_partition[:,:,tpr_ind]] 
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(nnodes_range, num_repeats)
+    df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
     g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[0])
     axs[0].set_xlabel("Number of nodes")
     axs[0].set_ylabel("TPR")
     
-    fpr_ind = -1
+    fpr_ind = -2
     data = [scores_serial[:,:,fpr_ind], scores_pef[:,:,fpr_ind], scores_edge_cover[:,:,fpr_ind], scores_causal_partition[:,:,fpr_ind], scores_mod_partition[:,:,fpr_ind]] 
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(nnodes_range, num_repeats)
+    df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
     sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[1], legend=False)
@@ -148,7 +168,7 @@ def run_samples(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=F
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df['samples'] = np.repeat(nnodes_range, num_repeats)
+    df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
     x_order = np.unique(df['samples'])
     sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=axs[2], legend=False)
@@ -160,7 +180,37 @@ def run_samples(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=F
     plt.tight_layout()
     plot_dir = "./{}/screen_projections/".format(experiment_dir) if screen else "./{}/fusion/".format(experiment_dir)
     plt.savefig("{}/fig.png".format(plot_dir))
+    
+    
+    plt.clf()
+    fig, ax = plt.subplots()
+
+    time_ind = -1
+    data = [scores_serial[:,:,time_ind], scores_pef[:,:,time_ind], scores_edge_cover[:,:,time_ind], scores_causal_partition[:,:,time_ind], scores_mod_partition[:,:,time_ind]] 
+    data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
+    labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
+    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+    df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
+    df = df.melt(id_vars='samples', value_vars=labels)
+    x_order = np.unique(df['samples'])
+    g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=ax)
+    ax.set_xlabel("Number of nodes")
+    ax.set_ylabel("Time to solution (s)")
+    plt.savefig("{}/time.png".format(plot_dir))
+
+    # Save score matrices
+    np.savetxt("{}/scores_serial.txt".format(plot_dir), scores_serial.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_pef.txt".format(plot_dir), scores_pef.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_edge_cover.txt".format(plot_dir), scores_edge_cover.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_causal_partition.txt".format(plot_dir), scores_causal_partition.reshape(num_repeats, -1))
+    np.savetxt("{}/scores_mod.txt".format(plot_dir), scores_mod_partition.reshape(num_repeats, -1))
+
+    
 
 if __name__ == "__main__":
-    run_samples("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=False)
-    run_samples("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=True)
+    # Simple case for debugging
+    run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=False)
+    run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=True)
+
+    # run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=False)
+    # run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=True)
