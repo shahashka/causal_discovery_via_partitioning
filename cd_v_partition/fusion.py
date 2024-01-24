@@ -34,15 +34,16 @@ def screen_projections(
 
     # global_graph = no edge if (no edge in comm1) or (no edge in comm2)
     for comm, adj_comm in zip(partition.values(), local_cd_adj_mats):
-        for row, col in itertools.product(
-            np.arange(adj_comm.shape[0]), np.arange(adj_comm.shape[0])
-        ):
-            i = comm[row]
-            j = comm[col]
-            if (
-                not adj_comm[row, col] and not adj_comm[col, row]
-            ) and global_graph.has_edge(i, j):
-                global_graph.remove_edge(i, j)
+        if len(comm) > 1:
+            for row, col in itertools.product(
+                np.arange(adj_comm.shape[0]), np.arange(adj_comm.shape[0])
+            ):
+                i = comm[row]
+                j = comm[col]
+                if (
+                    not adj_comm[row, col] and not adj_comm[col, row]
+                ) and global_graph.has_edge(i, j):
+                    global_graph.remove_edge(i, j)
 
     return global_graph
 

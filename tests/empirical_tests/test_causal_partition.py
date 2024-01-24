@@ -101,8 +101,8 @@ def run_tune_mod():
                 iv_samples=0,bias=bias, var=var
             )
             G_star = edge_to_adj(edges, nodes)
-            #superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
-            superstructure, _ = pc(df, alpha=alpha, outdir=None)
+            superstructure = artificial_superstructure(G_star, frac_extraneous=0.1)
+            #superstructure, _ = pc(df, alpha=alpha, outdir=None)
 
             print("Modularity is {}".format(nx.community.modularity(nx.from_numpy_array(G_star), init_partition.values())))
 
@@ -171,8 +171,8 @@ def run_tune_mod():
 
     
 def run_samples():
-    num_repeats = 5
-    sample_range = [1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
+    num_repeats = 10
+    sample_range = [1e1,1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
     scores_serial = np.zeros((num_repeats, len(sample_range), 2))
     scores_edge_cover = np.zeros((num_repeats, len(sample_range), 2))
@@ -209,7 +209,7 @@ def run_samples():
 
 
             # ss, sp = run_causal_discovery(superstructure, init_partition, df, G_star)
-            # vis("init", init_partition, G_star)
+            vis("init", init_partition, G_star)
             # scores_serial[i][j] = ss
             # scores_hard_partition[i][j] = sp
 
@@ -269,11 +269,11 @@ def run_samples():
     sns.move_legend(g, "center left", bbox_to_anchor=(1, .5), title='Algorithm')
 
     plt.tight_layout()
-    # plt.savefig(
-    #     "./tests/empirical_tests/causal_part_test_artificial_ss_pef_screen_projections.png"
-    # )
+    plt.savefig(
+        "./tests/empirical_tests/causal_part_test_artificial_ss_pef_10.png"
+    )
 
 
 if __name__ == "__main__":
-    #run_tune_mod()
-    run_samples()
+    run_tune_mod()
+    #run_samples()
