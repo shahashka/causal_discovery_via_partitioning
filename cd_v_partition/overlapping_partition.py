@@ -29,7 +29,7 @@ def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
 
 
 def modularity_partition(
-    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 2, best_n: int = 2
+    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 1, best_n: int = None
 ):
     """Creates disjoint partition by greedily maximizing modularity. Using networkx built-in implementaiton.
 
