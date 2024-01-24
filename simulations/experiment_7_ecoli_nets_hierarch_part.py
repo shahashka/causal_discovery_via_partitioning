@@ -1,5 +1,5 @@
-# Experiment 6: Synthetic e.coli networks, num samples 1e4, artificial ss with frac_extraneoues = 0.5
-# Hierichical and modularity partitioning
+# Experiment 6: Synthetic e.coli networks, num samples 1e5, artificial ss with frac_extraneoues = 0.5
+# Hierichical 
 
 import networkx as nx
 import numpy as np

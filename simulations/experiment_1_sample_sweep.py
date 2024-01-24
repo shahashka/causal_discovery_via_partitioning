@@ -182,8 +182,8 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
 
 if __name__ == "__main__":
     # Simple version for debugging
-    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=5, sample_range=[10**i for i in range(1,6)], screen=False)
-    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=5, sample_range=[10**i for i in range(1,6)], screen=True)
+    #run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=10, sample_range=[10**i for i in range(1,6)], screen=False)
+    #run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=10, sample_range=[10**i for i in range(1,6)], screen=True)
     
-    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=50, sample_range=[10**i for i in range(1,8)], screen=False)
-    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=50, sample_range=[10**i for i in range(1,8)], screen=True)
+    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,8)], screen=False)
+    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,8)], screen=True)
