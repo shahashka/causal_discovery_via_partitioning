@@ -184,8 +184,8 @@ def run_mod(experiment_dir, num_repeats, rho_range, nthreads=16, screen=False):
 
 if __name__ == "__main__":
     # Simple version for debugging
-    # run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=2, rho_range=np.arange(0,0.1,0.025), screen=False)
-    # run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=2, rho_range=np.arange(0,0.1,0.025), screen=True)
+    # run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=10, rho_range=np.arange(0,0.1,0.025), screen=False)
+    # run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=10, rho_range=np.arange(0,0.1,0.025), screen=True)
 
     run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=50, rho_range=np.arange(0,0.5,0.05), screen=False)
     run_mod("./simulations/experiment_2/", nthreads=16, num_repeats=50, rho_range=np.arange(0,0.5,0.05), screen=True)

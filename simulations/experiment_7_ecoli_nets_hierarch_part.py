@@ -104,7 +104,7 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
         
         # Run each partition and get scores 
         start = time.time()
-        h_partition = hierarchical_partition(superstructure) 
+        h_partition = hierarchical_partition(superstructure, max_community_size=0.1) 
         tm = time.time() - start
         
         ss, sp, ts, tp = run_causal_discovery(superstructure, h_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
