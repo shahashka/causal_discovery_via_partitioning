@@ -83,7 +83,6 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
     for i in range(10):
         scores_by_net = pd.DataFrame(columns=["Algorithm", "SHD", "TPR","FPR", "Time (s)"])
         G_star = np.loadtxt("{}/net_{}.txt".format(data_dir, i))
-
         nodes = np.arange(G_star.shape[0])
 
         G_star_edges = adj_to_edge(G_star, list(nodes), ignore_weights=True)
@@ -105,22 +104,22 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
         
         # Run each partition and get scores 
         start = time.time()
-        mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None) 
+        h_partition = hierarchical_partition(superstructure) 
         tm = time.time() - start
         
-        ss, sp, ts, tp = run_causal_discovery(superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
+        ss, sp, ts, tp = run_causal_discovery(superstructure, h_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
         scores_by_net.loc[len(scores_by_net.index)] = ["Serial", ss[0], ss[-2], ss[-1], ts]
-        scores_by_net.loc[len(scores_by_net.index)] = ["Modularity Partition", sp[0], sp[-2], sp[-1], tp + tm]
+        scores_by_net.loc[len(scores_by_net.index)] = ["Hierarchical Partition", sp[0], sp[-2], sp[-1], tp + tm]
 
         start = time.time()
-        partition = rand_edge_cover_partition(superstructure, mod_partition)
+        partition = rand_edge_cover_partition(superstructure, h_partition)
         tec = time.time() - start
 
         _, sp, _ , tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
         scores_by_net.loc[len(scores_by_net.index)] = ["Random Edge Cover Partition", sp[0], sp[-2], sp[-1], tp + tec+ tm]
 
         start = time.time()
-        partition = expansive_causal_partition(superstructure, mod_partition)
+        partition = expansive_causal_partition(superstructure, h_partition)
         tca = time.time() - start
         
         _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
@@ -137,5 +136,5 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
         print(scores_by_net)
 
 if __name__ == "__main__":
-    run_ecoli("./simulations/experiment_6/", nthreads=16,  screen=False)
-    run_ecoli("./simulations/experiment_6/", nthreads=16,  screen=True)
+    run_ecoli("./simulations/experiment_7/", nthreads=16,  screen=False)
+    run_ecoli("./simulations/experiment_7/", nthreads=16,  screen=True)

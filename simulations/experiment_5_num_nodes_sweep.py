@@ -1,4 +1,5 @@
-# Experiment 5: hierarchical networks, num samples 1e4, artificial ss 10%,
+# Experiment 5: hierarchical networks, num samples 1e5, 
+# artificial superstructure with 10% extraneous edges, 
 # num_trials=30, default modularity (rho=0.01), fusion + screen projections
 # Sweep the number of nodes 50 5e4
 
@@ -11,9 +12,8 @@ import pandas as pd
 from cd_v_partition.utils import (
     get_data_from_graph,
     edge_to_adj,
-    create_k_comms,
     artificial_superstructure,
-    get_scores, adj_to_edge, get_random_graph_data
+    get_scores, adj_to_edge, get_random_graph_data, directed_heirarchical_graph
 )
 from cd_v_partition.causal_discovery import sp_gies, pc
 from cd_v_partition.fusion import screen_projections, fusion
@@ -67,7 +67,7 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
     return scores_serial, scores_part, time_serial, time_partition
     
 def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False):
-    nsamples = 1e4
+    nsamples = 1e5
     scores_serial = np.zeros((num_repeats, len(nnodes_range), 6))
     scores_edge_cover = np.zeros((num_repeats, len(nnodes_range), 6))
     scores_causal_partition = np.zeros((num_repeats, len(nnodes_range), 6))
@@ -79,8 +79,9 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             print("Number of nodes per comm {}".format(nnodes))
 
             # Generate data
-            directed_heirarchical_graph
-            (edges, nodes, _, _), df = get_random_graph_data("hierarchical", num_nodes=nnodes, nsamples=int(nsamples), iv_samples=0, p=0.5, m=2)
+            G_dir = directed_heirarchical_graph(nnodes)
+            (edges, nodes, _, _), df = get_data_from_graph(list(np.arange(len(G_dir.nodes()))), list(G_dir.edges()), nsamples=int(nsamples), iv_samples=0, bias=None, var=None)
+            #(edges, nodes, _, _), df = get_random_graph_data("hierarchical", num_nodes=nnodes, nsamples=int(nsamples), iv_samples=0, p=0.5, m=2)
             
             dir_name = "./{}/screen_projections/nnodes_{}/{}/".format(experiment_dir, nnodes, i) if screen else "./{}/fusion/nnodes_{}/{}/".format(experiment_dir, nnodes, i)
             if not os.path.exists(dir_name):
@@ -103,8 +104,8 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             tm = time.time() - start
             
             ss, sp, ts, tp = run_causal_discovery(superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
-            scores_serial[i][j] = ss
-            scores_mod_partition[i][j] = sp
+            scores_serial[i][j][0:5] = ss
+            scores_mod_partition[i][j][0:5] = sp
             
             scores_serial[i][j][-1] = ts
             scores_mod_partition[i][j][-1] = tp + tm 
@@ -114,7 +115,7 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             tec = time.time() - start
 
             _, sp, _ , tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
-            scores_edge_cover[i][j] = sp
+            scores_edge_cover[i][j][0:5] = sp
             scores_edge_cover[i][j][-1] = tp + tec + tm 
 
             start = time.time()
@@ -122,7 +123,7 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             tca = time.time() - start
             
             _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
-            scores_causal_partition[i][j] = sp
+            scores_causal_partition[i][j][0:5] = sp
             scores_causal_partition[i][j][-1] = tp + tca + tm 
 
             start = time.time()
@@ -130,7 +131,7 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             tpef = time.time()-start
             
             _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
-            scores_pef[i][j] = sp
+            scores_pef[i][j][0:5] = sp
             scores_pef[i][j][-1] = tp + tpef 
 
             
@@ -209,8 +210,8 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
 
 if __name__ == "__main__":
     # Simple case for debugging
-    run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=False)
-    run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=True)
+    # run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=False)
+    # run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=True)
 
-    # run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=False)
-    # run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=True)
+    run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=False)
+    run_nnodes("./simulations/experiment_5/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=True)
