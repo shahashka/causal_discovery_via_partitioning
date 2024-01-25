@@ -227,7 +227,7 @@ def get_random_graph_data(
         random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
             nnodes, k=m, p=p, seed=seed
         )
-    elif graph_type == "heirarchical":
+    elif graph_type == "hierarchical":
         random_graph_model = lambda nnodes: nx.Graph(
             nx.scale_free_graph(
                 nnodes,

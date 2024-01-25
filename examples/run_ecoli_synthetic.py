@@ -13,7 +13,7 @@ from cd_v_partition.utils import (
 )
 from cd_v_partition.causal_discovery import sp_gies, pc
 from cd_v_partition.fusion import screen_projections, fusion, fusion_basic
-from cd_v_partition.overlapping_partition import rand_edge_cover_partition, expansive_causal_partition, modularity_partition
+from cd_v_partition.overlapping_partition import rand_edge_cover_partition, expansive_causal_partition, modularity_partition, PEF_partition
 import functools
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
@@ -87,12 +87,24 @@ def run():
     init_partition = modularity_partition(superstructure)
     print("Time for partitioning {}".format(time.time() - start))
     pd.DataFrame(list(zip(init_partition.keys(), init_partition.values()))).to_csv("./examples/ecoli_partition.csv", header=["comm id", "node list"], index=False)
-    vis("modular_part", init_partition, G_star)
+    #vis("modular_part", init_partition, G_star)
+    print("Modularity partition")
     ss, sp_h = run_causal_discovery(superstructure, init_partition, df, G_star)
     
     causal_partition = expansive_causal_partition(superstructure, init_partition)
-    vis("causal_part", causal_partition, G_star)
-    _, sp_c = run_causal_discovery(superstructure, causal_partition, df, G_star)
+    #vis("causal_part", causal_partition, G_star)
+    print("Causal partition")
+    _, sp_c = run_causal_discovery(superstructure, causal_partition, df, G_star, run_serial=False)
+    
+    pef_partition = PEF_partition(df)
+   # vis("pef_part", pef_partition, G_star)
+    print("PEF partition")
+    _, sp_c = run_causal_discovery(superstructure, pef_partition, df, G_star, run_serial=False)
+
+    ec_partition = rand_edge_cover_partition(superstructure, init_partition)
+    #vis("edge_cover_part", pef_partition, G_star)
+    print("Edge Coverage partition partition")
+    _, sp_c = run_causal_discovery(superstructure, ec_partition, df, G_star, run_serial=False)
 
 
 if __name__ == "__main__":
