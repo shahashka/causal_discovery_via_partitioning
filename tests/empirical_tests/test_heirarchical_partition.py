@@ -1,28 +1,22 @@
 # Imports
 import numpy as np
 import networkx as nx
-import functools
 
-from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 
 # Imports for code development
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import pdb
-from diagnostics import assess_superstructure, find_misclassified_edges
+from diagnostics import assess_superstructure, find_misclassified_edges, localize_errors
 from helpers import artificial_superstructure
-from duplicate_functions import create_two_comms
 from build_heirarchical_random_graphs import (
-    duplicate_get_random_graph_data,
     directed_heirarchical_graph,
 )
 
 from cd_v_partition.utils import (
-    get_random_graph_data,
     get_data_from_graph,
     delta_causality,
-    edge_to_adj,
     adj_to_dag,
     evaluate_partition,
     get_scores,
@@ -34,6 +28,7 @@ from cd_v_partition.overlapping_partition import (
     expansive_causal_partition,
     rand_edge_cover_partition,
     PEF_partition,
+    modularity_partition,
 )
 from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import fusion
@@ -41,7 +36,7 @@ from cd_v_partition.fusion import fusion
 
 def generate_heirarchical_instance(num_nodes=50, superstructure_mode="artificial"):
     ## Generate a random network with heirarchical structure and corresponding dataset
-    G_star_graph = directed_heirarchical_graph(num_nodes=50)
+    G_star_graph = directed_heirarchical_graph(num_nodes=num_nodes)
     G_star_adj = nx.adjacency_matrix(G_star_graph)
     assert set(G_star_graph.nodes()) == set(range(G_star_graph.number_of_nodes()))
     nodes = list(range(G_star_graph.number_of_nodes()))
@@ -316,7 +311,9 @@ def single_trial_local_performance(verbose=True):
     return partition_learning_metrics, serial_learning_metrics
 
 
-def single_trial_partition_comparison(verbose=True):
+def single_trial_partition_comparison(
+    base_partition=heirarchical_partition, verbose=True
+):
     outdir = "./"
 
     ## Generate a problem instance
@@ -333,7 +330,7 @@ def single_trial_partition_comparison(verbose=True):
     ## Partition
     # create a disjoint, expansive causal, and random edge-covering partition using heirarchical methods
     disjoint_partition, causal_partition, edge_cover_partition = generate_partitions(
-        superstructure, disjoint_method=heirarchical_partition
+        superstructure, disjoint_method=base_partition
     )
     PEF_style_partition = PEF_partition(df, min_size_frac=0.05)
 
@@ -350,9 +347,6 @@ def single_trial_partition_comparison(verbose=True):
         # visualize the partitions
         visualize_partitions(
             disjoint_partition, causal_partition, G_star_graph, superstructure, nodes
-        )
-        visualize_partitions(
-            PEF_style_partition, causal_partition, G_star_graph, superstructure, nodes
         )
 
     ## Learning Globally
@@ -392,21 +386,25 @@ def single_trial_partition_comparison(verbose=True):
 
     # ## Assess output
     # Compare the results of the fused results from the overlapping vs disjoint partition
-    serial_shd, _, auc, tpr, fpr = get_scores(["CD serial "], [A_X_v], G_star_graph)
-    causal_shd, _, auc, tpr, fpr = get_scores(
+    serial_metrics = get_scores(["CD serial "], [A_X_v], G_star_graph)
+    causal_metrics = get_scores(
         ["CD causal partition"], [causal_fused_A_X_s], G_star_graph
     )
-    disjoint_shd, _, auc, tpr, fpr = get_scores(
+    disjoint_metrics = get_scores(
         ["CD disjoint partition"], [disjoint_fused_A_X_s], G_star_graph
     )
-    edge_covering_shd, _, auc, tpr, fpr = get_scores(
+    edge_covering_metrics = get_scores(
         ["CD edge-covering partition"], [edge_covering_fused_A_X_s], G_star_graph
     )
-    PEF_shd, _, auc, tpr, fpr = get_scores(
-        ["CD PEF partition"], [PEF_fused_A_X_s], G_star_graph
-    )
+    PEF_metrics = get_scores(["CD PEF partition"], [PEF_fused_A_X_s], G_star_graph)
 
-    return serial_shd, causal_shd, disjoint_shd, edge_covering_shd, PEF_shd
+    return (
+        serial_metrics,
+        causal_metrics,
+        disjoint_metrics,
+        edge_covering_metrics,
+        PEF_metrics,
+    )
 
 
 def multiple_trial_local_performance(num_trials=10):
@@ -441,35 +439,49 @@ def multiple_trial_local_performance(num_trials=10):
     return
 
 
-def multiple_trial_partition_comparisons(num_trials=10):
-    serial_shd_list = []
-    causal_shd_list = []
-    disjoint_shd_list = []
-    edge_covering_shd_list = []
-    PEF_shd_list = []
+def multiple_trial_partition_comparisons(
+    base_partition=heirarchical_partition, metric="shd", num_trials=10
+):
+    serial_metric_list = []
+    causal_metric_list = []
+    disjoint_metric_list = []
+    edge_covering_metric_list = []
+    PEF_metric_list = []
     for _ in range(num_trials):
         (
-            serial_shd,
-            causal_shd,
-            disjoint_shd,
-            edge_covering_shd,
-            PEF_shd,
-        ) = single_trial_partition_comparison(verbose=False)
-        serial_shd_list.append(serial_shd)
-        causal_shd_list.append(causal_shd)
-        disjoint_shd_list.append(disjoint_shd)
-        edge_covering_shd_list.append(edge_covering_shd)
-        PEF_shd_list.append(PEF_shd)
+            serial_metrics,
+            causal_metrics,
+            disjoint_metrics,
+            edge_covering_metrics,
+            PEF_metrics,
+        ) = single_trial_partition_comparison(
+            base_partition=base_partition, verbose=False
+        )
+        serial_metric_list.append(serial_metrics)
+        causal_metric_list.append(causal_metrics)
+        disjoint_metric_list.append(disjoint_metrics)
+        edge_covering_metric_list.append(edge_covering_metrics)
+        PEF_metric_list.append(PEF_metrics)
+
+    # extract target metric
+    score_outputs = ["shd", "sid", "auc", "tpr", "fpr"]
+
+    def _extract_target_metric(
+        metric_list, target_metric=metric, score_outputs=score_outputs
+    ):
+        assert len(score_outputs) == len(metric_list[0])
+        target_metric_idx = score_outputs.index(target_metric)
+        return [metrics[target_metric_idx] for metrics in metric_list]
 
     # plotting
     _, ax = plt.subplots()
     ax.violinplot(
         [
-            serial_shd_list,
-            causal_shd_list,
-            disjoint_shd_list,
-            edge_covering_shd_list,
-            PEF_shd_list,
+            _extract_target_metric(serial_metric_list),
+            _extract_target_metric(causal_metric_list),
+            _extract_target_metric(disjoint_metric_list),
+            _extract_target_metric(edge_covering_metric_list),
+            _extract_target_metric(PEF_metric_list),
         ]
     )
     ax.set_xticks(
@@ -482,10 +494,169 @@ def multiple_trial_partition_comparisons(num_trials=10):
             "Fused PEF partition",
         ],
     )
-    ax.set_ylabel("SHD")
-    ax.set_title(f"Results over {num_trials} independent trials")
+    ax.set_ylabel(metric)
+    ax.set_title(
+        f"Results over {num_trials} independent trials \n base partition is {str(base_partition)}"
+    )
     plt.show()
     return
 
 
-single_trial_local_performance(verbose=True)
+def visualize_modularity_vs_heirarchical_partitions():
+    outdir = "./"
+
+    ## Generate a problem instance
+    # G_star, data, and superstructure
+    G_star_graph, _, superstructure, df = generate_heirarchical_instance(
+        num_nodes=50, superstructure_mode="artificial"
+    )
+    # post-processing
+    assert set(G_star_graph.nodes()) == set(range(G_star_graph.number_of_nodes()))
+    nodes = list(range(G_star_graph.number_of_nodes()))
+    superstructure_graph = adj_to_dag(superstructure)
+
+    ## Partition
+    # create a disjoint and expansive causal
+    heirarchical_disjoint, heirarchical_causal, _ = generate_partitions(
+        superstructure, disjoint_method=heirarchical_partition
+    )
+    mod_disjoint, mod_causal, _ = generate_partitions(
+        superstructure,
+        disjoint_method=(lambda adj: modularity_partition(adj, resolution=0.8)),
+    )
+    PEF_style_partition = PEF_partition(df, min_size_frac=0.05)
+    # pdb.set_trace()
+
+    print("DISJOINT HEIRARCHICAL IN SUPERSTRUCTURE")
+    create_partition_plot(
+        superstructure_graph,
+        nodes,
+        heirarchical_disjoint,
+        "{}/heirarchical_disjoint.png".format(outdir),
+    )
+    print("DISJOINT MODULARITY IN SUPERSTRUCTURE")
+    create_partition_plot(
+        superstructure_graph,
+        nodes,
+        mod_disjoint,
+        "{}/modularity_disjoint.png".format(outdir),
+    )
+    return
+
+
+def single_trial_localize_errors(num_nodes=50, verbose=False):
+    outdir = "./"
+
+    ## Generate a problem instance
+    # G_star, data, and superstructure
+    G_star_graph, _, superstructure, df = generate_heirarchical_instance(
+        num_nodes=num_nodes, superstructure_mode="artificial"
+    )
+    # post-processing
+    assert set(G_star_graph.nodes()) == set(range(G_star_graph.number_of_nodes()))
+    nodes = list(range(G_star_graph.number_of_nodes()))
+    superstructure_graph = adj_to_dag(superstructure)
+
+    ## Partition
+    # create a disjoint and expansive causal
+    heirarchical_disjoint, heirarchical_causal, _ = generate_partitions(
+        superstructure, disjoint_method=heirarchical_partition
+    )
+    ## Learning
+    # learn globally
+    A_X_v = sp_gies(df, skel=superstructure, outdir=None)
+
+    # learn locally over causal partition and fuse result
+    (
+        _,
+        _,
+        causal_fused_A_X_s,
+    ) = run_causal_discovery_nonparallelized(heirarchical_causal, superstructure, df)
+
+    # Localize errors on partition result
+    _ = get_scores(["CD causal partition"], [causal_fused_A_X_s], G_star_graph)
+    # returned values are total_dist, fpos_dist, fneg_dist
+    causal_distance_to_boundary = localize_errors(
+        causal_fused_A_X_s,
+        superstructure_graph,
+        G_star_graph,
+        heirarchical_causal,
+        normalized=False,
+        verbose=verbose,
+        title="Causal partition",
+    )
+    # if verbose:
+    print(
+        f"Causal partition has ave. dist = {causal_distance_to_boundary[0]}, fpos dist = {causal_distance_to_boundary[1]}, fneg dist = {causal_distance_to_boundary[2]}"
+    )
+
+    # Localize error on serial result
+    _ = get_scores(["CD serial "], [adj_to_dag(A_X_v)], G_star_graph)
+    serial_distance_to_boundary = localize_errors(
+        adj_to_dag(A_X_v),
+        superstructure_graph,
+        G_star_graph,
+        heirarchical_causal,
+        normalized=False,
+        verbose=verbose,
+        title="Serial result",
+    )
+    # if verbose:
+    print(
+        f"Serial result has ave. dist = {serial_distance_to_boundary[0]}, fpos dist = {serial_distance_to_boundary[1]}, fneg dist = {serial_distance_to_boundary[2]}"
+    )
+
+    return causal_distance_to_boundary, serial_distance_to_boundary
+
+
+def multiple_trial_localize_errors(num_trials=10, num_nodes=50, metric="overall_dist"):
+    causal_error_distances = []
+    serial_error_distances = []
+    for _ in range(num_trials):
+        (
+            causal_distance_to_boundary,
+            serial_distance_to_boundary,
+        ) = single_trial_localize_errors(num_nodes=num_nodes, verbose=False)
+        causal_error_distances.append(causal_distance_to_boundary)
+        serial_error_distances.append(serial_distance_to_boundary)
+
+    # extract target metric
+    score_outputs = ["overall_dist", "fpos_dist", "fneg_dist"]
+
+    def _extract_target_metric(
+        metric_list, target_metric=metric, score_outputs=score_outputs, ignore_nan=True
+    ):
+        assert len(score_outputs) == len(metric_list[0])
+        target_metric_idx = score_outputs.index(target_metric)
+        if ignore_nan:
+            return [
+                metrics[target_metric_idx]
+                for metrics in metric_list
+                if not np.isnan(metrics[target_metric_idx])
+            ]
+        return [metrics[target_metric_idx] for metrics in metric_list]
+
+    # plotting
+    _, ax = plt.subplots()
+    ax.violinplot(
+        [
+            _extract_target_metric(causal_error_distances),
+            _extract_target_metric(serial_error_distances),
+        ]
+    )
+    ax.set_xticks(
+        [y + 1 for y in range(2)],
+        labels=[
+            "Causal partition result",
+            "Serial result",
+        ],
+    )
+    ax.set_ylabel(metric)
+    ax.set_title(f"Results over {num_trials} independent trials")
+    plt.show()
+
+    return
+
+
+multiple_trial_localize_errors(num_trials=100, num_nodes=100, metric="overall_dist")
+# single_trial_localize_errors(num_nodes=100, verbose=True)

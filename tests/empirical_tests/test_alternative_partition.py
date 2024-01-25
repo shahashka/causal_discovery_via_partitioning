@@ -23,7 +23,6 @@ from build_heirarchical_random_graphs import (
 )
 
 from cd_v_partition.utils import (
-    get_random_graph_data,
     get_data_from_graph,
     delta_causality,
     edge_to_adj,
