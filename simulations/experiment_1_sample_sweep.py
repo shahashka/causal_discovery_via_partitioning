@@ -24,7 +24,7 @@ from cd_v_partition.utils import (
     adj_to_edge,
 )
 from cd_v_partition.causal_discovery import sp_gies, pc
-from cd_v_partition.fusion import screen_projections, fusion
+from cd_v_partition.fusion import screen_projections, fusion, remove_edges_not_in_ss
 import functools
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib.pyplot as plt
@@ -41,6 +41,8 @@ def _local_structure_learn(subproblem):
     return adj_mat
 
 
+# ss_subset dictates whether we discard edges not in the superstructure
+# as part of post-processing, in both the serial and fusion methods.
 def run_causal_discovery(
     superstructure,
     partition,
@@ -50,6 +52,7 @@ def run_causal_discovery(
     run_serial=False,
     full_cand_set=False,
     screen=False,
+    ss_subset=True,
 ):
     start = time.time()
     # Break up problem according to provided partition
@@ -69,10 +72,17 @@ def run_causal_discovery(
     # Merge globally
     data_obs = df.drop(columns=["target"]).to_numpy()
     if screen:
-        est_graph_partition = screen_projections(partition, results)
+        est_graph_partition = screen_projections(
+            superstructure,
+            partition,
+            results,
+            ss_subset=ss_subset,
+            finite_lim=True,
+            data=data_obs,
+        )
     else:
         est_graph_partition = fusion(
-            partition, results, data_obs, full_cand_set=full_cand_set
+            superstructure, partition, results, data_obs, full_cand_set=full_cand_set
         )
     time_partition = time.time() - start
 
@@ -82,6 +92,20 @@ def run_causal_discovery(
     if run_serial:
         start = time.time()
         est_graph_serial = _local_structure_learn([superstructure, df])
+        # optional post-processing: discard edges not in superstructure
+        if ss_subset:
+            ss_graph = nx.from_numpy_array(superstructure, create_using=nx.DiGraph)
+            est_graph_serial_DiGraph = nx.from_numpy_array(
+                est_graph_serial, create_using=nx.DiGraph
+            )
+            subselected_serial_DiGraph = remove_edges_not_in_ss(
+                est_graph_serial_DiGraph, ss_graph
+            )
+            # convert back to numpy array
+            est_graph_serial = nx.to_numpy_array(
+                subselected_serial_DiGraph,
+                nodelist=np.arange(len(subselected_serial_DiGraph.nodes())),
+            )
         time_serial = time.time() - start
         scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
 
@@ -98,6 +122,7 @@ def run_causal_discovery_unparallelized(
     run_serial=False,
     full_cand_set=False,
     screen=False,
+    ss_subset=True,
 ):
     start = time.time()
     # Break up problem according to provided partition
@@ -113,10 +138,17 @@ def run_causal_discovery_unparallelized(
     # Merge globally
     data_obs = df.drop(columns=["target"]).to_numpy()
     if screen:
-        est_graph_partition = screen_projections(partition, results)
+        est_graph_partition = screen_projections(
+            superstructure,
+            partition,
+            results,
+            ss_subset=ss_subset,
+            finite_lim=True,
+            data=data_obs,
+        )
     else:
         est_graph_partition = fusion(
-            partition, results, data_obs, full_cand_set=full_cand_set
+            superstructure, partition, results, data_obs, full_cand_set=full_cand_set
         )
     time_partition = time.time() - start
 
@@ -126,6 +158,20 @@ def run_causal_discovery_unparallelized(
     if run_serial:
         start = time.time()
         est_graph_serial = _local_structure_learn([superstructure, df])
+        # optional post-processing: discard edges not in superstructure
+        if ss_subset:
+            ss_graph = nx.from_numpy_array(superstructure, create_using=nx.DiGraph)
+            est_graph_serial_DiGraph = nx.from_numpy_array(
+                est_graph_serial, create_using=nx.DiGraph
+            )
+            subselected_serial_DiGraph = remove_edges_not_in_ss(
+                est_graph_serial_DiGraph, ss_graph
+            )
+            # convert back to numpy array
+            est_graph_serial = nx.to_numpy_array(
+                subselected_serial_DiGraph,
+                nodelist=np.arange(len(subselected_serial_DiGraph.nodes())),
+            )
         time_serial = time.time() - start
         scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
 
@@ -351,17 +397,17 @@ if __name__ == "__main__":
     # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=10, sample_range=[10**i for i in range(1,6)], screen=False)
     # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=10, sample_range=[10**i for i in range(1,6)], screen=True)
 
+    # run_samples(
+    #     "./simulations/experiment_1/",
+    #     nthreads=16,
+    #     num_repeats=30,
+    #     sample_range=[10**i for i in range(2, 6)],
+    #     screen=False,
+    # )
     run_samples(
         "./simulations/experiment_1/",
         nthreads=16,
-        num_repeats=10,
-        sample_range=[10**i for i in range(2, 6)],
-        screen=False,
-    )
-    run_samples(
-        "./simulations/experiment_1/",
-        nthreads=16,
-        num_repeats=10,
+        num_repeats=30,
         sample_range=[10**i for i in range(2, 6)],
         screen=True,
     )
