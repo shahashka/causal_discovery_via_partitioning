@@ -171,8 +171,8 @@ def run_tune_mod():
 
     
 def run_samples():
-    num_repeats = 10
-    sample_range = [1e1,1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
+    num_repeats = 1
+    sample_range = [1e6]#[1e1,1e2, 1e3, 1e4, 1e5]#, 1e6, 1e7]
     alpha=0.5
     scores_serial = np.zeros((num_repeats, len(sample_range), 2))
     scores_edge_cover = np.zeros((num_repeats, len(sample_range), 2))
@@ -275,5 +275,5 @@ def run_samples():
 
 
 if __name__ == "__main__":
-    run_tune_mod()
-    #run_samples()
+    #run_tune_mod()
+    run_samples()

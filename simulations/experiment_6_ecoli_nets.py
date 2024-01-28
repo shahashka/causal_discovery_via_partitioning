@@ -38,7 +38,7 @@ def _local_structure_learn(subproblem):
     adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
     
-def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run_serial=False, full_cand_set=False, screen=False):
+def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_star, nthreads=16, run_serial=False, full_cand_set=False, screen=False):
 
     start = time.time()
     # Break up problem according to provided partition
@@ -60,9 +60,12 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
     if screen:
         est_graph_partition = screen_projections(partition, results)
     else:
-        est_graph_partition = fusion(partition, results, data_obs, full_cand_set=full_cand_set)
+        est_graph_partition = fusion(superstructure, partition, results, data_obs, full_cand_set=full_cand_set)
     time_partition = time.time() - start
-
+    # Save the edge list
+    learned_edges = list(est_graph_partition.edges(data=False))
+    pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_{}.csv".format(dir_name, save_name), index=False)
+    
     # Call serial method
     scores_serial = np.zeros(5)
     time_serial = 0
@@ -71,7 +74,9 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
         est_graph_serial = _local_structure_learn([superstructure, df])
         time_serial = time.time() - start
         scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
-
+        learned_edges = adj_to_edge(est_graph_serial, nodes=list(np.arange(est_graph_serial.shape[0])), ignore_weights=True)
+        pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_serial.csv".format(dir_name), index=False)
+        
     scores_part = get_scores(["CD-partition"], [est_graph_partition], G_star)
 
     return scores_serial, scores_part, time_serial, time_partition
@@ -108,7 +113,7 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
         mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None) 
         tm = time.time() - start
         
-        ss, sp, ts, tp = run_causal_discovery(superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
+        ss, sp, ts, tp = run_causal_discovery(dir_name, "mod",superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
         scores_by_net.loc[len(scores_by_net.index)] = ["Serial", ss[0], ss[-2], ss[-1], ts]
         scores_by_net.loc[len(scores_by_net.index)] = ["Modularity Partition", sp[0], sp[-2], sp[-1], tp + tm]
 
@@ -116,26 +121,26 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
         partition = rand_edge_cover_partition(superstructure, mod_partition)
         tec = time.time() - start
 
-        _, sp, _ , tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
+        _, sp, _ , tp = run_causal_discovery(dir_name, "edge_cover",superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
         scores_by_net.loc[len(scores_by_net.index)] = ["Random Edge Cover Partition", sp[0], sp[-2], sp[-1], tp + tec+ tm]
 
         start = time.time()
         partition = expansive_causal_partition(superstructure, mod_partition)
         tca = time.time() - start
         
-        _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
+        _, sp, _, tp = run_causal_discovery(dir_name, "causal",superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
         scores_by_net.loc[len(scores_by_net.index)] = ["Causal Partition", sp[0], sp[-2], sp[-1], tp + tca+ tm]
 
         start = time.time()
         partition = PEF_partition(df)
         tpef = time.time()-start
         
-        _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
+        _, sp, _, tp = run_causal_discovery(dir_name, "pef",superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
         scores_by_net.loc[len(scores_by_net.index)] = ["PEF", sp[0], sp[-2], sp[-1], tp+tpef]
         
         scores_by_net.to_csv("{}/scores_{}.csv".format(dir_name,i))
         print(scores_by_net)
 
 if __name__ == "__main__":
-    run_ecoli("./simulations/experiment_6/", nthreads=16,  screen=False)
+    #run_ecoli("./simulations/experiment_6/", nthreads=16,  screen=False)
     run_ecoli("./simulations/experiment_6/", nthreads=16,  screen=True)

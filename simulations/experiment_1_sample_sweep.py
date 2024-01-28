@@ -5,7 +5,6 @@
 
 import networkx as nx
 import numpy as np
-from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.overlapping_partition import partition_problem, PEF_partition, rand_edge_cover_partition, expansive_causal_partition, modularity_partition
 import seaborn as sns
 import pandas as pd
@@ -29,7 +28,7 @@ def _local_structure_learn(subproblem):
     adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
     
-def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run_serial=False, full_cand_set=False, screen=False):
+def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_star, nthreads=16, run_serial=False, full_cand_set=False, screen=False):
 
     start = time.time()
     # Break up problem according to provided partition
@@ -51,9 +50,14 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
     if screen:
         est_graph_partition = screen_projections(partition, results)
     else:
-        est_graph_partition = fusion(partition, results, data_obs, full_cand_set=full_cand_set)
+        est_graph_partition = fusion(superstructure, partition, results, data_obs, full_cand_set=full_cand_set)
     time_partition = time.time() - start
-
+    
+    # Save the edge list
+    learned_edges = list(est_graph_partition.edges(data=False))
+    pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_{}.csv".format(dir_name, save_name), index=False)
+    
+    
     # Call serial method
     scores_serial = np.zeros(5)
     time_serial = 0
@@ -62,6 +66,8 @@ def run_causal_discovery(superstructure, partition, df, G_star, nthreads=16, run
         est_graph_serial = _local_structure_learn([superstructure, df])
         time_serial = time.time() - start
         scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
+        learned_edges = adj_to_edge(est_graph_serial, nodes=list(np.arange(est_graph_serial.shape[0])), ignore_weights=True)
+        pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_serial.csv".format(dir_name), index=False)
 
     scores_part = get_scores(["CD-partition"], [est_graph_partition], G_star)
 
@@ -74,6 +80,8 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
     scores_causal_partition = np.zeros((num_repeats, len(sample_range), 5))
     scores_mod_partition = np.zeros((num_repeats, len(sample_range), 5))
     scores_pef = np.zeros((num_repeats, len(sample_range), 5))
+    num_cycles_edge_coverage =  np.zeros((num_repeats, len(sample_range)))
+    num_cycles_causal =  np.zeros((num_repeats, len(sample_range)))
 
     for i in range(num_repeats):
         init_partition, graph = create_k_comms(
@@ -110,20 +118,21 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
             
             # Run each partition and get scores 
             mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
-            ss, sp, ts, tp = run_causal_discovery(superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
+            ss, sp, ts, tp = run_causal_discovery(dir_name, "mod", superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
             scores_serial[i][j] = ss
             scores_mod_partition[i][j] = sp
             
             partition = rand_edge_cover_partition(superstructure, mod_partition)
-            _, sp, _ , tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
+            _, sp, _ , tp = run_causal_discovery(dir_name, "edge_cover", superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
             scores_edge_cover[i][j] = sp
             
             partition = expansive_causal_partition(superstructure, mod_partition)
-            _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
+            _, sp, _, tp = run_causal_discovery(dir_name, "causal", superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
             scores_causal_partition[i][j] = sp
+
             
             partition = PEF_partition(df)
-            _, sp, _, tp = run_causal_discovery(superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
+            _, sp, _, tp = run_causal_discovery(dir_name, "pef", superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
             scores_pef[i][j] = sp
             
 
@@ -172,6 +181,7 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
     plt.tight_layout()
     plot_dir = "./{}/screen_projections/".format(experiment_dir) if screen else "./{}/fusion/".format(experiment_dir)
     plt.savefig("{}/fig.png".format(plot_dir))
+
     
     # Save score matrices
     np.savetxt("{}/scores_serial.txt".format(plot_dir), scores_serial.reshape(num_repeats, -1))
@@ -182,8 +192,10 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
 
 if __name__ == "__main__":
     # Simple version for debugging
-    #run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=10, sample_range=[10**i for i in range(1,6)], screen=False)
-    #run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=10, sample_range=[10**i for i in range(1,6)], screen=True)
+    # run_samples("./simulations/experiment_1_test/", nthreads=16, num_repeats=1, sample_range=[10**i for i in range(1,2)], screen=False)
+    # run_samples("./simulations/experiment_1_test/", nthreads=16, num_repeats=1, sample_range=[10**i for i in range(1,2)], screen=True)
     
-    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,8)], screen=False)
-    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,8)], screen=True)
+    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,8)], screen=False)
+    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,8)], screen=True)
+    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,7)], screen=True)
+    run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=30, sample_range=[10**i for i in range(1,7)], screen=False)

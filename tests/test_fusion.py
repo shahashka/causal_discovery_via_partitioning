@@ -1,13 +1,13 @@
 from cd_v_partition.fusion import screen_projections, fusion
 import networkx as nx
-from cd_v_partition.utils import get_data_from_graph
+from cd_v_partition.utils import get_data_from_graph, edge_to_adj
 import numpy as np
 
 # Test case for a simple chain graph
 G_star_edges = [(0, 1), (1, 2), (2, 3)]
 chain = nx.DiGraph(G_star_edges)
 data = get_data_from_graph(np.arange(4), G_star_edges, nsamples=int(1e3), iv_samples=0)
-samples = data[-1].drop(columns=['target'], inplace=False).to_numpy()
+samples = data[-1].drop(columns=['target']).to_numpy()
 
 partition = {0: [0, 1, 2], 1: [1, 2, 3]}
 comm1 = nx.DiGraph()
@@ -24,9 +24,11 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test1 = screen_projections(partition, local_adj_mats)
+ss_edges = [(0,1), (1,0), (1,2), (2,1), (2,3), (3,2)]
+ss = edge_to_adj(ss_edges, list(np.arange(4)))
+test1, _ = screen_projections(partition, local_adj_mats)
 assert(test1.edges() == chain.edges())  # 0->1->2->3
-test1 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
+test1, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
 print(test1.edges())
 assert list(test1.edges()) == G_star_edges  # 0->1->2->3
 
@@ -39,10 +41,11 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test2 = screen_projections(partition, local_adj_mats)
+test2, _ = screen_projections(partition, local_adj_mats)
 chain.add_edge(2, 1)
 assert test2.edges() == chain.edges()  # 0->1-2->3
-test2 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
+test2, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
+print(list(test2.edges()), G_star_edges)
 assert (
     list(test2.edges()) == G_star_edges
 )  # 0->1->2->3 
@@ -55,11 +58,11 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test3 = screen_projections(partition, local_adj_mats)
+test3, _ = screen_projections(partition, local_adj_mats)
 chain.remove_edge(2, 1)
 chain.remove_edge(1, 2)
 assert test3.edges() == chain.edges()  # 0->1,2->3
-test3 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
+test3, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
 assert list(test3.edges()) == G_star_edges  # 0->1->2->3
 
 # Comm1 has no edge, Comm2 has directed edge
@@ -71,8 +74,8 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test4 = screen_projections(partition, local_adj_mats)
+test4, _ = screen_projections(partition, local_adj_mats)
 assert test4.edges() == chain.edges()  # 0->1,2->3
-test4 = fusion(partition, local_adj_mats, samples, full_cand_set=True)
+test4, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
 assert list(test4.edges()) == G_star_edges  # 0->1->2->3
 print("All tests passed!")
