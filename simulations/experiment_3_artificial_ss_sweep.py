@@ -194,5 +194,5 @@ if __name__ == "__main__":
     # run_artificial_ss("./simulations/experiment_3_test/", nthreads=16, num_repeats=1, frac_extraneous_range=np.arange(0,2,1), screen=False)
     # run_artificial_ss("./simulations/experiment_3_test/", nthreads=16, num_repeats=1, frac_extraneous_range=np.arange(0,2,1), screen=True)
 
-    run_artificial_ss("./simulations/experiment_3/", nthreads=16, num_repeats=50, frac_extraneous_range=np.arange(0,4,0.25), screen=False)
-    #run_artificial_ss("./simulations/experiment_3/", nthreads=16, num_repeats=50, frac_extraneous_range=np.arange(0,4,0.25), screen=True)
+    run_artificial_ss("./simulations/experiment_3/", nthreads=16, num_repeats=50, frac_extraneous_range=np.arange(0,4,0.5), screen=True)
+    run_artificial_ss("./simulations/experiment_3/", nthreads=16, num_repeats=50, frac_extraneous_range=np.arange(0,4,0.5), screen=False)

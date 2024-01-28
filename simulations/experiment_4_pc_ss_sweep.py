@@ -195,5 +195,5 @@ if __name__ == "__main__":
     # run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=False)
     # run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=True)
 
+    run_ss_pc("./simulations/experiment_4/", nthreads=16, num_repeats=50, alpha_range=np.arange(0.1,1,0.1), screen=True)
     run_ss_pc("./simulations/experiment_4/", nthreads=16, num_repeats=50, alpha_range=np.arange(0.1,1,0.1), screen=False)
-    #run_ss_pc("./simulations/experiment_4/", nthreads=16, num_repeats=50, alpha_range=np.arange(0.1,1,0.1), screen=True)
