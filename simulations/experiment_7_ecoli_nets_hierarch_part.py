@@ -39,6 +39,7 @@ def _local_structure_learn(subproblem):
     return adj_mat
     
 def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_star, nthreads=16, run_serial=False, full_cand_set=False, screen=False):
+    pd.DataFrame(list(zip(partition.keys(), partition.values()))).to_csv("{}/{}_partition.csv".format(dir_name, save_name), header=["comm id", "node list"], index=False)
 
     start = time.time()
     # Break up problem according to provided partition
@@ -83,8 +84,12 @@ def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_s
 
 
 def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks/ecoli/synthetic_copies"): 
+    data_dir="./datasets/bionetworks/ecoli/synthetic_copies"
+    experiment_dir = "./simulations/experiment_7/"
+    screen = True
+    nthreads=16
     num_samples = 1e5
-    frac_extraneoues=0.5
+    frac_extraneoues=0.1
     for i in range(10):
         scores_by_net = pd.DataFrame(columns=["Algorithm", "SHD", "TPR","FPR", "Time (s)"])
         G_star = np.loadtxt("{}/net_{}.txt".format(data_dir, i))
@@ -111,6 +116,7 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
         start = time.time()
         h_partition = hierarchical_partition(superstructure, max_community_size=0.1) 
         tm = time.time() - start
+        print("Hierarchical partition took {}".format(tm))
         
         ss, sp, ts, tp = run_causal_discovery(dir_name, "hierchical",superstructure, h_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
         scores_by_net.loc[len(scores_by_net.index)] = ["Serial", ss[0], ss[-2], ss[-1], ts]
@@ -142,4 +148,12 @@ def run_ecoli(experiment_dir, screen, nthreads, data_dir="./datasets/bionetworks
 
 if __name__ == "__main__":
     #run_ecoli("./simulations/experiment_7/", nthreads=16,  screen=False)
-    run_ecoli("./simulations/experiment_7/", nthreads=16,  screen=True)
+    #run_ecoli("./simulations/experiment_7/", nthreads=16,  screen=True)
+    nthreads = 16
+    num_datasets = 10
+    chunksize = max(1, num_datasets // nthreads)
+    run_index = np.arange(num_datasets)
+    results = []
+    with ProcessPoolExecutor(max_workers=nthreads) as executor:
+        for result in executor.map(run_ecoli, run_index, chunksize=chunksize):
+            results.append(result)
