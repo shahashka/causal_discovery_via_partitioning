@@ -8,7 +8,6 @@ import numpy as np
 
 import itertools
 from conditional_independence import partial_correlation_test
-
 # Final fusion step to merge subgraphs
 # In infinite data limit this is done by screening for conflicting edges during union over subgraphs
 
@@ -44,16 +43,15 @@ def screen_projections(
                     not adj_comm[row, col] and not adj_comm[col, row]
                 ) and global_graph.has_edge(i, j):
                     global_graph.remove_edge(i, j)
-
     return global_graph
 
-
-def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data: np.ndarray, full_cand_set: bool =False):
+def fusion(ss: np.ndarray, partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data: np.ndarray, full_cand_set: bool =False):
     """
     Fuse subgraphs by taking the union and resolving conflicts by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
 
     Args:
+        ss (np.ndarray): adjacency matrix for the super structure 
         partition (dict): the partition as a dictionary {comm_id : [nodes]}
 
         local_cd_adj_mats (list[np.ndarray]): list of adjacency matrices for each local subgraph
@@ -67,53 +65,65 @@ def fusion(partition: dict[Any, Any], local_cd_adj_mats: list[np.ndarray], data:
 
     # Take the union over graphs
     global_graph = _union_with_overlaps(local_cd_graphs)
+    
+    ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
     cor = np.corrcoef(data.T)
-
-    comms = [set(p) for p in partition.values()]
-    overlaps = set.intersection(*comms)
-
-    def get_parents_in_cand_set(cand_set, i, j):
-        parents = []
-        for (a,b) in cand_set:
-            if a==i or a==j:
-                parents.append(b)
-            elif a==j or b==j:
-                parents.append(a)
-        return parents
-
-    # Sort the list of possible overlapping edges accordinng to their p-value
     suffstat = {"n": data.shape[0], "C": cor}
-    candidate_edges = list(itertools.combinations(overlaps, 2)) if not full_cand_set else _candidate_edges_(partition, suffstat, global_graph, alpha=1e-3)
-    if len(candidate_edges) > 0:
-        conditioning_set = [
-            set.union(
-                *[
-                    set(global_graph.predecessors(i)),
-                    set(global_graph.predecessors(j)),
-                    get_parents_in_cand_set(candidate_edges, i, j),
-                ]
-            )
-            for i, j in candidate_edges
-        ]
-        p_value = [
-            partial_correlation_test(suffstat, i, j, S)["p_value"]
-            for (i, j), S in zip(candidate_edges, conditioning_set)
-        ]
-        p_value, candidate_edges = zip(*sorted(zip(p_value, candidate_edges)))
 
-    # Loop through the edge options and favor lower ric_score
+    def _find_overlaps(partition):
+        overlaps = []
+        for node, comm in partition.items():
+            if len(comm) > 1:
+                overlaps.append(node)
+        return overlaps
+
+    nodes = list(global_graph.nodes())
+    node_to_partition = dict(
+            zip(nodes, [[] for _ in np.arange(len(nodes))])
+        )
+    for key, value in partition.items():
+        for node in value:
+            node_to_partition[node] += [key]
+            
+    overlaps = _find_overlaps(node_to_partition)  
+
+    if full_cand_set:
+        all_comms = itertools.combinations(partition.values(),2)
+        candidate_edges = []
+        for pair_comm in all_comms:
+            candidate_edges += list(itertools.product(pair_comm[0], pair_comm[1]))
+
+    else:
+        candidate_edges = list(itertools.combinations(overlaps, 2))
+    
+    # First remove all candidate edges from the global graph so this does not interfere with correlation tests 
+    #print("Global graph edges before discarding edges {}".format(len(global_graph.edges())))
     for i, j in candidate_edges:
         if global_graph.has_edge(j, i):
             global_graph.remove_edge(j, i)
         if global_graph.has_edge(i, j):
             global_graph.remove_edge(i, j)
 
+    #print("Global graph edges after discarding edges {}".format(len(global_graph.edges())))
+    #print("Number of candidate edges before partial correlation {}".format(len(candidate_edges)))
+    alpha = 1/np.square(len(global_graph.nodes()))
+    #print("Alpha for testing is {}".format(alpha))
+    
+    candidate_edges = _partial_correlation_cand_edges(candidate_edges, global_graph, suffstat, alpha=1e-3)
+    #print("Number of candidate edges before sequential CI tests {}".format(len(candidate_edges)))
+    candidate_edges = _candidate_edge_filter_w_CI_test(candidate_edges, global_graph, suffstat, alpha=alpha)
+    #print("Final number of candidate edges {}".format(len(candidate_edges)))
+    #print("Global graph edges before fusion {}".format(len(global_graph.edges())))
+
+    # Loop through the edge options and favor lower ric_score
+    for i, j in candidate_edges:
         pa_i = list(global_graph.predecessors(i))
         pa_j = list(global_graph.predecessors(j))
         edge = _resolve_w_ric_score(global_graph, data, cor, i, j, pa_i, pa_j)
 
-        if edge:
+        if edge and edge in list(ss_graph.edges()):
             global_graph.add_edge(edge[0], edge[1])
+    #print("Global graph edges after fusion {}".format(len(global_graph.edges())))
     return global_graph
 
 
@@ -284,20 +294,50 @@ def _loglikelihood(samples, node, parents, correlation):
     N = samples.shape[0]
     return 0.5 * (-N * (np.log(2 * np.pi) + 1 - np.log(N) + np.log(rss * (N - 1))))
 
-def _candidate_edges_(partition, suffstat, global_graph, alpha):
+
+# Use partial correlation to filter a candidate set of edges and rank by their p_value
+# Return a list sorted by p_value
+def _partial_correlation_cand_edges(candidate_edges, global_graph, suffstat, alpha):
     A = []
-    all_comms = itertools.combinations(partition.values(),2)
-    all_edges = []
-    for pair_comm in all_comms:
-        all_edges += list(itertools.product(pair_comm[0], pair_comm[1]))
-    for edge in all_edges:
-        i = edge[0]
-        j = edge[1]
-        if i!=j: # ignore self loops
-            N_i = set(global_graph.predecessors(i))
-            N_j = set(global_graph.predecessors(j))
-            rho = partial_correlation_test(suffstat,i,j,cond_set=N_i.union(N_j),alpha=alpha)
-            if rho['reject']:
-                A.append((i,j))
+    p_values = []
+    if len(candidate_edges) > 0:
+        for edge in candidate_edges:
+            i = edge[0]
+            j = edge[1]
+            if i!=j: # ignore self loops
+                N_i = set(global_graph.predecessors(i))
+                N_j = set(global_graph.predecessors(j))
+                rho = partial_correlation_test(suffstat,i,j,cond_set=N_i.union(N_j),alpha=alpha)
+                if rho['reject'] and (j,i) not in A: # do not add if the opposite direction is already included to save time
+                    A.append((i,j))
+                    p_values.append(rho['p_value'])
+                    
+    if len(A) > 0:
+        _, A = zip(*sorted(zip(p_values, A)))
     return A
-    
+
+# Use a sequential set of conditional independence tests to find a final candidate set of edges
+# Add any parents from the current candidate edges to the conditioning set 
+def _candidate_edge_filter_w_CI_test(candidate_edges, global_graph, suffstat, alpha):
+    def get_parents_in_cand_set(cand_set, i, j):
+        parents = []
+        for (a,b) in cand_set:
+            if a==i or a==j:
+                parents.append(b)
+            elif a==j or b==j:
+                parents.append(a)
+        return parents
+
+    # Sequential CI tests 
+    A_star = []
+    if len(candidate_edges) > 0:
+        for i, j in candidate_edges:
+            conditioning_set = set.union(*[
+                        set(global_graph.predecessors(i)),
+                        set(global_graph.predecessors(j)),
+                        get_parents_in_cand_set(A_star, i, j)] )
+        
+            rho = partial_correlation_test(suffstat, i, j, conditioning_set, alpha=alpha)
+            if rho['reject']:
+                A_star.append((i,j))
+    return A_star    

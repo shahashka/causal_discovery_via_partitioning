@@ -498,6 +498,7 @@ def _remove_cycles(G):
     G.remove_edges_from(nx.selfloop_edges(G))
     try:
         cycle_list = nx.find_cycle(G, orientation="original")
+        print("Number of cycles found is {}".format(len(cycle_list)))
         while len(cycle_list) > 0:
             edge_data = cycle_list[-1]
             G.remove_edge(edge_data[0], edge_data[1])
