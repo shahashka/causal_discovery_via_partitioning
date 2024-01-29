@@ -28,7 +28,8 @@ def _local_structure_learn(subproblem):
     adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
     
-def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_star, nthreads=16, run_serial=False, full_cand_set=False, screen=False):
+def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_star, nthreads=16, full_cand_set=False, screen=False):
+    pd.DataFrame(list(zip(partition.keys(), partition.values()))).to_csv("{}/{}_partition.csv".format(dir_name, save_name), header=["comm id", "node list"], index=False)
 
     start = time.time()
     # Break up problem according to provided partition
@@ -39,12 +40,19 @@ def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_s
     results = []
     num_partitions = len(partition)
     chunksize = max(1, num_partitions // nthreads)
-    print("Launching processes")
+    # print("Launching processes")
 
     with ProcessPoolExecutor(max_workers=nthreads) as executor:
         for result in executor.map(func_partial, subproblems, chunksize=chunksize):
             results.append(result)
 
+    # for s in subproblems:
+    #     sp = time.time()
+    #     r = _local_structure_learn(s)
+    #     results.append(r)
+    #     tp = time.time() - sp
+    #     print("Time for local run with {} nodes is {} (s)".format(s[0].shape[0], tp))
+        
     # Merge globally
     data_obs = df.drop(columns=["target"]).to_numpy()
     if screen:
@@ -52,35 +60,20 @@ def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_s
     else:
         est_graph_partition = fusion(superstructure, partition, results, data_obs, full_cand_set=full_cand_set)
     time_partition = time.time() - start
-    
+    print("Time for partitioned run with {} nodes is {} (s)".format(len(est_graph_partition.nodes()), time_partition))
+
     # Save the edge list
     learned_edges = list(est_graph_partition.edges(data=False))
     pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_{}.csv".format(dir_name, save_name), index=False)
     
-    
-    # Call serial method
-    scores_serial = np.zeros(5)
-    time_serial = 0
-    if run_serial:
-        start = time.time()
-        est_graph_serial = _local_structure_learn([superstructure, df])
-        time_serial = time.time() - start
-        scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
-        learned_edges = adj_to_edge(est_graph_serial, nodes=list(np.arange(est_graph_serial.shape[0])), ignore_weights=True)
-        pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_serial.csv".format(dir_name), index=False)
-        
     scores_part = get_scores(["CD-partition"], [est_graph_partition], G_star)
 
-    return scores_serial, scores_part, time_serial, time_partition
+    return scores_part, time_partition
     
-def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False):
-    nsamples = 1e5
-    scores_serial = np.zeros((num_repeats, len(nnodes_range), 6))
-    scores_edge_cover = np.zeros((num_repeats, len(nnodes_range), 6))
-    scores_causal_partition = np.zeros((num_repeats, len(nnodes_range), 6))
-    scores_mod_partition = np.zeros((num_repeats, len(nnodes_range), 6))
-    # scores_pef = np.zeros((num_repeats, len(nnodes_range), 6))
-
+def run_nnodes_alg( algorithm,experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False):
+    nsamples = 1e2
+    scores = np.zeros((num_repeats, len(nnodes_range), 6))
+    print("Algorithm is {}".format(algorithm))
     for i in range(num_repeats):
         for j,nnodes in enumerate(nnodes_range):
             print("Number of nodes {}".format(nnodes))
@@ -90,7 +83,7 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             (edges, nodes, _, _), df = get_data_from_graph(list(np.arange(len(G_dir.nodes()))), list(G_dir.edges()), nsamples=int(nsamples), iv_samples=0, bias=None, var=None)
             #(edges, nodes, _, _), df = get_random_graph_data("hierarchical", num_nodes=nnodes, nsamples=int(nsamples), iv_samples=0, p=0.5, m=2)
             
-            dir_name = "./{}/screen_projections/nnodes_{}/{}/".format(experiment_dir, nnodes, i) if screen else "./{}/fusion/nnodes_{}/{}/".format(experiment_dir, nnodes, i)
+            dir_name = "./{}/screen_projections/{}/nnodes_{}/{}/".format(experiment_dir,algorithm, nnodes, i) if screen else "./{}/fusion/{}/nnodes_{}/{}/".format(experiment_dir, algorithm, nnodes, i)
             if not os.path.exists(dir_name):
                 os.makedirs(dir_name)
             
@@ -104,55 +97,42 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
             superstructure_edges = adj_to_edge(superstructure, nodes, ignore_weights=True)
             pd.DataFrame(data=np.array(superstructure_edges), columns=['node1', 'node2']).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
 
-            
-            # Run each partition and get scores 
-            start = time.time()
-            mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
-            tm = time.time() - start
-            
-            ss, sp, ts, tp = run_causal_discovery(dir_name, "mod",superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
-            scores_serial[i][j][0:5] = ss
-            scores_mod_partition[i][j][0:5] = sp
-            
-            scores_serial[i][j][-1] = ts
-            scores_mod_partition[i][j][-1] = tp + tm 
+            if algorithm == 'serial':
+                start = time.time()
+                est_graph_serial = _local_structure_learn([superstructure, df])
+                time_serial = time.time() - start
+                print("Time for serial run with {} nodes is {} (s)".format(est_graph_serial.shape[0], time_serial))
+        
+                ss = get_scores(["CD-serial"], [est_graph_serial], G_star)
+                learned_edges = adj_to_edge(est_graph_serial, nodes=list(np.arange(est_graph_serial.shape[0])), ignore_weights=True)
+                pd.DataFrame(data=learned_edges, columns=['node1', 'node2']).to_csv("{}/edges_serial.csv".format(dir_name), index=False)
+                scores[i][j][0:5] = ss
+                scores[i][j][-1] = time_serial
+                np.savetxt("{}/time.txt".format(dir_name), scores[i][j])            
 
-            start = time.time()
-            partition = rand_edge_cover_partition(superstructure, mod_partition)
-            tec = time.time() - start
+            else :
+                start = time.time()
+                mod_partition = modularity_partition(superstructure , cutoff=1, best_n=None)
+                tm = time.time() - start if algorithm != 'pef' else 0 
+                biggest_partition = max(len(p) for p in mod_partition.values())
+                print("Biggest partition is {}".format(biggest_partition))
+                
+                full_cand_set = algorithm == 'pef' 
+                score, tp = run_causal_discovery(dir_name, algorithm ,superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, full_cand_set=full_cand_set)
+                scores[i][j][0:5] = score            
+                scores[i][j][-1] = tp + tm 
+                np.savetxt("{}/time.txt".format(dir_name), scores[i][j])            
 
-            _, sp, _ , tp = run_causal_discovery(dir_name, "edge_cover",superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
-            scores_edge_cover[i][j][0:5] = sp
-            scores_edge_cover[i][j][-1] = tp + tec + tm 
 
-            start = time.time()
-            partition = expansive_causal_partition(superstructure, mod_partition)
-            tca = time.time() - start
-            
-            _, sp, _, tp = run_causal_discovery(dir_name, "causal",superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
-            scores_causal_partition[i][j][0:5] = sp
-            scores_causal_partition[i][j][-1] = tp + tca + tm 
-
-            # start = time.time()
-            # partition = PEF_partition(df)
-            # tpef = time.time()-start
-            # print(tpef)
-            
-            # _, sp, _, tp = run_causal_discovery(dir_name, "pef",superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
-            # scores_pef[i][j][0:5] = sp
-            # scores_pef[i][j][-1] = tp + tpef 
-            # print(tp+tpef)
-
-            
 
 
     plt.clf()
     fig, axs = plt.subplots(3, figsize=(10,12),sharex=True)
 
     tpr_ind = -3
-    data = [scores_serial[:,:,tpr_ind], scores_edge_cover[:,:,tpr_ind], scores_causal_partition[:,:,tpr_ind], scores_mod_partition[:,:,tpr_ind]] 
+    data = [scores[:,:,tpr_ind]]
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
-    labels = [ 'serial', 'edge_cover', 'expansive_causal', 'mod'] 
+    labels = [ algorithm] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
@@ -162,9 +142,9 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
     axs[0].set_ylabel("TPR")
     
     fpr_ind = -2
-    data = [scores_serial[:,:,fpr_ind], scores_edge_cover[:,:,fpr_ind], scores_causal_partition[:,:,fpr_ind], scores_mod_partition[:,:,fpr_ind]] 
+    data = [scores[:,:,fpr_ind]] 
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
-    labels = [ 'serial', 'edge_cover', 'expansive_causal', 'mod'] 
+    labels = [ algorithm] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
@@ -174,9 +154,9 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
     axs[1].set_ylabel("FPR")
     
     shd_ind = 0
-    data = [scores_serial[:,:,shd_ind], scores_edge_cover[:,:,shd_ind], scores_causal_partition[:,:,shd_ind], scores_mod_partition[:,:,shd_ind]] 
+    data = [scores[:,:,shd_ind]] 
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
-    labels = [ 'serial', 'edge_cover', 'expansive_causal', 'mod'] 
+    labels = [algorithm] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
@@ -188,7 +168,7 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
     sns.move_legend(g, "center left", bbox_to_anchor=(1, .5), title='Algorithm')
 
     plt.tight_layout()
-    plot_dir = "./{}/screen_projections/".format(experiment_dir) if screen else "./{}/fusion/".format(experiment_dir)
+    plot_dir = "./{}/screen_projections/{}".format(experiment_dir, algorithm) if screen else "./{}/fusion/{}".format(experiment_dir, algorithm)
     plt.savefig("{}/fig.png".format(plot_dir))
     
     
@@ -196,9 +176,9 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
     fig, ax = plt.subplots()
 
     time_ind = -1
-    data = [scores_serial[:,:,time_ind], scores_edge_cover[:,:,time_ind], scores_causal_partition[:,:,time_ind], scores_mod_partition[:,:,time_ind]] 
+    data = [scores[:,:,time_ind]] 
     data = [np.reshape(d, num_repeats*len(nnodes_range)) for d in data]
-    labels = [ 'serial', 'edge_cover', 'expansive_causal', 'mod'] 
+    labels = [ algorithm] 
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df['samples'] = np.repeat([nnodes_range], num_repeats, axis=0).flatten() 
     df = df.melt(id_vars='samples', value_vars=labels)
@@ -209,18 +189,16 @@ def run_nnodes(experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=Fa
     plt.savefig("{}/time.png".format(plot_dir))
 
     # Save score matrices
-    np.savetxt("{}/scores_serial.txt".format(plot_dir), scores_serial.reshape(num_repeats, -1))
-    # np.savetxt("{}/scores_pef.txt".format(plot_dir), scores_pef.reshape(num_repeats, -1))
-    np.savetxt("{}/scores_edge_cover.txt".format(plot_dir), scores_edge_cover.reshape(num_repeats, -1))
-    np.savetxt("{}/scores_causal_partition.txt".format(plot_dir), scores_causal_partition.reshape(num_repeats, -1))
-    np.savetxt("{}/scores_mod.txt".format(plot_dir), scores_mod_partition.reshape(num_repeats, -1))
+    np.savetxt("{}/scores.txt".format(plot_dir), scores.reshape(num_repeats, -1))
 
     
 
 if __name__ == "__main__":
     # Simple case for debugging
-    # run_nnodes("./simulations/experiment_5_test/", nthreads=16, num_repeats=1, nnodes_range=[10**i for i in np.arange(1,2)], screen=False)
-    # run_nnodes("./simulations/experiment_5_test/", nthreads=16, num_repeats=1, nnodes_range=[10**i for i in np.arange(1,2)], screen=True)
-
-    run_nnodes("./simulations/experiment_5_no_pef/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=False)
-    run_nnodes("./simulations/experiment_5_no_pef/", nthreads=16, num_repeats=10, nnodes_range=[10**i for i in np.arange(1,5)], screen=True)
+    algorithms = ['serial', 'pef', 'edge_cover', 'causal', 'mod']
+    # func_partial = functools.partial(run_nnodes_alg, experiment_dir="./simulations/experiment_5_test/", nthreads=16, num_repeats=1, nnodes_range=[10**i for i in np.arange(1,4)], screen=True )
+    func_partial = functools.partial(run_nnodes_alg, experiment_dir="./simulations/experiment_5/", nthreads=16, num_repeats=5, nnodes_range=[10**i for i in np.arange(1,5)], screen=True )
+    results = []
+    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+        for result in executor.map(func_partial, algorithms, chunksize=1):
+            results.append(result)
