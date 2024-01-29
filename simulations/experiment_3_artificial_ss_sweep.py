@@ -75,11 +75,11 @@ def run_causal_discovery(dir_name, save_name, superstructure, partition, df, G_s
     
 def run_artificial_ss(experiment_dir, num_repeats, frac_extraneous_range, nthreads=16, screen=False):
     nsamples = 1e5
-    scores_serial = np.zeros((num_repeats, len(frac_extraneous_range), 5))
-    scores_edge_cover = np.zeros((num_repeats, len(frac_extraneous_range), 5))
-    scores_causal_partition = np.zeros((num_repeats, len(frac_extraneous_range), 5))
-    scores_mod_partition = np.zeros((num_repeats, len(frac_extraneous_range), 5))
-    scores_pef = np.zeros((num_repeats, len(frac_extraneous_range), 5))
+    scores_serial = np.zeros((num_repeats, len(frac_extraneous_range), 6))
+    scores_edge_cover = np.zeros((num_repeats, len(frac_extraneous_range), 6))
+    scores_causal_partition = np.zeros((num_repeats, len(frac_extraneous_range), 6))
+    scores_mod_partition = np.zeros((num_repeats, len(frac_extraneous_range), 6))
+    scores_pef = np.zeros((num_repeats, len(frac_extraneous_range), 6))
 
     for i in range(num_repeats):
 
@@ -116,30 +116,49 @@ def run_artificial_ss(experiment_dir, num_repeats, frac_extraneous_range, nthrea
             pd.DataFrame(data=np.array(superstructure_edges), columns=['node1', 'node2']).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
 
             
+                        
             # Run each partition and get scores 
+            start = time.time()
             mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
+            tm = time.time() - start
+            
             ss, sp, ts, tp = run_causal_discovery(dir_name, "mod", superstructure, mod_partition, df, G_star, nthreads=nthreads, screen=screen, run_serial=True)
-            scores_serial[i][j] = ss
-            scores_mod_partition[i][j] = sp
+            scores_serial[i][j][0:5] = ss
+            scores_mod_partition[i][j][0:5] = sp
             
+            scores_serial[i][j][-1] = ts
+            scores_mod_partition[i][j][-1] = tp + tm 
+            
+            start = time.time()
             partition = rand_edge_cover_partition(superstructure, mod_partition)
+            tec = time.time() - start
+            
             _, sp, _ , tp = run_causal_discovery(dir_name, "edge_cover", superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
-            scores_edge_cover[i][j] = sp
-            
+            scores_edge_cover[i][j][0:5] = sp
+            scores_edge_cover[i][j][-1] = tp + tec + tm 
+
+            start = time.time()
             partition = expansive_causal_partition(superstructure, mod_partition)
+            tca = time.time() - start
+
             _, sp, _, tp = run_causal_discovery(dir_name, "causal", superstructure, partition, df, G_star, nthreads=nthreads,screen=screen)
-            scores_causal_partition[i][j] = sp
-            
+            scores_causal_partition[i][j][0:5] = sp
+            scores_causal_partition[i][j][-1] = tp + tca + tm 
+
+            start = time.time()
             partition = PEF_partition(df)
+            tpef = time.time()-start
+            
             _, sp, _, tp = run_causal_discovery(dir_name, "pef", superstructure, partition, df, G_star, nthreads=nthreads,screen=screen, full_cand_set=True)
-            scores_pef[i][j] = sp
+            scores_pef[i][j][0:5] = sp
+            scores_pef[i][j][-1] = tp + tpef
             
 
 
     plt.clf()
     fig, axs = plt.subplots(3, figsize=(10,12),sharex=True)
 
-    tpr_ind = -2
+    tpr_ind = -3
     data = [scores_serial[:,:,tpr_ind], scores_pef[:,:,tpr_ind], scores_edge_cover[:,:,tpr_ind], scores_causal_partition[:,:,tpr_ind], scores_mod_partition[:,:,tpr_ind]] 
     data = [np.reshape(d, num_repeats*len(frac_extraneous_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
@@ -151,7 +170,7 @@ def run_artificial_ss(experiment_dir, num_repeats, frac_extraneous_range, nthrea
     axs[0].set_xlabel("Fraction extraneous edges")
     axs[0].set_ylabel("TPR")
     
-    fpr_ind = -1
+    fpr_ind = -2
     data = [scores_serial[:,:,fpr_ind], scores_pef[:,:,fpr_ind], scores_edge_cover[:,:,fpr_ind], scores_causal_partition[:,:,fpr_ind], scores_mod_partition[:,:,fpr_ind]] 
     data = [np.reshape(d, num_repeats*len(frac_extraneous_range)) for d in data]
     labels = [ 'serial', 'pef' , 'edge_cover', 'expansive_causal', 'mod'] 
@@ -181,6 +200,22 @@ def run_artificial_ss(experiment_dir, num_repeats, frac_extraneous_range, nthrea
     plot_dir = "./{}/screen_projections/".format(experiment_dir) if screen else "./{}/fusion/".format(experiment_dir)
     plt.savefig("{}/fig.png".format(plot_dir))
     
+    plt.clf()
+    fig, ax = plt.subplots()
+    
+    time_ind = -1
+    data = [scores_serial[:,:,time_ind], scores_pef[:,:,time_ind], scores_edge_cover[:,:,time_ind], scores_causal_partition[:,:,time_ind], scores_mod_partition[:,:,time_ind]] 
+    data = [np.reshape(d, num_repeats*len(frac_extraneous_range)) for d in data]
+    labels = [ 'serial', 'pef', 'edge_cover', 'expansive_causal', 'mod'] 
+    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+    df['samples'] = np.repeat([frac_extraneous_range], num_repeats, axis=0).flatten() 
+    df = df.melt(id_vars='samples', value_vars=labels)
+    x_order = np.unique(df['samples'])
+    g = sns.boxplot(data=df, x='samples', y='value', hue='variable', order=x_order, hue_order=labels, ax=ax)
+    ax.set_xlabel("Fraction of extraneous edges")
+    ax.set_ylabel("Time to solution (s)")
+    plt.savefig("{}/time.png".format(plot_dir))
+    
     # Save score matrices
     np.savetxt("{}/scores_serial.txt".format(plot_dir), scores_serial.reshape(num_repeats, -1))
     np.savetxt("{}/scores_pef.txt".format(plot_dir), scores_pef.reshape(num_repeats, -1))
@@ -191,8 +226,8 @@ def run_artificial_ss(experiment_dir, num_repeats, frac_extraneous_range, nthrea
 
 if __name__ == "__main__":
     # Simple case for debugging
-    # run_artificial_ss("./simulations/experiment_3_test/", nthreads=16, num_repeats=1, frac_extraneous_range=np.arange(0,2,1), screen=False)
-    # run_artificial_ss("./simulations/experiment_3_test/", nthreads=16, num_repeats=1, frac_extraneous_range=np.arange(0,2,1), screen=True)
+    # run_artificial_ss("./simulations/experiment_3_test/", nthreads=16, num_repeats=10, frac_extraneous_range=np.arange(0,10,1), screen=False)
+    # run_artificial_ss("./simulations/experiment_3_test/", nthreads=16, num_repeats=10, frac_extraneous_range=np.arange(0,10,1), screen=True)
 
     run_artificial_ss("./simulations/experiment_3/", nthreads=16, num_repeats=50, frac_extraneous_range=np.arange(0,4,0.5), screen=True)
     run_artificial_ss("./simulations/experiment_3/", nthreads=16, num_repeats=50, frac_extraneous_range=np.arange(0,4,0.5), screen=False)

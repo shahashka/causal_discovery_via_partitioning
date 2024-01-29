@@ -45,7 +45,7 @@ def modularity_partition(
     """
     G = nx.from_numpy_array(adj_mat)
     community_lists = nx.community.greedy_modularity_communities(
-        G, cutoff=cutoff, best_n=best_n
+        G, resolution=resolution, cutoff=cutoff, best_n=best_n
     )
 
     partition = dict()
