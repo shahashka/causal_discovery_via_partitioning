@@ -184,13 +184,13 @@ if __name__ == "__main__":
         "./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        sample_range=[10**i for i in range(1, 7)],
+        sample_range=[10**i for i in range(1, 6)],
         screen=True,
     )
     run_samples(
         "./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        sample_range=[10**i for i in range(1, 7)],
+        sample_range=[10**i for i in range(1, 6)],
         screen=False,
     )
