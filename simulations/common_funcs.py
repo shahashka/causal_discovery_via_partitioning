@@ -123,10 +123,10 @@ def run_causal_discovery_serial(
     return scores_serial, time_serial 
     
     
-def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name, screen):
+def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name, screen, time=True):
     ig, axs = plt.subplots(3, figsize=(10, 12), sharex=True)
 
-    tpr_ind = -3
+    tpr_ind = -3 if time else -2
     data = [ s[:,:,tpr_ind] for s in scores]
     data = [np.reshape(d, num_repeats * len(sample_range)) for d in data]
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
@@ -148,7 +148,7 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
     axs[0].set_xlabel(x_axis_name)
     axs[0].set_ylabel("TPR")
 
-    fpr_ind = -2
+    fpr_ind = -2 if time else -1
     data = [ s[:,:,fpr_ind] for s in scores]
     data = [np.reshape(d, num_repeats * len(sample_range)) for d in data]
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
@@ -207,26 +207,27 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
     plt.clf()
     fig, ax = plt.subplots()
 
-    time_ind = -1
-    data = [ s[:,:,time_ind] for s in scores]
+    if time:
+        time_ind = -1
+        data = [ s[:,:,time_ind] for s in scores]
 
-    data = [np.reshape(d, num_repeats * len(sample_range)) for d in data]
-    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df["samples"] = np.repeat([sample_range], num_repeats, axis=0).flatten()
-    df = df.melt(id_vars="samples", value_vars=labels)
-    x_order = np.unique(df["samples"])
-    g = sns.boxplot(
-        data=df,
-        x="samples",
-        y="value",
-        hue="variable",
-        order=x_order,
-        hue_order=labels,
-        ax=ax,
-    )
-    ax.set_xlabel(x_axis_name)
-    ax.set_ylabel("Time to solution (s)")
-    plt.savefig("{}/time.png".format(plot_dir))
+        data = [np.reshape(d, num_repeats * len(sample_range)) for d in data]
+        df = pd.DataFrame(data=np.column_stack(data), columns=labels)
+        df["samples"] = np.repeat([sample_range], num_repeats, axis=0).flatten()
+        df = df.melt(id_vars="samples", value_vars=labels)
+        x_order = np.unique(df["samples"])
+        g = sns.boxplot(
+            data=df,
+            x="samples",
+            y="value",
+            hue="variable",
+            order=x_order,
+            hue_order=labels,
+            ax=ax,
+        )
+        ax.set_xlabel(x_axis_name)
+        ax.set_ylabel("Time to solution (s)")
+        plt.savefig("{}/time.png".format(plot_dir))
 
     # Save score matrices
     for s, l in zip(scores, labels):

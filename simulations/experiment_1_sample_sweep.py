@@ -18,7 +18,8 @@ from cd_v_partition.utils import (
     artificial_superstructure,
     adj_to_edge,
 )
-
+import functools
+from concurrent.futures import ProcessPoolExecutor
 from common_funcs import run_causal_discovery_serial, run_causal_discovery_partition, save
 
 import os
@@ -28,13 +29,11 @@ from tqdm import tqdm
 import pdb
 
 
-def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=False):
-    scores_serial = np.zeros((num_repeats, len(sample_range), 6))
-    scores_edge_cover = np.zeros((num_repeats, len(sample_range), 6))
-    scores_causal_partition = np.zeros((num_repeats, len(sample_range), 6))
-    scores_mod_partition = np.zeros((num_repeats, len(sample_range), 6))
-    scores_pef = np.zeros((num_repeats, len(sample_range), 6))
-
+def run_samples_alg(
+    algorithm, experiment_dir, num_repeats, sample_range, nthreads=16, screen=False
+):
+    scores = np.zeros((num_repeats, len(sample_range), 6))
+    print("Algorithm is {}".format(algorithm))
     for i in range(num_repeats):
         init_partition, graph = create_k_comms(
             "scale_free", n=25, m_list=[1, 2], p_list=[0.5, 0.5], k=2
@@ -44,9 +43,13 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
         var = np.abs(np.random.normal(0, 1, size=num_nodes))
         for j, ns in enumerate(sample_range):
             dir_name = (
-                "./{}/screen_projections/samples_{}/{}/".format(experiment_dir, ns, i)
+                "./{}/{}/screen_projections/samples_{}/{}/".format(
+                    experiment_dir, algorithm, ns, i
+                )
                 if screen
-                else "./{}/fusion/samples_{}/{}/".format(experiment_dir, ns, i)
+                else "./{}/{}/fusion/samples_{}/{}/".format(
+                    experiment_dir, algorithm, ns, i
+                )
             )
             if not os.path.exists(dir_name):
                 os.makedirs(dir_name)
@@ -81,116 +84,94 @@ def run_samples(experiment_dir, num_repeats, sample_range, nthreads=16, screen=F
                 data=np.array(superstructure_edges), columns=["node1", "node2"]
             ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
 
-            # Run serial
-            ss, ts = run_causal_discovery_serial(
-                dir_name,
-                superstructure,
-                df,
-                G_star,
-            )
-            scores_serial[i][j][0:5] = ss
-            scores_serial[i][j][-1] = ts
+            if algorithm == "serial":
+                ss, ts = run_causal_discovery_serial(
+                    dir_name,
+                    superstructure,
+                    df,
+                    G_star,
+                )
+                scores[i][j][0:5] = ss
+                scores[i][j][-1] = ts
+                np.savetxt("{}/time_chkpoint.txt".format(dir_name), scores[i][j])
 
-            # Run each partition and get scores
-            start = time.time()
-            mod_partition = modularity_partition(superstructure, cutoff=1, best_n=None)
-            tm = time.time() - start
+            else:
+                start = time.time()
+                partition = modularity_partition(
+                    superstructure, cutoff=1, best_n=None
+                )
+                tm = time.time() - start
 
-            sp,tp = run_causal_discovery_partition(
-                dir_name,
-                "mod",
-                superstructure,
-                mod_partition,
-                df,
-                G_star,
-                screen=screen,
-                nthreads=nthreads,
-            )
-            scores_mod_partition[i][j][0:5] = sp
-            scores_mod_partition[i][j][-1] = tp + tm
+                if algorithm=='expansive_causal':
+                    start = time.time()
+                    partition = expansive_causal_partition(superstructure, partition)
+                    tm += time.time() - start
+                elif algorithm=='edge_cover':
+                    start = time.time()
+                    partition = rand_edge_cover_partition(superstructure, partition)
+                    tm += time.time() - start
+                else:
+                    start = time.time()
+                    partition = PEF_partition(df)
+                    tm = time.time() - start
+                    
+                biggest_partition = max(len(p) for p in partition.values())
+                print("Biggest partition is {}".format(biggest_partition))
 
-            start = time.time()
-            partition = rand_edge_cover_partition(superstructure, mod_partition)
-            tec = time.time() - start
-
-            sp, tp = run_causal_discovery_partition(
-                dir_name,
-                "edge_cover",
-                superstructure,
-                partition,
-                df,
-                G_star,
-                screen=screen,
-                nthreads=nthreads,
-            )
-
-            scores_edge_cover[i][j][0:5] = sp
-            scores_edge_cover[i][j][-1] = tp + tec + tm
-
-            start = time.time()
-            partition = expansive_causal_partition(superstructure, mod_partition)
-            tca = time.time() - start
-
-            sp, tp = run_causal_discovery_partition(
-                dir_name, "causal", superstructure, partition, df, G_star, screen=screen
-            )
-            scores_causal_partition[i][j][0:5] = sp
-            scores_causal_partition[i][j][-1] = tp + tca + tm
-
-            start = time.time()
-            partition = PEF_partition(df)
-            tpef = time.time() - start
-
-            sp, tp = run_causal_discovery_partition(
-                dir_name,
-                "pef",
-                superstructure,
-                partition,
-                df,
-                G_star,
-                screen=screen,
-                full_cand_set=True,
-                nthreads=nthreads,
-
-            )
-            scores_pef[i][j][0:5] = sp
-            scores_pef[i][j][-1] = tp + tpef
-
-
-    scores = [
-        scores_serial,
-        scores_pef,
-        scores_edge_cover,
-        scores_causal_partition,
-        scores_mod_partition,
-    ]
-    labels = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
-    save(experiment_dir, scores, labels, num_repeats, sample_range, "Number of samples", screen)
-
+                full_cand_set = algorithm == "pef"
+                score, tp = run_causal_discovery_partition(
+                    dir_name,
+                    algorithm,
+                    superstructure,
+                    partition,
+                    df,
+                    G_star,
+                    nthreads=nthreads,
+                    screen=screen,
+                    full_cand_set=full_cand_set,
+                )
+                scores[i][j][0:5] = score
+                scores[i][j][-1] = tp + tm
+                np.savetxt("{}/time_chkpoint.txt".format(dir_name), scores[i][j])
+                
+    save("{}/{}".format(experiment_dir, algorithm), [scores], [algorithm], num_repeats, sample_range, x_axis_name="Number of samples", screen=screen)
 
 
 if __name__ == "__main__":
-    # Simple version for debugging
-    # run_samples("./simulations/experiment_1/", nthreads=16, num_repeats=1, sample_range=[10**i for i in range(1,3)], screen=False)
-    # run_samples(
-    #     "./simulations/experiment_1_test/",
-    #     nthreads=16,
-    #     num_repeats=2,
-    #     sample_range=[10**i for i in range(1, 3)],
-    #     screen=True,
-    # )
 
-    run_samples(
-        "./simulations/experiment_1/",
+    # Simple case for debugging
+    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    # func_partial = functools.partial(run_samples_alg, experiment_dir="./simulations/experiment_1_test/", nthreads=16, num_repeats=2, sample_range=[10**i for i in np.arange(1,3)], screen=True )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)
+    
+    #screen projections
+    func_partial = functools.partial(
+        run_samples_alg,
+        experiment_dir="./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        sample_range=[10**i for i in range(1, 6)],
+        nnodes_range=[10**i for i in np.arange(1, 6)],
         screen=True,
     )
-    run_samples(
-        "./simulations/experiment_1/",
+    results = []
+    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+        for result in executor.map(func_partial, algorithms, chunksize=1):
+            results.append(result)
+            
+    
+    # fusion    
+    func_partial = functools.partial(
+        run_samples_alg,
+        experiment_dir="./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        sample_range=[10**i for i in range(1, 6)],
+        nnodes_range=[10**i for i in np.arange(1, 6)],
         screen=False,
     )
+    results = []
+    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+        for result in executor.map(func_partial, algorithms, chunksize=1):
+            results.append(result)

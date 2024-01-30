@@ -140,6 +140,7 @@ if __name__ == "__main__":
     # Simple case for debugging
     algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
     #func_partial = functools.partial(run_nnodes_alg, experiment_dir="./simulations/experiment_5_test/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=True )
+    # screen projections 
     func_partial = functools.partial(
         run_nnodes_alg,
         experiment_dir="./simulations/experiment_5/",
@@ -147,6 +148,20 @@ if __name__ == "__main__":
         num_repeats=5,
         nnodes_range=[10**i for i in np.arange(1, 5)],
         screen=True,
+    )
+    results = []
+    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+        for result in executor.map(func_partial, algorithms, chunksize=1):
+            results.append(result)
+    
+    #fusion        
+    func_partial = functools.partial(
+        run_nnodes_alg,
+        experiment_dir="./simulations/experiment_5/",
+        nthreads=16,
+        num_repeats=5,
+        nnodes_range=[10**i for i in np.arange(1, 5)],
+        screen=False,
     )
     results = []
     with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
