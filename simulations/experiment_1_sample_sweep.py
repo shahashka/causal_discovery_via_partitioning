@@ -407,7 +407,7 @@ if __name__ == "__main__":
     run_samples(
         "./simulations/experiment_1/",
         nthreads=16,
-        num_repeats=30,
-        sample_range=[10**i for i in range(2, 6)],
+        num_repeats=10,
+        sample_range=[10**i for i in range(2, 4)],
         screen=True,
     )
