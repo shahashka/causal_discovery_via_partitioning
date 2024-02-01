@@ -151,8 +151,10 @@ def screen_projections_finite_lim_postprocessing(
         return overlaps
 
     overlaps = _find_overlaps(node_to_partition)
+    cycles_removed = 0
     # While the graph contains cycles,
     while len(cycle_list) > 0:
+        cycles_removed += 1
         # If we've found a trivial cycle, i.e (i,j) and (j,i) both exist
         if len(cycle_list) == 2:
             # find the endpoints
@@ -177,38 +179,54 @@ def screen_projections_finite_lim_postprocessing(
             # Find edges that exist in overlap
             edges_in_overlap = []
             for edge in cycle_list:
-                # if both endpoints live in overlap
-                if edge[0] in overlaps and edge[1] in overlaps:
+                # if either endpoint ocurrs in overlap
+                if edge[0] in overlaps or edge[1] in overlaps:
                     edges_in_overlap.append(edge[:2])
-            # Haven't implemented "select edge from overlap with worst METRIC"
-            if False:
-                # Compute log-likelihood for each edge, and discard the edge with the
-                # largest log-likelihood score, i.e. the lowest likelihood score.
-                loglikelihood_scores = []
-                for edge in edges_in_overlap:
-                    i = edge[0]
-                    j = edge[1]
-                    pa_i = list(global_graph.predecessors(i))
-                    pa_j = list(global_graph.predecessors(j))
-                    loglikelihood_scores.append(
-                        _loglikelihood(data, j, pa_j + [i], cor)
-                    )
-            # Currently: select arbitrary edge in cycle that's in overlap
-            if True:
-                if len(edges_in_overlap) == 0:
-                    print(
-                        "WARNING: CYCLE OCCURS NOT IN OVERLAP. Removing arbitrary edge."
-                    )
-                    edge_data = cycle_list[0]
-                else:
-                    edge_data = edges_in_overlap[0]
-            global_graph.remove_edge(edge_data[0], edge_data[1])
+            if len(edges_in_overlap) == 0:
+                print("WARNING: CYCLE OCCURS NOT IN OVERLAP. Removing arbitrary edge.")
+                edge_to_remove = cycle_list[0]
+            # Select edge from overlap with worst METRIC
+            # Compute log-likelihood for each edge, and discard the edge with the
+            # largest log-likelihood score, i.e. the lowest likelihood score.
+            edge_scores = []
+            for edge in edges_in_overlap:
+                edge_scores.append(
+                    _score_edge_with_likelihood(edge, global_graph, data, cor)
+                )
+            # find edge with lowest score
+            edge_to_remove = edges_in_overlap[np.argmin(edge_scores)]
+            global_graph.remove_edge(edge_to_remove[0], edge_to_remove[1])
         # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle when all cycles have been removed
         try:
             cycle_list = nx.find_cycle(global_graph, orientation="original")
         except:
             break
+    if False:
+        print(f"CYCLES REMOVED = {cycles_removed}")
     return global_graph
+
+
+# Scores edge based on how much including i as the parent of j
+# changes the likelihood of variable j
+def _score_edge_with_likelihood(edge, graph, data, cor):
+    i = edge[0]
+    j = edge[1]
+    # find all parents (including i)
+    pa_j = list(graph.predecessors(j))
+    ll_j_with_parent_i = _loglikelihood(data, j, pa_j, cor)
+    # if i is the only parent of j
+    if len(pa_j) == 1:
+        ll_j_without_parent_i = _loglikelihood(data, j, [], cor)
+    else:
+        pa_j.remove(i)
+        ll_j_without_parent_i = _loglikelihood(data, j, pa_j, cor)
+    # Higher log-likelihood corresponds to higher likelihood.
+    # Score edge (i,j) based on how much including i as parent
+    # of j increases loglikelihood.
+    delta_ll = ll_j_with_parent_i - ll_j_without_parent_i
+    # delta_ll should be a (1,1) array. Convert to scalar before returning
+    assert delta_ll.size == 1
+    return delta_ll.item()
 
 
 def fusion(

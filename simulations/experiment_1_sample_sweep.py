@@ -408,6 +408,6 @@ if __name__ == "__main__":
         "./simulations/experiment_1/",
         nthreads=16,
         num_repeats=10,
-        sample_range=[10**i for i in range(2, 4)],
+        sample_range=[10**i for i in range(2, 6)],
         screen=True,
     )
