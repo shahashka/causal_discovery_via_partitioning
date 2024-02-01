@@ -37,7 +37,7 @@ from common_funcs import run_causal_discovery_serial, run_causal_discovery_parti
 def run_nnodes_alg(
     algorithm, experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False
 ):
-    nsamples = 1e4
+    nsamples = 1e3
     scores = np.zeros((num_repeats, len(nnodes_range), 6))
     print("Algorithm is {}".format(algorithm))
     for i in range(num_repeats):
