@@ -62,11 +62,6 @@ def run_mod_alg(
                 bias=bias,
                 var=var,
             )
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
@@ -74,13 +69,6 @@ def run_mod_alg(
             superstructure = artificial_superstructure(
                 G_star, frac_extraneous=frac_extraneous
             )
-            superstructure_edges = adj_to_edge(
-                superstructure, nodes, ignore_weights=True
-            )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             if algorithm == "serial":
                 ss, ts = run_causal_discovery_serial(
                     dir_name,

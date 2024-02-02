@@ -72,7 +72,7 @@ def run_ecoli_alg(
     else:
         start = time.time()
         partition = modularity_partition(
-            superstructure, resolution=5, cutoff=20, best_n=20
+            superstructure, resolution=5, cutoff=100, best_n=100
         )
         tm = time.time() - start
 

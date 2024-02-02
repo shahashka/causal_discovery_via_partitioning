@@ -58,11 +58,6 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 os.makedirs(dir_name)
             print("Alpha {}".format(alpha))
 
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
@@ -70,10 +65,6 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
             superstructure_edges = adj_to_edge(
                 superstructure, nodes, ignore_weights=True
             )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             # Run serial
             ss, ts = run_causal_discovery_serial(
                 dir_name,
