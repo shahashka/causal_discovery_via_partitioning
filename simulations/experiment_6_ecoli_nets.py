@@ -111,29 +111,30 @@ def run_ecoli_alg(
 
 if __name__ == "__main__":
     algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
-    func_partial = functools.partial(
-        run_ecoli_alg,
-        experiment_dir="./simulations/experiment_6/",
-        nthreads=16,
-        net_id=0,
-        num_samples=1e3,
-        screen=True,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
-    
-    #fusion        
-    func_partial = functools.partial(
-        run_ecoli_alg,
-        experiment_dir="./simulations/experiment_6/",
-        nthreads=16,
-        net_id=0,
-        num_samples=1e3,
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+    for id in range(10):
+        func_partial = functools.partial(
+            run_ecoli_alg,
+            experiment_dir="./simulations/experiment_6/",
+            nthreads=16,
+            net_id=id,
+            num_samples=1e4,
+            screen=True,
+        )
+        results = []
+        with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+            for result in executor.map(func_partial, algorithms, chunksize=1):
+                results.append(result)
+        
+        #fusion        
+        func_partial = functools.partial(
+            run_ecoli_alg,
+            experiment_dir="./simulations/experiment_6/",
+            nthreads=16,
+            net_id=id,
+            num_samples=1e4,
+            screen=False,
+        )
+        results = []
+        with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+            for result in executor.map(func_partial, algorithms, chunksize=1):
+                results.append(result)

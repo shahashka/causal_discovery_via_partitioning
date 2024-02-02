@@ -30,11 +30,6 @@ def run_causal_discovery_partition(
     ss_subset=True,
     finite_sample_limit=True
 ):
-    # pd.DataFrame(list(zip(partition.keys(), partition.values()))).to_csv(
-    #     "{}/{}_partition.csv".format(dir_name, save_name),
-    #     header=["comm id", "node list"],
-    #     index=False,
-    # )
 
     start = time.time()
     # Break up problem according to provided partition
@@ -75,11 +70,6 @@ def run_causal_discovery_partition(
         )
     time_partition = time.time() - start
     
-    # Save the edge list
-    # learned_edges = list(est_graph_partition.edges(data=False))
-    # pd.DataFrame(data=learned_edges, columns=["node1", "node2"]).to_csv(
-    #     "{}/edges_{}.csv".format(dir_name, save_name), index=False
-    # )
     scores_part = get_scores(["CD-partition"], [est_graph_partition], G_star)
 
     return  scores_part, time_partition
@@ -112,14 +102,6 @@ def run_causal_discovery_serial(
         )
     time_serial = time.time() - start
     scores_serial = get_scores(["CD-serial"], [est_graph_serial], G_star)
-    # learned_edges = adj_to_edge(
-    #     est_graph_serial,
-    #     nodes=list(np.arange(est_graph_serial.shape[0])),
-    #     ignore_weights=True,
-    # )
-    # pd.DataFrame(data=learned_edges, columns=["node1", "node2"]).to_csv(
-    #     "{}/edges_serial.csv".format(dir_name), index=False
-    # )
     return scores_serial, time_serial 
     
     

@@ -153,7 +153,7 @@ if __name__ == "__main__":
         experiment_dir="./simulations/experiment_2/",
         nthreads=16,
         num_repeats=10,
-        rho_range=np.arange(0,0.5,0.1),
+        rho_range=[0, 0.01, 0.05, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5],
         screen=False,
     )
     results = []

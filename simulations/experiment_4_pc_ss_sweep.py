@@ -62,15 +62,12 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
 
             # Find superstructure
             superstructure, _ = pc(df, alpha=alpha, num_cores=nthreads, outdir=None)
-            superstructure_edges = adj_to_edge(
-                superstructure, nodes, ignore_weights=True
-            )
             # Run serial
             ss, ts = run_causal_discovery_serial(
                 dir_name,
                 superstructure,
                 df,
-                G_star,
+                G_star,ss_subset=False
             )
             scores_serial[i][j][0:5] = ss
             scores_serial[i][j][-1] = ts
@@ -88,7 +85,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 df,
                 G_star,
                 screen=screen,
-                nthreads=nthreads
+                nthreads=nthreads,ss_subset=False
             )
             scores_mod_partition[i][j][0:5] = sp
             scores_mod_partition[i][j][-1] = tp + tm
@@ -105,7 +102,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 df,
                 G_star,
                 screen=screen,
-                nthreads=nthreads
+                nthreads=nthreads,ss_subset=False
 
             )
 
@@ -135,7 +132,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 G_star,
                 screen=screen,
                 full_cand_set=True,
-                nthreads=nthreads
+                nthreads=nthreads,ss_subset=False
 
             )
             scores_pef[i][j][0:5] = sp
