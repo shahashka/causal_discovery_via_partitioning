@@ -87,8 +87,9 @@ def run_nnodes_alg(
 
             else:
                 start = time.time()
+                nc = int(nnodes/10)
                 partition = modularity_partition(
-                    superstructure, cutoff=1, best_n=None
+                    superstructure, cutoff=nc, best_n=nc
                 )
                 tm = time.time() - start
 
@@ -117,7 +118,7 @@ def run_nnodes_alg(
                     df,
                     G_star,
                     nthreads=nthreads,
-                    screen=screen,
+                    screen=False,
                     full_cand_set=full_cand_set,
                 )
                 scores[i][j][0:5] = score
@@ -144,16 +145,16 @@ if __name__ == "__main__":
         for result in executor.map(func_partial, algorithms, chunksize=1):
             results.append(result)
     
-    #fusion        
-    func_partial = functools.partial(
-        run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
-        nthreads=16,
-        num_repeats=5,
-        nnodes_range=[10**i for i in np.arange(1, 5)],
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+    # #fusion        
+    # func_partial = functools.partial(
+    #     run_nnodes_alg,
+    #     experiment_dir="./simulations/experiment_5/",
+    #     nthreads=16,
+    #     num_repeats=5,
+    #     nnodes_range=[10**i for i in np.arange(1, 5)],
+    #     screen=False,
+    # )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)
