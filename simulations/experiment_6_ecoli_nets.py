@@ -88,6 +88,7 @@ def run_ecoli_alg(
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
+            screen=False
             
         biggest_partition = max(len(p) for p in partition.values())
         print("Biggest partition is {}".format(biggest_partition))
@@ -101,7 +102,7 @@ def run_ecoli_alg(
             df,
             G_star,
             nthreads=nthreads,
-            screen=False,
+            screen=screen,
             full_cand_set=full_cand_set,
         )
         scores[0:5] = score
