@@ -105,6 +105,7 @@ def run_samples_alg(
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
+                    screen=False
                     
                 biggest_partition = max(len(p) for p in partition.values())
                 print("Biggest partition is {}".format(biggest_partition))
@@ -140,30 +141,30 @@ if __name__ == "__main__":
     #         results.append(result)
     
     #screen projections
-    # func_partial = functools.partial(
-    #     run_samples_alg,
-    #     experiment_dir="./simulations/experiment_1/",
-    #     nthreads=16,
-    #     num_repeats=30,
-    #     nnodes_range=[10**i for i in np.arange(1, 6)],
-    #     screen=True,
-    # )
-    # results = []
-    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-    #     for result in executor.map(func_partial, algorithms, chunksize=1):
-    #         results.append(result)
-            
-    
-    # fusion    
     func_partial = functools.partial(
         run_samples_alg,
         experiment_dir="./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        nnodes_range=[10**i for i in np.arange(1, 7)],
-        screen=False,
+        nnodes_range=[10**i for i in np.arange(1, 6)],
+        screen=True,
     )
     results = []
     with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
         for result in executor.map(func_partial, algorithms, chunksize=1):
             results.append(result)
+            
+    
+    # fusion    
+    # func_partial = functools.partial(
+    #     run_samples_alg,
+    #     experiment_dir="./simulations/experiment_1/",
+    #     nthreads=16,
+    #     num_repeats=30,
+    #     nnodes_range=[10**i for i in np.arange(1, 7)],
+    #     screen=False,
+    # )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)
