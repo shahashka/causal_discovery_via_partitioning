@@ -72,7 +72,7 @@ def run_ecoli_alg(
     else:
         start = time.time()
         partition = modularity_partition(
-            superstructure, resolution=5, cutoff=20, best_n=20
+            superstructure, cutoff=1, best_n=None
         )
         tm = time.time() - start
 
@@ -101,7 +101,7 @@ def run_ecoli_alg(
             df,
             G_star,
             nthreads=nthreads,
-            screen=screen,
+            screen=False,
             full_cand_set=full_cand_set,
         )
         scores[0:5] = score
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     for id in range(10):
         func_partial = functools.partial(
             run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6/",
+            experiment_dir="./simulations/experiment_6_no_comm/",
             nthreads=16,
             net_id=id,
             num_samples=1e4,
@@ -128,7 +128,7 @@ if __name__ == "__main__":
         #fusion        
         func_partial = functools.partial(
             run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6/",
+            experiment_dir="./simulations/experiment_6_no_comm/",
             nthreads=16,
             net_id=id,
             num_samples=1e4,
