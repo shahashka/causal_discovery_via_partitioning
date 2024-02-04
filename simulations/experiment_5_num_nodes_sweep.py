@@ -134,7 +134,7 @@ if __name__ == "__main__":
     # screen projections 
     func_partial = functools.partial(
         run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
+        experiment_dir="./simulations/experiment_5_comm_fixed/",
         nthreads=16,
         num_repeats=5,
         nnodes_range=[10**i for i in np.arange(1, 5)],
