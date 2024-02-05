@@ -84,7 +84,7 @@ def run_ecoli_alg(
             start = time.time()
             partition = rand_edge_cover_partition(superstructure, partition)
             tm += time.time() - start
-        else:
+        elif algorithm=='pef':
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
