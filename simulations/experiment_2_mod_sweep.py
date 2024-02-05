@@ -95,7 +95,7 @@ def run_mod_alg(
                     start = time.time()
                     partition = rand_edge_cover_partition(superstructure, partition)
                     tm += time.time() - start
-                elif algorithm=='pef:
+                elif algorithm=='pef':
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
