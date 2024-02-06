@@ -55,7 +55,8 @@ def run_nnodes_alg(
                 var=None,
             )
             # (edges, nodes, _, _), df = get_random_graph_data("hierarchical", num_nodes=nnodes, nsamples=int(nsamples), iv_samples=0, p=0.5, m=2)
-
+            if algorithm == 'pef':
+                screen=False
             dir_name = (
                 "./{}/{}/screen_projections/nnodes_{}/{}/".format(
                     experiment_dir, algorithm, nnodes, i
@@ -87,9 +88,9 @@ def run_nnodes_alg(
 
             else:
                 start = time.time()
+                nc = nnodes/10
                 partition = modularity_partition(
-                    superstructure, cutoff=1, best_n=None
-                )
+                    superstructure, resolution=5, cutoff=nc, best_n=nc)
                 tm = time.time() - start
 
                 if algorithm=='expansive_causal':
@@ -100,7 +101,7 @@ def run_nnodes_alg(
                     start = time.time()
                     partition = rand_edge_cover_partition(superstructure, partition)
                     tm += time.time() - start
-                else:
+                elif algorithm=='pef':
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
@@ -133,7 +134,7 @@ if __name__ == "__main__":
     # screen projections 
     func_partial = functools.partial(
         run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
+        experiment_dir="./simulations/experiment_5_fix_comm_3/",
         nthreads=16,
         num_repeats=5,
         nnodes_range=[10**i for i in np.arange(1, 5)],
@@ -144,16 +145,16 @@ if __name__ == "__main__":
         for result in executor.map(func_partial, algorithms, chunksize=1):
             results.append(result)
     
-    #fusion        
-    func_partial = functools.partial(
-        run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
-        nthreads=16,
-        num_repeats=5,
-        nnodes_range=[10**i for i in np.arange(1, 5)],
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+    # #fusion        
+    # func_partial = functools.partial(
+    #     run_nnodes_alg,
+    #     experiment_dir="./simulations/experiment_5/",
+    #     nthreads=16,
+    #     num_repeats=5,
+    #     nnodes_range=[10**i for i in np.arange(1, 5)],
+    #     screen=False,
+    # )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)

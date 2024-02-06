@@ -40,6 +40,8 @@ def run_ecoli_alg(
         bias=None,
         var=None,
     )[-1]
+    if algorithm=='pef':
+        screen=False
     dir_name = (
         "./{}/{}/screen_projections/net_{}/".format(
             experiment_dir, algorithm, net_id
@@ -72,7 +74,7 @@ def run_ecoli_alg(
     else:
         start = time.time()
         partition = modularity_partition(
-            superstructure, resolution=5, cutoff=100, best_n=100
+            superstructure, cutoff=1, best_n=None
         )
         tm = time.time() - start
 
@@ -84,7 +86,7 @@ def run_ecoli_alg(
             start = time.time()
             partition = rand_edge_cover_partition(superstructure, partition)
             tm += time.time() - start
-        else:
+        elif algorithm=='pef':
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
@@ -103,6 +105,7 @@ def run_ecoli_alg(
             nthreads=nthreads,
             screen=screen,
             full_cand_set=full_cand_set,
+            finite_sample_limit=False
         )
         scores[0:5] = score
         scores[-1] = tp + tm
@@ -114,8 +117,8 @@ if __name__ == "__main__":
     for id in range(10):
         func_partial = functools.partial(
             run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6/",
-            nthreads=16,
+            experiment_dir="./simulations/experiment_6_no_fixed_comm_2/",
+            nthreads=64,
             net_id=id,
             num_samples=1e4,
             screen=True,
@@ -125,16 +128,3 @@ if __name__ == "__main__":
             for result in executor.map(func_partial, algorithms, chunksize=1):
                 results.append(result)
         
-        #fusion        
-        func_partial = functools.partial(
-            run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6/",
-            nthreads=16,
-            net_id=id,
-            num_samples=1e4,
-            screen=False,
-        )
-        results = []
-        with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-            for result in executor.map(func_partial, algorithms, chunksize=1):
-                results.append(result)

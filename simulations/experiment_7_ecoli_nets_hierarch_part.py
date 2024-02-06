@@ -40,6 +40,8 @@ def run_ecoli_alg(
         bias=None,
         var=None,
     )[-1]
+    if algorithm=='pef':
+        screen=False
     dir_name = (
         "./{}/{}/screen_projections/net_{}/".format(
             experiment_dir, algorithm, net_id
@@ -83,7 +85,7 @@ def run_ecoli_alg(
             start = time.time()
             partition = rand_edge_cover_partition(superstructure, partition)
             tm += time.time() - start
-        else:
+        elif algorithm=='pef':
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
@@ -127,9 +129,9 @@ if __name__ == "__main__":
     func_partial = functools.partial(
         run_ecoli_alg,
         experiment_dir="./simulations/experiment_7/",
-        nthreads=16,
+        nthreads=64,
         net_id=0,
-        num_samples=1e3,
+        num_samples=1e4,
         screen=False,
     )
     results = []

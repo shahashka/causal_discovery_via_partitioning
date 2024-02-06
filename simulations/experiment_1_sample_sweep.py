@@ -144,7 +144,7 @@ if __name__ == "__main__":
         experiment_dir="./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        nnodes_range=[10**i for i in np.arange(1, 6)],
+        sample_range=[10**i for i in np.arange(1, 7)],
         screen=True,
     )
     results = []
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         experiment_dir="./simulations/experiment_1/",
         nthreads=16,
         num_repeats=30,
-        nnodes_range=[10**i for i in np.arange(1, 7)],
+        sample_range=[10**i for i in np.arange(1, 7)],
         screen=False,
     )
     results = []

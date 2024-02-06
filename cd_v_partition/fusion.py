@@ -69,8 +69,8 @@ def screen_projections(
     global_graph = _union_with_overlaps(local_cd_graphs)
 
     # Remove all edges not present in superstructure
+    ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
     if ss_subset:
-        ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
         global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
 
     # global_graph = no edge if (no edge in comm1) or (no edge in comm2)

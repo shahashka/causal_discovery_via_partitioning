@@ -114,7 +114,15 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
             tca = time.time() - start
 
             sp, tp = run_causal_discovery_partition(
-                dir_name, "causal", superstructure, partition, df, G_star, screen=screen
+                dir_name,
+                "causal",
+                superstructure,
+                partition,
+                df,
+                G_star,
+                screen=screen,
+                nthreads=nthreads,ss_subset=False
+
             )
             scores_causal_partition[i][j][0:5] = sp
             scores_causal_partition[i][j][-1] = tp + tca + tm
@@ -154,7 +162,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
 if __name__ == "__main__":
     # Simple case for debugging
     # run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=False)
-    # run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=True)
+    #run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=True)
 
     run_ss_pc(
         "./simulations/experiment_4/",
