@@ -124,17 +124,3 @@ if __name__ == "__main__":
     with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
         for result in executor.map(func_partial, algorithms, chunksize=1):
             results.append(result)
-    
-    #fusion        
-    func_partial = functools.partial(
-        run_ecoli_alg,
-        experiment_dir="./simulations/experiment_7/",
-        nthreads=64,
-        net_id=0,
-        num_samples=1e4,
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)

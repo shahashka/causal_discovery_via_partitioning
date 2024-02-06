@@ -140,8 +140,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 G_star,
                 screen=screen,
                 full_cand_set=True,
-                nthreads=nthreads,ss_subset=False
-
+                nthreads=nthreads,ss_subset=False, screen=False
             )
             scores_pef[i][j][0:5] = sp
             scores_pef[i][j][-1] = tp + tpef
@@ -171,10 +170,10 @@ if __name__ == "__main__":
         alpha_range=np.arange(0.1, 1, 0.1),
         screen=True,
     )
-    run_ss_pc(
-        "./simulations/experiment_4/",
-        nthreads=16,
-        num_repeats=50,
-        alpha_range=np.arange(0.1, 1, 0.1),
-        screen=False,
-    )
+    # run_ss_pc(
+    #     "./simulations/experiment_4/",
+    #     nthreads=16,
+    #     num_repeats=50,
+    #     alpha_range=np.arange(0.1, 1, 0.1),
+    #     screen=False,
+    # )

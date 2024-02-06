@@ -42,6 +42,8 @@ def run_samples_alg(
         bias = np.random.normal(0, 1, size=num_nodes)
         var = np.abs(np.random.normal(0, 1, size=num_nodes))
         for j, ns in enumerate(sample_range):
+            if algorithm == 'pef':
+                screen=False
             dir_name = (
                 "./{}/{}/screen_projections/samples_{}/{}/".format(
                     experiment_dir, algorithm, ns, i
@@ -101,7 +103,7 @@ def run_samples_alg(
                     start = time.time()
                     partition = rand_edge_cover_partition(superstructure, partition)
                     tm += time.time() - start
-                else:
+                elif algorithm=='pef':
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
@@ -131,7 +133,8 @@ def run_samples_alg(
 if __name__ == "__main__":
 
     # Simple case for debugging
-    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    #algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    algorithms = ["pef"]
     # func_partial = functools.partial(run_samples_alg, experiment_dir="./simulations/experiment_1_test/", nthreads=16, num_repeats=2, sample_range=[10**i for i in np.arange(1,3)], screen=True )
     # results = []
     # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
@@ -151,18 +154,4 @@ if __name__ == "__main__":
     with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
         for result in executor.map(func_partial, algorithms, chunksize=1):
             results.append(result)
-            
-    
-    # fusion    
-    func_partial = functools.partial(
-        run_samples_alg,
-        experiment_dir="./simulations/experiment_1/",
-        nthreads=16,
-        num_repeats=30,
-        sample_range=[10**i for i in np.arange(1, 7)],
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+        

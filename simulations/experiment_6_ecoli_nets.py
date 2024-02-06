@@ -90,6 +90,7 @@ def run_ecoli_alg(
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
+           
             
         biggest_partition = max(len(p) for p in partition.values())
         print("Biggest partition is {}".format(biggest_partition))
@@ -114,7 +115,7 @@ def run_ecoli_alg(
 
 if __name__ == "__main__":
     algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
-    for id in range(10):
+    for id in np.arange(1,10):
         func_partial = functools.partial(
             run_ecoli_alg,
             experiment_dir="./simulations/experiment_6_no_fixed_comm_2/",

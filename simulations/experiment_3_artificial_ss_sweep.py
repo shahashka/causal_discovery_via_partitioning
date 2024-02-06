@@ -137,7 +137,8 @@ def run_artificial_ss(
                 G_star,
                 screen=screen,
                 full_cand_set=True,
-                nthreads=nthreads
+                nthreads=nthreads,
+                screen=False
 
             )
             scores_pef[i][j][0:5] = sp
@@ -167,10 +168,10 @@ if __name__ == "__main__":
         frac_extraneous_range=np.arange(0, 4, 0.5),
         screen=True,
     )
-    run_artificial_ss(
-        "./simulations/experiment_3/",
-        nthreads=16,
-        num_repeats=50,
-        frac_extraneous_range=np.arange(0, 4, 0.5),
-        screen=False,
-    )
+    # run_artificial_ss(
+    #     "./simulations/experiment_3/",
+    #     nthreads=16,
+    #     num_repeats=50,
+    #     frac_extraneous_range=np.arange(0, 4, 0.5),
+    #     screen=False,
+    # )

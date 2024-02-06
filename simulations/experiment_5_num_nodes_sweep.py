@@ -135,7 +135,7 @@ if __name__ == "__main__":
     func_partial = functools.partial(
         run_nnodes_alg,
         experiment_dir="./simulations/experiment_5_fix_comm_3/",
-        nthreads=16,
+        nthreads=64,
         num_repeats=5,
         nnodes_range=[10**i for i in np.arange(1, 5)],
         screen=True,

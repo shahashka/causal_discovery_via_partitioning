@@ -66,7 +66,7 @@ def run_causal_discovery_partition(
         )
     else:
         est_graph_partition = fusion(
-            superstructure, partition, results, data_obs, full_cand_set=full_cand_set
+            superstructure, partition, results, data_obs, full_cand_set=full_cand_set, ss_subset=ss_subset
         )
     time_partition = time.time() - start
     
