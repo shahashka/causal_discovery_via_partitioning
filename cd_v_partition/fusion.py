@@ -215,7 +215,7 @@ def fusion(
     ss: np.ndarray,
     partition: dict[Any, Any],
     local_cd_adj_mats: list[np.ndarray],
-    data: np.ndarray,
+    data: np.ndarray, ss_subset=False,
     full_cand_set: bool = False,
 ):
     """
@@ -298,6 +298,8 @@ def fusion(
         if edge and edge in list(ss_graph.edges()):
             global_graph.add_edge(edge[0], edge[1])
     # print("Global graph edges after fusion {}".format(len(global_graph.edges())))
+    if ss_subset:
+        global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
     return global_graph
 
 

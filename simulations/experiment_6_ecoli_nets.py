@@ -40,6 +40,8 @@ def run_ecoli_alg(
         bias=None,
         var=None,
     )[-1]
+    if alg=='pef':
+        screen=False
     dir_name = (
         "./{}/{}/screen_projections/net_{}/".format(
             experiment_dir, algorithm, net_id
@@ -84,11 +86,11 @@ def run_ecoli_alg(
             start = time.time()
             partition = rand_edge_cover_partition(superstructure, partition)
             tm += time.time() - start
-        else:
+        elif algorithm=='pef':
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
-            screen=False
+           
             
         biggest_partition = max(len(p) for p in partition.values())
         print("Biggest partition is {}".format(biggest_partition))
@@ -112,7 +114,7 @@ def run_ecoli_alg(
 
 if __name__ == "__main__":
     algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
-    for id in range(10):
+    for id in np.arange(1,10):
         func_partial = functools.partial(
             run_ecoli_alg,
             experiment_dir="./simulations/experiment_6_no_comm/",
@@ -126,16 +128,4 @@ if __name__ == "__main__":
             for result in executor.map(func_partial, algorithms, chunksize=1):
                 results.append(result)
         
-        #fusion        
-        func_partial = functools.partial(
-            run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6_no_comm/",
-            nthreads=16,
-            net_id=id,
-            num_samples=1e4,
-            screen=False,
-        )
-        results = []
-        with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-            for result in executor.map(func_partial, algorithms, chunksize=1):
-                results.append(result)
+        
