@@ -115,9 +115,9 @@ if __name__ == "__main__":
     func_partial = functools.partial(
         run_ecoli_alg,
         experiment_dir="./simulations/experiment_7/",
-        nthreads=16,
+        nthreads=64,
         net_id=0,
-        num_samples=1e3,
+        num_samples=1e4,
         screen=True,
     )
     results = []

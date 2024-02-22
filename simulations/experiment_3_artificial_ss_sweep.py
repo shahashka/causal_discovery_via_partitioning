@@ -135,10 +135,9 @@ def run_artificial_ss(
                 partition,
                 df,
                 G_star,
-                screen=screen,
+                screen=False,
                 full_cand_set=True,
-                nthreads=nthreads,
-                screen=False
+                nthreads=nthreads
 
             )
             scores_pef[i][j][0:5] = sp
@@ -163,7 +162,7 @@ if __name__ == "__main__":
 
     run_artificial_ss(
         "./simulations/experiment_3/",
-        nthreads=16,
+        nthreads=64,
         num_repeats=50,
         frac_extraneous_range=np.arange(0, 4, 0.5),
         screen=True,

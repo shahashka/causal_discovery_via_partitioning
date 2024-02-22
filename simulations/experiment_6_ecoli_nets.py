@@ -105,24 +105,23 @@ def run_ecoli_alg(
             G_star,
             nthreads=nthreads,
             screen=screen,
-            full_cand_set=full_cand_set,
-            finite_sample_limit=False
-        )
+            full_cand_set=full_cand_set  
+            )
         scores[0:5] = score
         scores[-1] = tp + tm
         np.savetxt("{}/time_chkpoint.txt".format(dir_name), scores)
 
 
 if __name__ == "__main__":
-    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    algorithms  = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
     for id in np.arange(1,10):
         func_partial = functools.partial(
             run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6_no_fixed_comm_2/",
+            experiment_dir="./simulations/experiment_6/",
             nthreads=64,
             net_id=id,
             num_samples=1e4,
-            screen=True,
+            screen=True
         )
         results = []
         with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:

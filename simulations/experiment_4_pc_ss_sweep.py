@@ -138,9 +138,9 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 partition,
                 df,
                 G_star,
-                screen=screen,
+                screen=False,
                 full_cand_set=True,
-                nthreads=nthreads,ss_subset=False, screen=False
+                nthreads=nthreads,ss_subset=False
             )
             scores_pef[i][j][0:5] = sp
             scores_pef[i][j][-1] = tp + tpef
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
     run_ss_pc(
         "./simulations/experiment_4/",
-        nthreads=16,
+        nthreads=64,
         num_repeats=50,
         alpha_range=np.arange(0.1, 1, 0.1),
         screen=True,

@@ -133,8 +133,7 @@ def run_samples_alg(
 if __name__ == "__main__":
 
     # Simple case for debugging
-    #algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
-    algorithms = ["pef"]
+    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
     # func_partial = functools.partial(run_samples_alg, experiment_dir="./simulations/experiment_1_test/", nthreads=16, num_repeats=2, sample_range=[10**i for i in np.arange(1,3)], screen=True )
     # results = []
     # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
@@ -145,7 +144,7 @@ if __name__ == "__main__":
     func_partial = functools.partial(
         run_samples_alg,
         experiment_dir="./simulations/experiment_1/",
-        nthreads=16,
+        nthreads=64,
         num_repeats=30,
         sample_range=[10**i for i in np.arange(1, 7)],
         screen=True,
