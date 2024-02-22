@@ -292,7 +292,7 @@ def sp_gies(
                 ro.r["score"],
                 fixedGaps=ro.r["fixed_gaps"],
                 targets=ro.r["targets"],
-                adaptive="triples",
+                adaptive="triples", iterate=True, verbose=False
             )
         else:
             result = pcalg.gies(

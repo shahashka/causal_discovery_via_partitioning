@@ -58,28 +58,16 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 os.makedirs(dir_name)
             print("Alpha {}".format(alpha))
 
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
             superstructure, _ = pc(df, alpha=alpha, num_cores=nthreads, outdir=None)
-            superstructure_edges = adj_to_edge(
-                superstructure, nodes, ignore_weights=True
-            )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             # Run serial
             ss, ts = run_causal_discovery_serial(
                 dir_name,
                 superstructure,
                 df,
-                G_star,
+                G_star,ss_subset=False
             )
             scores_serial[i][j][0:5] = ss
             scores_serial[i][j][-1] = ts
@@ -97,7 +85,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 df,
                 G_star,
                 screen=screen,
-                nthreads=nthreads
+                nthreads=nthreads,ss_subset=False
             )
             scores_mod_partition[i][j][0:5] = sp
             scores_mod_partition[i][j][-1] = tp + tm
@@ -114,7 +102,7 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 df,
                 G_star,
                 screen=screen,
-                nthreads=nthreads
+                nthreads=nthreads,ss_subset=False
 
             )
 
@@ -126,7 +114,15 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
             tca = time.time() - start
 
             sp, tp = run_causal_discovery_partition(
-                dir_name, "causal", superstructure, partition, df, G_star, screen=screen
+                dir_name,
+                "causal",
+                superstructure,
+                partition,
+                df,
+                G_star,
+                screen=screen,
+                nthreads=nthreads,ss_subset=False
+
             )
             scores_causal_partition[i][j][0:5] = sp
             scores_causal_partition[i][j][-1] = tp + tca + tm
@@ -142,10 +138,9 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
                 partition,
                 df,
                 G_star,
-                screen=screen,
+                screen=False,
                 full_cand_set=True,
-                nthreads=nthreads
-
+                nthreads=nthreads,ss_subset=False
             )
             scores_pef[i][j][0:5] = sp
             scores_pef[i][j][-1] = tp + tpef
@@ -166,19 +161,19 @@ def run_ss_pc(experiment_dir, num_repeats, alpha_range, nthreads=16, screen=Fals
 if __name__ == "__main__":
     # Simple case for debugging
     # run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=False)
-    # run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=True)
+    #run_ss_pc("./simulations/experiment_4_test/", nthreads=16, num_repeats=1, alpha_range=np.arange(0.1,0.2,0.1), screen=True)
 
     run_ss_pc(
         "./simulations/experiment_4/",
-        nthreads=16,
+        nthreads=64,
         num_repeats=50,
         alpha_range=np.arange(0.1, 1, 0.1),
         screen=True,
     )
-    run_ss_pc(
-        "./simulations/experiment_4/",
-        nthreads=16,
-        num_repeats=50,
-        alpha_range=np.arange(0.1, 1, 0.1),
-        screen=False,
-    )
+    # run_ss_pc(
+    #     "./simulations/experiment_4/",
+    #     nthreads=16,
+    #     num_repeats=50,
+    #     alpha_range=np.arange(0.1, 1, 0.1),
+    #     screen=False,
+    # )

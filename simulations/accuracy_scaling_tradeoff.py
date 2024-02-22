@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 # Generate data
 nnodes = 1000
-nsamples = 1e4
+nsamples = 1e3
 num_repeats = 5
 #G_dir = directed_heirarchical_graph(nnodes)
 k =10
@@ -30,11 +30,13 @@ init_partition,G_dir = create_k_comms('scale_free', int(nnodes/k), k*[2], k*[0.5
     iv_samples=0,
     bias=None,
     var=None )
+print(len(G_dir.edges()))
 G_star = nx.adjacency_matrix(G_dir, nodes).todense()
 ss = artificial_superstructure(G_star, frac_extraneous=0.1)
 num_comms = [100, 20, 10, 4, 2]
 size_mod = np.zeros((num_repeats, len(num_comms)))
 scores_mod = np.zeros((num_repeats, len(num_comms), 5))
+
 time_mod = np.zeros((num_repeats, len(num_comms)))
 
 size_ec = np.zeros((num_repeats, len(num_comms)))
@@ -106,7 +108,21 @@ axs[1].set_xlabel("Size of largest partition")
 plt.legend()
 plt.savefig("./simulations/acc_scaling_tradoff.png")
 
-    
+save_arrays_scores = [scores_serial, scores_mod, scores_ec, scores_causal]
+save_arrays_time = [time_serial, time_mod, time_ec, time_causal]
+save_arrays_size = [size_mod, size_ec, size_causal]
+
+labels = ['serial', 'mod', 'ec', 'causal']
+for s, t, l in zip(save_arrays_scores, save_arrays_time, labels):
+    if l == 'serial':
+        np.savetxt("acc_tradeoff_scores_{}".format(l), s)
+    else:
+        np.savetxt("acc_tradeoff_scores_{}".format(l), s.reshape(s.shape[0], -1))
+    np.savetxt("acc_tradeoff_time_{}".format(l), t)
+
+for size, l in zip(save_arrays_size, labels[1:]):
+    np.savetxt("acc_tradeoff_size_{}".format(l), size)
+
     
     
 

@@ -69,8 +69,8 @@ def screen_projections(
     global_graph = _union_with_overlaps(local_cd_graphs)
 
     # Remove all edges not present in superstructure
+    ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
     if ss_subset:
-        ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
         global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
 
     # global_graph = no edge if (no edge in comm1) or (no edge in comm2)
@@ -215,7 +215,7 @@ def fusion(
     ss: np.ndarray,
     partition: dict[Any, Any],
     local_cd_adj_mats: list[np.ndarray],
-    data: np.ndarray,
+    data: np.ndarray, ss_subset=False,
     full_cand_set: bool = False,
 ):
     """
@@ -298,6 +298,8 @@ def fusion(
         if edge and edge in list(ss_graph.edges()):
             global_graph.add_edge(edge[0], edge[1])
     # print("Global graph edges after fusion {}".format(len(global_graph.edges())))
+    if ss_subset:
+        global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
     return global_graph
 
 
