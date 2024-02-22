@@ -37,7 +37,7 @@ from common_funcs import run_causal_discovery_serial, run_causal_discovery_parti
 def run_nnodes_alg(
     algorithm, experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False
 ):
-    nsamples = 1e4
+    nsamples = 1e3
     scores = np.zeros((num_repeats, len(nnodes_range), 6))
     print("Algorithm is {}".format(algorithm))
     for i in range(num_repeats):
@@ -67,12 +67,6 @@ def run_nnodes_alg(
             )
             if not os.path.exists(dir_name):
                 os.makedirs(dir_name)
-
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
@@ -80,10 +74,6 @@ def run_nnodes_alg(
             superstructure_edges = adj_to_edge(
                 superstructure, nodes, ignore_weights=True
             )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             if algorithm == "serial":
                 ss, ts = run_causal_discovery_serial(
                     dir_name,
@@ -97,8 +87,9 @@ def run_nnodes_alg(
 
             else:
                 start = time.time()
+                nc = int(nnodes/10)
                 partition = modularity_partition(
-                    superstructure, cutoff=1, best_n=None
+                    superstructure, cutoff=nc, best_n=nc
                 )
                 tm = time.time() - start
 
@@ -110,10 +101,11 @@ def run_nnodes_alg(
                     start = time.time()
                     partition = rand_edge_cover_partition(superstructure, partition)
                     tm += time.time() - start
-                else:
+                elif algorithm=='pef':
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
+                    screen=False
                     
                 biggest_partition = max(len(p) for p in partition.values())
                 print("Biggest partition is {}".format(biggest_partition))
@@ -143,7 +135,7 @@ if __name__ == "__main__":
     # screen projections 
     func_partial = functools.partial(
         run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
+        experiment_dir="./simulations/experiment_5_comm_fixed/",
         nthreads=16,
         num_repeats=5,
         nnodes_range=[10**i for i in np.arange(1, 5)],
@@ -154,16 +146,16 @@ if __name__ == "__main__":
         for result in executor.map(func_partial, algorithms, chunksize=1):
             results.append(result)
     
-    #fusion        
-    func_partial = functools.partial(
-        run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
-        nthreads=16,
-        num_repeats=5,
-        nnodes_range=[10**i for i in np.arange(1, 5)],
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+    # #fusion        
+    # func_partial = functools.partial(
+    #     run_nnodes_alg,
+    #     experiment_dir="./simulations/experiment_5/",
+    #     nthreads=16,
+    #     num_repeats=5,
+    #     nnodes_range=[10**i for i in np.arange(1, 5)],
+    #     screen=False,
+    # )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)

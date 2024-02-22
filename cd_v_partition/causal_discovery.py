@@ -288,12 +288,14 @@ def sp_gies(
         )
         ro.r.assign("score", score)
         if adaptive:
+            print('start ges')
             result = pcalg.gies(
                 ro.r["score"],
                 fixedGaps=ro.r["fixed_gaps"],
                 targets=ro.r["targets"],
-                adaptive="triples",
+                adaptive="triples", iterate=True, verbose=False
             )
+            print('end ges')
         else:
             result = pcalg.gies(
                 ro.r["score"], fixedGaps=ro.r["fixed_gaps"], targets=ro.r["targets"]

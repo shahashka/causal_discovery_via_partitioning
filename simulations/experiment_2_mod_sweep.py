@@ -62,11 +62,6 @@ def run_mod_alg(
                 bias=bias,
                 var=var,
             )
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
@@ -74,13 +69,6 @@ def run_mod_alg(
             superstructure = artificial_superstructure(
                 G_star, frac_extraneous=frac_extraneous
             )
-            superstructure_edges = adj_to_edge(
-                superstructure, nodes, ignore_weights=True
-            )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             if algorithm == "serial":
                 ss, ts = run_causal_discovery_serial(
                     dir_name,
@@ -107,7 +95,7 @@ def run_mod_alg(
                     start = time.time()
                     partition = rand_edge_cover_partition(superstructure, partition)
                     tm += time.time() - start
-                else:
+                elif algorithm=='pef':
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
@@ -165,7 +153,7 @@ if __name__ == "__main__":
         experiment_dir="./simulations/experiment_2/",
         nthreads=16,
         num_repeats=10,
-        rho_range=np.arange(0,0.5,0.1),
+        rho_range=[0, 0.01, 0.05, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5],
         screen=False,
     )
     results = []

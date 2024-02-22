@@ -65,11 +65,6 @@ def run_samples_alg(
                 bias=bias,
                 var=var,
             )
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
@@ -80,10 +75,6 @@ def run_samples_alg(
             superstructure_edges = adj_to_edge(
                 superstructure, nodes, ignore_weights=True
             )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             if algorithm == "serial":
                 ss, ts = run_causal_discovery_serial(
                     dir_name,
@@ -110,10 +101,11 @@ def run_samples_alg(
                     start = time.time()
                     partition = rand_edge_cover_partition(superstructure, partition)
                     tm += time.time() - start
-                else:
+                elif algorithm=='pef':
                     start = time.time()
                     partition = PEF_partition(df)
                     tm = time.time() - start
+                    screen=False
                     
                 biggest_partition = max(len(p) for p in partition.values())
                 print("Biggest partition is {}".format(biggest_partition))
@@ -140,7 +132,8 @@ def run_samples_alg(
 if __name__ == "__main__":
 
     # Simple case for debugging
-    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    #algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    algorithms = ["pef"]
     # func_partial = functools.partial(run_samples_alg, experiment_dir="./simulations/experiment_1_test/", nthreads=16, num_repeats=2, sample_range=[10**i for i in np.arange(1,3)], screen=True )
     # results = []
     # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
@@ -163,15 +156,15 @@ if __name__ == "__main__":
             
     
     # fusion    
-    func_partial = functools.partial(
-        run_samples_alg,
-        experiment_dir="./simulations/experiment_1/",
-        nthreads=16,
-        num_repeats=30,
-        nnodes_range=[10**i for i in np.arange(1, 6)],
-        screen=False,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+    # func_partial = functools.partial(
+    #     run_samples_alg,
+    #     experiment_dir="./simulations/experiment_1/",
+    #     nthreads=16,
+    #     num_repeats=30,
+    #     nnodes_range=[10**i for i in np.arange(1, 7)],
+    #     screen=False,
+    # )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)

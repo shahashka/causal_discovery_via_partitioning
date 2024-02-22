@@ -4,9 +4,6 @@ backports.zoneinfo==0.2.1
 black==23.12.1
 causal-learn==0.1.3.7
 causaldag==0.1a163
-cd-v-partition @ file:///lambda_stor/homes/shahashka/causal_discovery_via_partitioning
-# Editable install with no version control (cdt==0.6.0)
--e /lambda_stor/homes/shahashka/.conda/envs/cd_partitioning/lib/python3.8/site-packages
 certifi==2023.7.22
 cffi==1.16.0
 charset-normalizer==3.3.2
@@ -32,7 +29,6 @@ idna==3.4
 importlib-resources==6.1.1
 ipdb==0.13.13
 ipython==8.12.3
-javabridge==1.0.19
 jedi==0.19.1
 Jinja2==3.1.2
 joblib==1.3.2

@@ -60,12 +60,6 @@ def run_artificial_ss(
             if not os.path.exists(dir_name):
                 os.makedirs(dir_name)
             print("Frac extraneoues {}".format(f_ex))
-
-            # Save true graph and data
-            df.to_csv("{}/data.csv".format(dir_name), header=True, index=False)
-            pd.DataFrame(data=np.array(edges), columns=["node1", "node2"]).to_csv(
-                "{}/edges_true.csv".format(dir_name), index=False
-            )
             G_star = edge_to_adj(edges, nodes)
 
             # Find superstructure
@@ -73,10 +67,6 @@ def run_artificial_ss(
             superstructure_edges = adj_to_edge(
                 superstructure, nodes, ignore_weights=True
             )
-            pd.DataFrame(
-                data=np.array(superstructure_edges), columns=["node1", "node2"]
-            ).to_csv("{}/edges_ss.csv".format(dir_name), index=False)
-
             # Run serial
             ss, ts = run_causal_discovery_serial(
                 dir_name,
