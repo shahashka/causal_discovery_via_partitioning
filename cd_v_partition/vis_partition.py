@@ -20,7 +20,7 @@ def create_partition_plot(
     nodes: list[str],
     partition: dict[int, list[int]],
     save_name: Path | str,
-    ax = None
+    ax = None, node_size=1, edge_width=2
 ):
     """
     Create plot of overlapping partitions with patches.
@@ -63,8 +63,8 @@ def create_partition_plot(
 
     Graph(
         G,
-        edge_width=1,
-        node_size=2,
+        edge_width=edge_width,
+        node_size=node_size,
         edge_color="black",
         node_layout=pos,
         node_color=colors,
