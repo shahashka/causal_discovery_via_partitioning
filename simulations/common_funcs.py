@@ -105,17 +105,20 @@ def run_causal_discovery_serial(
     return scores_serial, time_serial 
     
     
-def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name, screen, time=True):
-    ig, axs = plt.subplots(3, figsize=(10, 12), sharex=True)
+def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name, screen, plot_dir=None, time=True, remove_incomplete=False):
+    ig, axs = plt.subplots(2, figsize=(10, 12), sharex=True)
 
     tpr_ind = -3 if time else -2
     data = [ s[:,:,tpr_ind] for s in scores]
     data = [np.reshape(d, num_repeats * len(sample_range)) for d in data]
+    print(data[0].shape, len(data), np.column_stack(data).shape)
     df = pd.DataFrame(data=np.column_stack(data), columns=labels)
     df["samples"] = np.repeat(
         [sample_range], num_repeats, axis=0
     ).flatten()  # samples go 1e2->1e7 1e2->1e7 etc
     df = df.melt(id_vars="samples", value_vars=labels)
+    if remove_incomplete:
+        df= df[df['value'] != 0] # Remove incomplete rows 
     x_order = np.unique(df["samples"])
     g = sns.boxplot(
         data=df,
@@ -129,29 +132,7 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
     )
     axs[0].set_xlabel(x_axis_name)
     axs[0].set_ylabel("TPR")
-
-    fpr_ind = -2 if time else -1
-    data = [ s[:,:,fpr_ind] for s in scores]
-    data = [np.reshape(d, num_repeats * len(sample_range)) for d in data]
-    df = pd.DataFrame(data=np.column_stack(data), columns=labels)
-    df["samples"] = np.repeat(
-        [sample_range], num_repeats, axis=0
-    ).flatten()  # samples go 1e2->1e7 1e2->1e7 etc
-    df = df.melt(id_vars="samples", value_vars=labels)
-    x_order = np.unique(df["samples"])
-    sns.boxplot(
-        data=df,
-        x="samples",
-        y="value",
-        hue="variable",
-        order=x_order,
-        hue_order=labels,
-        ax=axs[1],
-        # legend=False,
-        showfliers=False,
-    )
-    axs[1].set_xlabel(x_axis_name)
-    axs[1].set_ylabel("FPR")
+    
 
     shd_ind = 0
     data = [ s[:,:,shd_ind] for s in scores]
@@ -161,6 +142,8 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
         [sample_range], num_repeats, axis=0
     ).flatten()  # samples go 1e2->1e7 1e2->1e7 etc
     df = df.melt(id_vars="samples", value_vars=labels)
+    if remove_incomplete:
+        df= df[df['value'] != 0] # Remove incomplete rows 
     x_order = np.unique(df["samples"])
     sns.boxplot(
         data=df,
@@ -169,21 +152,22 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
         hue="variable",
         order=x_order,
         hue_order=labels,
-        ax=axs[2],
-        # legend=False,
+        ax=axs[1],
+        legend=False,
         showfliers=False,
     )
-    axs[2].set_xlabel(x_axis_name)
-    axs[2].set_ylabel("SHD")
+    axs[1].set_xlabel(x_axis_name)
+    axs[1].set_ylabel("SHD")
 
     sns.move_legend(g, "center left", bbox_to_anchor=(1, 0.5), title="Algorithm")
 
     plt.tight_layout()
-    plot_dir = (
-        "./{}/screen_projections/".format(experiment_dir)
-        if screen
-        else "./{}/fusion/".format(experiment_dir)
-    )
+    if plot_dir is None:
+        plot_dir = (
+            "./{}/screen_projections/".format(experiment_dir)
+            if screen
+            else "./{}/fusion/".format(experiment_dir)
+        )
     plt.savefig("{}/fig.png".format(plot_dir))
 
     plt.clf()
@@ -197,6 +181,8 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
         df = pd.DataFrame(data=np.column_stack(data), columns=labels)
         df["samples"] = np.repeat([sample_range], num_repeats, axis=0).flatten()
         df = df.melt(id_vars="samples", value_vars=labels)
+        if remove_incomplete:
+            df= df[df['value'] != 0] # Remove incomplete rows 
         x_order = np.unique(df["samples"])
         g = sns.boxplot(
             data=df,
@@ -207,6 +193,7 @@ def save(experiment_dir, scores, labels, num_repeats, sample_range, x_axis_name,
             hue_order=labels,
             ax=ax,
         )
+        g.set(yscale="log")
         ax.set_xlabel(x_axis_name)
         ax.set_ylabel("Time to solution (s)")
         plt.savefig("{}/time.png".format(plot_dir))
