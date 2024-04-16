@@ -10,7 +10,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-def _local_structure_learn(subproblem):
+from dcd.admg_discovery import Discovery
+import torch
+from dagma import utils
+from dagma.linear import DagmaLinear
+def admg_to_adj(admg, shape):
+    adj_mat = np.zeros(shape)
+    for d in admg.di_edges:
+        start, end = d
+        adj_mat[start,end] = 1
+    for b in admg.bi_edges:
+        n1, n2 = b
+        adj_mat[n1, n2] = 1
+        adj_mat[n2,n1] = 1
+    return adj_mat
+        
+def _local_structure_learn_pc(subproblem):
+    skel, data = subproblem
+    adj, _ = pc(data, alpha=1e-3, num_cores=4, outdir=None)
+    return adj 
+    
+def _local_structure_learn_dagma(subproblem):
+    skel, data = subproblem
+    data = data.drop(columns=['target']).to_numpy()
+    model = DagmaLinear(loss_type='l2')
+    adj = model.fit(data, lambda1=0.02)
+    return adj 
+
+def _local_structure_learn_dcd(subproblem):
+    skel, data = subproblem
+    data = data.drop(columns=['target'])
+    learn = Discovery(lamda=0.05)
+    best_G = learn.discover_admg(data, admg_class="bowfree", verbose=True)
+    return admg_to_adj(best_G, skel.shape)
+
+def _local_structure_learn_ges(subproblem):
     skel, data = subproblem
     adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
@@ -36,7 +70,7 @@ def run_causal_discovery_partition(
     subproblems = partition_problem(partition, superstructure, df)
 
     # Local learn
-    func_partial = functools.partial(_local_structure_learn)
+    func_partial = functools.partial(_local_structure_learn_dagma)
     results = []
     num_partitions = len(partition)
     chunksize = max(1, num_partitions // nthreads)
@@ -81,11 +115,11 @@ def run_causal_discovery_serial(
     G_star,
     ss_subset=True,
 ):
-
     # Call serial method
-
+    print('start')
     start = time.time()
-    est_graph_serial = _local_structure_learn([superstructure, df])
+    est_graph_serial = _local_structure_learn_dagma([superstructure, df])
+    print('end')
     # optional post-processing: discard edges not in superstructure
     if ss_subset:
         ss_graph = nx.from_numpy_array(superstructure, create_using=nx.DiGraph)
