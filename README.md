@@ -1,4 +1,4 @@
 # causal_discovery_via_partitioning
-Fast and Interpretable Causal Discovery via Graph Partitioning 
+Causal Discovery over High-Dimensional Structured Hypothesis Spaces with Causal Graph Partitioning
 
 
