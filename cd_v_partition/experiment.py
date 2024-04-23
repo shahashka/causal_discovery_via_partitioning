@@ -117,8 +117,8 @@ class Experiment:
         date = datetime.datetime.now()
         progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg))
         for i, spec in enumerate(cfg):
+            seed = random_state.randint(0, 2**32 - 1)
             for trial in range(cfg.graph_per_spec):
-                seed = random_state.randint(0, 2**32 - 1)
                 result_df = self.run_simulation(spec, random_state=seed)
 
                 outdir = Path(f"out/{date}/spec_{i}/trial_{trial}/")
