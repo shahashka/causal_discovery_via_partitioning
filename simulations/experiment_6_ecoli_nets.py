@@ -117,7 +117,7 @@ if __name__ == "__main__":
     for id in np.arange(1,10):
         func_partial = functools.partial(
             run_ecoli_alg,
-            experiment_dir="./simulations/experiment_6/",
+            experiment_dir="./simulations/experiment_6_dagma/",
             nthreads=64,
             net_id=id,
             num_samples=1e4,

@@ -19,6 +19,7 @@ from cd_v_partition.utils import (
     adj_to_edge,
 )
 import functools
+import networkx as nx
 from concurrent.futures import ProcessPoolExecutor
 from common_funcs import run_causal_discovery_serial, run_causal_discovery_partition, save
 
@@ -38,6 +39,8 @@ def run_samples_alg(
         init_partition, graph = create_k_comms(
             "scale_free", n=25, m_list=[1, 2], p_list=[0.5, 0.5], k=2
         )
+        # graph = nx.DiGraph()
+        # graph.add_edges_from((0,1), (1,3),(2,4), (1,4))
         num_nodes = len(graph.nodes())
         bias = np.random.normal(0, 1, size=num_nodes)
         var = np.abs(np.random.normal(0, 1, size=num_nodes))
@@ -134,16 +137,17 @@ if __name__ == "__main__":
 
     # Simple case for debugging
     algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
-    # func_partial = functools.partial(run_samples_alg, experiment_dir="./simulations/experiment_1_test/", nthreads=16, num_repeats=2, sample_range=[10**i for i in np.arange(1,3)], screen=True )
-    # results = []
-    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-    #     for result in executor.map(func_partial, algorithms, chunksize=1):
-    #         results.append(result)
-    
-    #screen projections
+    # func_partial = functools.partial(
+    #     run_samples_alg, 
+    #     experiment_dir="./simulations/experiment_1_test_dagma/", 
+    #     nthreads=16, 
+    #     num_repeats=1, 
+    #     sample_range=[10**i for i in np.arange(3,4)], 
+    #     screen=True )
+    # screen projections
     func_partial = functools.partial(
         run_samples_alg,
-        experiment_dir="./simulations/experiment_1/",
+        experiment_dir="./simulations/experiment_1_dagma/",
         nthreads=64,
         num_repeats=30,
         sample_range=[10**i for i in np.arange(1, 7)],

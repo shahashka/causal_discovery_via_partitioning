@@ -14,6 +14,7 @@ from dcd.admg_discovery import Discovery
 import torch
 from dagma import utils
 from dagma.linear import DagmaLinear
+from dagma.nonlinear import DagmaMLP, DagmaNonlinear
 def admg_to_adj(admg, shape):
     adj_mat = np.zeros(shape)
     for d in admg.di_edges:
@@ -35,6 +36,10 @@ def _local_structure_learn_dagma(subproblem):
     data = data.drop(columns=['target']).to_numpy()
     model = DagmaLinear(loss_type='l2')
     adj = model.fit(data, lambda1=0.02)
+
+    #eq_model = DagmaMLP(dims=[skel.shape[0], 10, 1], bias=True, dtype=torch.double) # create the model for the structural equations, in this case MLPs
+    #model = DagmaNonlinear(eq_model, dtype=torch.double) # create the model for DAG learning
+    #adj = model.fit(data, lambda1=0.02, lambda2=0.005) # fit the model with L1 reg. (coeff. 0.02) and L2 reg. (coeff. 0.005)
     return adj 
 
 def _local_structure_learn_dcd(subproblem):

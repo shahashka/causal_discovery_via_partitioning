@@ -112,10 +112,10 @@ def read_experiment_6(path_dir, algs, net_id):
     net0 = np.loadtxt("./datasets/bionetworks/ecoli/synthetic_copies/net_{}.txt".format(net_id))
     print(net0.shape, np.sum(net0))
   
-#read_experiment_chkpoints("./simulations/experiment_1", [10**i for i in range(1,7)], ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 'samples', 30, "Number of samples")
+read_experiment_chkpoints("./simulations/experiment_1_dagma", [10**i for i in range(1,7)], ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 'samples', 30, "Number of samples")
 #read_experiment_chkpoints("./simulations/experiment_2", [0, 0.01, 0.05, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5], ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 'rho', 10, "Rho")
-read_experiment_score_txt("./simulations/experiment_3", np.arange(0,4,0.5), ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 50, "Fraction of extraneous edges")
-read_experiment_score_txt("./simulations/experiment_4",np.arange(0.1, 1, 0.1) , ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 50, "Alpha")
+#read_experiment_score_txt("./simulations/experiment_3", np.arange(0,4,0.5), ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 50, "Fraction of extraneous edges")
+#read_experiment_score_txt("./simulations/experiment_4",np.arange(0.1, 1, 0.1) , ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'], 50, "Alpha")
 #read_experiment_chkpoints("./simulations/experiment_5", [10**i for i in range(1,5)], ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'],'nnodes', 5, "Number of nodes")
 
 #read_experiment_chkpoints("./simulations/experiment_5_fix_comm_3", [10**i for i in range(1,5)], ['serial','pef', 'edge_cover', 'expansive_causal', 'mod'],'nnodes', 5, "Number of nodes")

@@ -37,7 +37,7 @@ from common_funcs import run_causal_discovery_serial, run_causal_discovery_parti
 def run_nnodes_alg(
     algorithm, experiment_dir, num_repeats, nnodes_range, nthreads=16, screen=False
 ):
-    nsamples = 1e4
+    nsamples = 1e3
     scores = np.zeros((num_repeats, len(nnodes_range), 6))
     print("Algorithm is {}".format(algorithm))
     for i in range(num_repeats):
@@ -131,14 +131,14 @@ def run_nnodes_alg(
 
 if __name__ == "__main__":
     # Simple case for debugging
-    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    algorithms = ["serial"]#, "pef", "edge_cover", "expansive_causal", "mod"]
     #func_partial = functools.partial(run_nnodes_alg, experiment_dir="./simulations/experiment_5_test/", nthreads=16, num_repeats=2, nnodes_range=[10**i for i in np.arange(1,3)], screen=True )
     # screen projections 
     func_partial = functools.partial(
         run_nnodes_alg,
-        experiment_dir="./simulations/experiment_5/",
+        experiment_dir="./simulations/experiment_5_dagma/",
         nthreads=64,
-        num_repeats=5,
+        num_repeats=1,
         nnodes_range=[10**i for i in np.arange(1, 5)],
         screen=True,
     )
