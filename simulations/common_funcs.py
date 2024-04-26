@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from dcd.admg_discovery import Discovery
+#from dcd.admg_discovery import Discovery
 import torch
 from dagma import utils
 from dagma.linear import DagmaLinear
@@ -42,12 +42,12 @@ def _local_structure_learn_dagma(subproblem):
     #adj = model.fit(data, lambda1=0.02, lambda2=0.005) # fit the model with L1 reg. (coeff. 0.02) and L2 reg. (coeff. 0.005)
     return adj 
 
-def _local_structure_learn_dcd(subproblem):
-    skel, data = subproblem
-    data = data.drop(columns=['target'])
-    learn = Discovery(lamda=0.05)
-    best_G = learn.discover_admg(data, admg_class="bowfree", verbose=True)
-    return admg_to_adj(best_G, skel.shape)
+# def _local_structure_learn_dcd(subproblem):
+#     skel, data = subproblem
+#     data = data.drop(columns=['target'])
+#     learn = Discovery(lamda=0.05)
+#     best_G = learn.discover_admg(data, admg_class="bowfree", verbose=True)
+#     return admg_to_adj(best_G, skel.shape)
 
 def _local_structure_learn_ges(subproblem):
     skel, data = subproblem

@@ -7,34 +7,16 @@ import warnings
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, cut_tree
-
-def expansive_causal_partition(adj_mat: np.ndarray, partition: dict):
-    """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
-
-    Args:
-        adj_mat (np.ndarray): the adjacency matrix for the superstructure
-        partition (dict): the estimated partition as a dictionary {comm_id : [nodes]}
-
-    Returns:
-        dict: the causal partition as a dictionary {comm_id : [nodes]}
-    """
-    G = nx.from_numpy_array(adj_mat)
-
-    causal_partition = dict()
-    for idx, c in enumerate(list(partition.values())):
-        outer_node_boundary = nx.node_boundary(G, c)
-        expanded_cluster = set(c).union(outer_node_boundary)
-        causal_partition[idx] = list(expanded_cluster)
-    return causal_partition
-
+from typing import Any
 
 def modularity_partition(
-    adj_mat: np.ndarray, resolution: int = 1, cutoff: int = 1, best_n: int = None
+    adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, cutoff: int = 1, best_n: int = None
 ):
     """Creates disjoint partition by greedily maximizing modularity. Using networkx built-in implementaiton.
 
     Args:
         adj_mat (np.ndarray): the adjacency matrix for the superstructure
+        data (pd.DataFrame): unused parameter 
         resolution (float): resolution parameter, trading off intra- versus inter-group edges.
         cutoff (int): lower limit on number of communities before termination
         best_n (int): upper limit on number of communities before termination
@@ -53,45 +35,50 @@ def modularity_partition(
         partition[idx] = list(c)
     return partition
 
+def expansive_causal_partition(
+    adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, cutoff: int = 1, best_n: int = None
+):
+    """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
 
-def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
-    """Creates disjoint partition via heirarchical community detection
-
+    First uses greedy modularity to create a disjoint partition, then adds the outer-boundary of each
+    cluster to create a causal partition
     Args:
         adj_mat (np.ndarray): the adjacency matrix for the superstructure
-        max_community_szie (float): controls the size of the largest community in returned partition
-        See networkx documentation for more.
-
+        data (Any): unused parameter 
+        resolution (float): resolution parameter, trading off intra- versus inter-group edges.
+        cutoff (int): lower limit on number of communities before termination
+        best_n (int): upper limit on number of communities before termination
     Returns:
-        dict: the estimated partition as a dictionary {comm_id : [nodes]}
+        dict: the causal partition as a dictionary {comm_id : [nodes]}
     """
+    partition = modularity_partition(adj_mat, resolution, cutoff, best_n)
     G = nx.from_numpy_array(adj_mat)
-    n = G.number_of_nodes()
-    nodes = list(range(n))
-    community_iterator = nx.community.girvan_newman(G)
-    for communities in community_iterator:
-        if max([len(com) for com in communities]) < (max_community_size * n):
-            ith_partition = dict()
-            for idx, c in enumerate(communities):
-                ith_partition[idx] = list(c)
-            return ith_partition
-        # if an error gets thrown here bc community_iterator ends, it means the algorithm
-        # didn't produce any partitions with sufficiently small clusters
-    return
+
+    causal_partition = dict()
+    for idx, c in enumerate(list(partition.values())):
+        outer_node_boundary = nx.node_boundary(G, c)
+        expanded_cluster = set(c).union(outer_node_boundary)
+        causal_partition[idx] = list(expanded_cluster)
+    return causal_partition
 
 
-def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
-    """Creates a random edge covering partition from an initial hard partition.
+def rand_edge_cover_partition(adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, cutoff: int = 1, best_n: int = None
+):
+    """Creates a random edge covering partition.
 
-    Randomly chooses cut edges and randomly assigns endpoints to communities. Recursively
+    Uses greedy modularity to create a disjoint partition. Then, randomly chooses cut edges and
+    randomly assigns endpoints to communities. Recursively
     adds any shared endpoints to the same community
     Args:
         adj_mat (np.ndarray): Adjacency matrix for the graph
-        partition (dict): the estimated partition as a dictionary {comm_id : [nodes]}
-
+        data (pd.DataFrame): unused parameter 
+        resolution (float): resolution parameter, trading off intra- versus inter-group edges.
+        cutoff (int): lower limit on number of communities before termination
+        best_n (int): upper limit on number of communities before termination
     Returns:
         dict: the overlapping partition as a dictionary {comm_id : [nodes]}
     """
+    partition = modularity_partition(adj_mat, resolution, cutoff, best_n)
     graph = nx.from_numpy_array(adj_mat)
 
     def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
@@ -133,6 +120,33 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, partition: dict):
             else:
                 edge_cover_partition[c] = [n]
     return edge_cover_partition
+
+""" BEGIN UNUSED PARTITION ALGS"""
+
+def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
+    """Creates disjoint partition via heirarchical community detection
+
+    Args:
+        adj_mat (np.ndarray): the adjacency matrix for the superstructure
+        max_community_szie (float): controls the size of the largest community in returned partition
+        See networkx documentation for more.
+
+    Returns:
+        dict: the estimated partition as a dictionary {comm_id : [nodes]}
+    """
+    G = nx.from_numpy_array(adj_mat)
+    n = G.number_of_nodes()
+    nodes = list(range(n))
+    community_iterator = nx.community.girvan_newman(G)
+    for communities in community_iterator:
+        if max([len(com) for com in communities]) < (max_community_size * n):
+            ith_partition = dict()
+            for idx, c in enumerate(communities):
+                ith_partition[idx] = list(c)
+            return ith_partition
+        # if an error gets thrown here bc community_iterator ends, it means the algorithm
+        # didn't produce any partitions with sufficiently small clusters
+    return
 
 
 
@@ -190,6 +204,7 @@ def oslom_algorithm(
         partition[len(lines)] = homeless_nodes
     return partition
 
+""" END UNUSED PARTITION ALGS"""
 
 def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame):
     """Split the graph structure and dataset according to the given graph partition
@@ -211,11 +226,16 @@ def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame
         sub_problems.append((sub_structure, sub_data))
     return sub_problems
 
-def PEF_partition(data: pd.DataFrame, min_size_frac: float = 0.05):
+def PEF_partition( adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, 
+                  cutoff: int = 1, best_n: int = None, min_size_frac: float = 0.05):
     """Perform the modified hierarchical clustering on the data, as described in
     `Learning Big Gaussian Bayesian Networks: Partition, Estimation and Fusion'
     Args:
+        adj_mat (np.ndarray): Adjacency matrix for the graph
         data (pd.DataFrame): the dataset, columns correspond to nodes in the graph
+        resolution (float): unused parameter
+        cutoff (int): unused parameter
+        best_n (int): unuserd parameter
         min_size_frac (float): determines the minimimum returned cluster size
     Returns:
         dict: The estimated partition as a dictionary {comm_id : [nodes]}

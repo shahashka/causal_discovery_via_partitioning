@@ -28,11 +28,53 @@ base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
+def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    """PC algorithm for a subproblem
+
+    Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): Tuple (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem
+    adj, _ = pc(data, alpha=1e-3, num_cores=8, outdir=None)
+    return adj 
+
+def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    """GES algorithm for subproblem
+    
+    Use the local skeleton to restrict the search space
+
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjacency matrix
+    """
+    skel, data = subproblem
+    adj_mat = sp_gies(data, skel=skel, outdir=None)
+    return adj_mat
+
+def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    """FCI algorithm for a subproblem
+
+    Local skeleton is ignored for FCI. Defaults to alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem
+    adj, _ = fci(data, alpha=1e-3, num_cores=8, outdir=None)
+    return adj 
 
 def pc(
     data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""
+    """
     Python wrapper for the PC algorithm.
 
     Args:

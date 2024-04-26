@@ -4,6 +4,8 @@
 # Sweep number of samples
 
 import numpy as np
+from cd_v_partition.experiment import Experiment
+from cd_v_partition.configs import SimulationConfig, SimulationSpec
 from cd_v_partition.overlapping_partition import (
     PEF_partition,
     rand_edge_cover_partition,
@@ -134,7 +136,33 @@ def run_samples_alg(
 
 
 if __name__ == "__main__":
-
+    sim_cfg = SimulationConfig(graph_per_spec=5,
+                               eval_algorithms=["no_partition", "modularity", "edge_cover", "expansive_causal", "PEF"],
+                               experiment_id="experiment_1_refactor",
+                               sweep_param="Number of samples",
+                               sweep_values=[10**i for i in np.arange(1, 7)])
+    
+    sim_spec = SimulationSpec( graph_kind="scale_free",
+                               num_nodes=25,
+                               num_communities=2,
+                               inter_edge_prob=0.01,
+                               edge_prob_alpha=0.5,
+                               comm_pop_alpha=1, 
+                               comm_pop_coeff=1, # TODO can i get m1=1 and m2=2 with this? 
+                               partition_fn="modularity",
+                               partition_best_n=None,
+                               partition_cutoff=1,
+                               partition_resolution=1,
+                               merge_fn="screen projections", # PEF needs fusion
+                               merge_full_cand_set=False, # PEF needs True
+                               merge_ss_subset_flag=True,
+                               merge_finite_sample_flag=True,
+                               causal_learn_fn="GES",
+                               use_pc_algorithm=False,
+                               alpha=None,
+                               frac_extraneous=0.1,
+                               frac_retain_direction=0.1
+                               )
     # Simple case for debugging
     algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
     # func_partial = functools.partial(
