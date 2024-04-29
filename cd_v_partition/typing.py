@@ -12,11 +12,15 @@ Partition: TypeAlias = dict[Community, Iterable[Node]]
 
 
 class TrueGraph(NamedTuple):
+    """Give some description here"""
     nodes: list[Node]
+    """The nodes ..."""
     edges: list[Edge]
+    """The edges are..."""
 
 
 GraphKind = Literal["erdos_renyi", "small_world", "scale_free"]
+"""Definition for the literals of random graphs that are supported."""
 
 
 @dataclass

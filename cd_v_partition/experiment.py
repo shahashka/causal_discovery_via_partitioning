@@ -1,4 +1,5 @@
 import datetime
+import typing as t
 from concurrent.futures import as_completed, ProcessPoolExecutor, Future
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,18 @@ from cd_v_partition.configs.config import Config, Spec
 from cd_v_partition.typing import GeneratedGraph, Partition, GraphKind, TrueGraph
 
 
-def edge_list_to_df(edge_list):
+def edge_list_to_df(edge_list: t.List[t.Tuple[int, int]]) -> pd.DataFrame:
+    """This converts an edgelist to a dataframe.
+
+    Notes:
+        The edge list is assumed to be directed.
+
+    Args:
+        edge_list (t.List[t.Tuple[int, int]]): The edge list to convert.
+
+    Returns:
+        Dataframe for each
+    """
     start_nodes = []
     end_nodes = []
     weight = []
@@ -86,13 +98,13 @@ class Experiment:
         #     dataframes.append(df)
         #     graphs.append(g)
 
-        random_state = utils.load_random_state(random_state)
+        random_state = utils.load_random_state(trial)
         date = datetime.datetime.now()
         with ProcessPoolExecutor(self.workers) as executor:
             futures: dict[Future, tuple[int, int]] = {}
-            for i, spec in enumerate(cfg):
-                for trial in range(cfg.graph_per_spec):
-                    seed = random_state.randint(0, 2**32 - 1)
+            for trial in range(cfg.graph_per_spec):
+                seed = trial
+                for i, spec in enumerate(cfg):
                     fut = executor.submit(self.run_simulation, spec, random_state=seed)
                     futures[fut] = (i, trial)
 
@@ -296,7 +308,7 @@ class Experiment:
             k=num_communities,
             rho=inter_edge_prob,
             # TODO: Add `RandomState` here.
-            random_state=random_state
+            random_state=random_state,
         )
 
         # Generate a random network and corresponding dataset
@@ -317,6 +329,7 @@ class Experiment:
             variance=var,
         )
 
+    # TODO
     @staticmethod
     def get_partitioning_alg(self, spec: Spec, code: str) -> PartitioningAlgorithm:
         match spec.partition_fn:

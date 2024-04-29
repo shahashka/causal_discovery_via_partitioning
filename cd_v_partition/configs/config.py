@@ -54,7 +54,7 @@ class Config:
     graph_kind: list[str] = field(default_factory=lambda: ["random"])
     num_nodes: list[int] = MISSING
     edge_params: list[int] = MISSING
-    causal_learn_fn: list[str] = MISSING  # default to SPGIES
+    causal_learn_fn: list[str] = field(defaulf_factory=lambda: ["SPGIES"])  # default to SPGIES
     partition_fn: list[str] = MISSING  # default to Adela's modularity partition
     fusion_fn: list[str] = MISSING  # default to fusion
 
