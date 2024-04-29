@@ -51,7 +51,7 @@ def expansive_causal_partition(
     Returns:
         dict: the causal partition as a dictionary {comm_id : [nodes]}
     """
-    partition = modularity_partition(adj_mat, resolution, cutoff, best_n)
+    partition = modularity_partition(adj_mat, data=data, resolution=resolution, cutoff=cutoff, best_n=best_n)
     G = nx.from_numpy_array(adj_mat)
 
     causal_partition = dict()
@@ -78,7 +78,7 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, data: pd.DataFrame, resolutio
     Returns:
         dict: the overlapping partition as a dictionary {comm_id : [nodes]}
     """
-    partition = modularity_partition(adj_mat, resolution, cutoff, best_n)
+    partition = modularity_partition(adj_mat, data=data, resolution=resolution, cutoff=cutoff, best_n=best_n)
     graph = nx.from_numpy_array(adj_mat)
 
     def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):

@@ -1,5 +1,5 @@
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator, Literal
 from omegaconf import OmegaConf, MISSING
@@ -13,16 +13,14 @@ class ExecutorConfig:
 
 
 @dataclass
-# TODO update specs from Nathaniel's branch
 class SimulationSpec:
     # Graph params
     graph_kind: str = MISSING
     num_nodes: int = MISSING
     num_samples: int = MISSING
     inter_edge_prob: float = MISSING
-    edge_prob_alpha: float = MISSING
-    comm_pop_alpha: float = MISSING
-    comm_pop_coeff: float = MISSING
+    comm_edge_prob: list[float] = MISSING
+    comm_pop: list[float] = MISSING
     num_communities: int = MISSING
     
     # Partition params
@@ -46,50 +44,58 @@ class SimulationSpec:
     frac_extraneous: float = MISSING
     use_pc_algorithm: bool = MISSING
 
+    def to_yaml(self, outfile: Path | str) -> None:
+            """
+            Saves spec to yaml file.
+
+            Args:
+                outfile (Path | str): The path for where to save the yaml file.
+            """
+            spec = OmegaConf.structured(self)
+            OmegaConf.save(spec, outfile)
 
 @dataclass
 class SimulationConfig:
     # Parameters only used to initialize the executor used to launch jobs across compute.
     executor_kind: ExecutorKind = MISSING
     executor_args: dict[str, Any] = MISSING
-    graph_per_spec: int = MISSING
-    eval_algorithms: list[str] = MISSING # These are the partitioning functions, all need to be run for each spec
+    graph_per_spec: int = 1
+    #eval_algorithms: list[str] = MISSING # These are the partitioning functions, all need to be run for each spec
     experiment_id: str = MISSING
-    sweep_param: str = MISSING
-    sweep_values:list[float | int] = MISSING
+    #sweep_param: str = MISSING
+    #sweep_values:list[float | int] = MISSING
     
     # Parameters included in a ``SimulationSpec`` instance.
     
     # Graph params
-    graph_kind: str = MISSING
-    num_nodes: int = MISSING
-    num_samples: int = MISSING
-    inter_edge_prob: float = MISSING
-    edge_prob_alpha: float = MISSING
-    comm_pop_alpha: float = MISSING
-    comm_pop_coeff: float = MISSING
-    num_communities: int = MISSING
+    graph_kind: list[str] = field(default_factory=lambda:['scale_free'])
+    num_nodes: list[int] = field(default_factory=lambda:[25])
+    num_samples: list[int] = field(default_factory=lambda:[int(10**4)])
+    inter_edge_prob: list[float] = field(default_factory=lambda:[0.01])
+    comm_edge_prob: list[list[float]] = field(default_factory=lambda:[[0.5, 0.5]])
+    comm_pop: list[list[float]] = field(default_factory=lambda:[[1,2]])
+    num_communities: int = field(default_factory=lambda:[2])
     
     # Partition params
-    partition_fn: str = MISSING
-    partition_cutoff: int = MISSING
-    partition_best_n: int = MISSING
-    partition_resolution: int = MISSING
+    partition_fn: list[str] = field(default_factory=lambda:["modularity"])
+    partition_cutoff: list[int] = field(default_factory=lambda:[1])
+    partition_best_n: list[int] = field(default_factory=lambda:[None])
+    partition_resolution: list[int] = field(default_factory=lambda:[1])
     
     # Merge params
-    merge_fn: str = MISSING
-    merge_ss_subset_flag: bool = MISSING
-    merge_finite_sample_flag: bool = MISSING 
-    merge_full_cand_set: bool = MISSING
+    merge_fn: list[str] = field(default_factory=lambda:["screen"])
+    merge_ss_subset_flag: list[bool] = field(default_factory=lambda:[True])
+    merge_finite_sample_flag: list[bool] = field(default_factory=lambda:[False]) 
+    merge_full_cand_set: list[bool] = field(default_factory=lambda:[False])
     
     # CD learn params
-    causal_learn_fn: str = MISSING
+    causal_learn_fn: list[str] = field(default_factory=lambda:["GES"])
     
     # Superstructure params
-    alpha: float = MISSING
-    frac_retain_direction: float = MISSING
-    frac_extraneous: float = MISSING
-    use_pc_algorithm: bool = MISSING
+    alpha: list[float] = field(default_factory=lambda:[0.1])
+    frac_retain_direction: list[float] = field(default_factory=lambda:[0.1])
+    frac_extraneous: list[float] = field(default_factory=lambda:[0.1])
+    use_pc_algorithm: list[bool] = field(default_factory=lambda:[False])
 
     def __iter__(self) -> Iterator[SimulationSpec]:
         """
@@ -108,11 +114,15 @@ class SimulationConfig:
         spec_iter = [dict(zip(list_keys, p)) for p in itertools.product(*list_values)]
         for spec in spec_iter:
             spec.update(**consts)
-            del spec["executor_cfg"]
-            # TODO: Double-check to make sure that this ^^ only deletes data
-            #       for the `Spec` and not the entire `Config.
+            del spec["executor_kind"]
+            del spec["executor_args"]
+            del spec["graph_per_spec"]
+            del spec["experiment_id"]
             yield SimulationSpec(**spec)
-
+    
+    def __len__(self) -> int:
+        return len(list(iter(self)))
+    
     def to_yaml(self, outfile: Path | str) -> None:
         """
         Saves config to yaml file.

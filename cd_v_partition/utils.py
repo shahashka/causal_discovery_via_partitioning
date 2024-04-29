@@ -188,7 +188,7 @@ def get_random_graph_data(
     iv_samples: int,
     p: float,
     m: int,
-    seed: int = 42,
+    seed: int | RandomState = 42,
     save: bool = False,
     outdir: Path | str = None,
     # TODO: Add return type,  -> tuple[tuple[set[tuple], list[int], float, float], pd.DataFrame]:
@@ -217,15 +217,16 @@ def get_random_graph_data(
             var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
             observational, interventional data and target indices)
     """
+    random_state = load_random_state(seed)
     if graph_type == "erdos_renyi":
         random_graph_model = lambda nnodes: nx.erdos_renyi_graph(nnodes, p=p, seed=seed)
     elif "scale_free":
         random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
-            nnodes, m=m, seed=seed
+            nnodes, m=m, seed=random_state
         )
     elif "small_world":
         random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
-            nnodes, k=m, p=p, seed=seed
+            nnodes, k=m, p=p, seed=random_state
         )
     elif graph_type == "hierarchical":
         random_graph_model = lambda nnodes: nx.Graph(
@@ -236,16 +237,17 @@ def get_random_graph_data(
                 beta=0.3,
                 delta_in=0.0,
                 delta_out=0.0,
-                seed=seed,
+                seed=random_state,
             ).to_undirected()
         )
     else:
         raise ValueError("Unsupported random graph")
 
+    # TODO this should take a random state
     dag = rand.directed_random_graph(num_nodes, random_graph_model)
     nodes_inds = list(dag.nodes)
-    bias = np.random.normal(0, 1, size=len(nodes_inds))
-    var = np.abs(np.random.normal(0, 1, size=len(nodes_inds)))
+    bias = random_state.normal(0, 1, size=len(nodes_inds))
+    var = np.abs(random_state.normal(0, 1, size=len(nodes_inds)))
 
     bn = GaussDAG(nodes=nodes_inds, arcs=dag.arcs, biases=bias, variances=var)
     data = bn.sample(nsamples)
@@ -283,6 +285,7 @@ def get_data_from_graph(
     var: np.ndarray = None,
     save: bool = False,
     outdir: Path | str = None,
+    random_state: int | RandomState = 42
 ):
     """
     Get data set from a predefined graph using the Gaussian DAG generative model (same as get_random_graph_data)
@@ -304,9 +307,10 @@ def get_data_from_graph(
             var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
             observational, interventional data and target indices)
     """
+    random_state = load_random_state(random_state)
     if bias is None or var is None:
-        bias = np.random.normal(0, 1, size=len(nodes))
-        var = np.abs(np.random.normal(0, 1, size=len(nodes)))
+        bias = random_state.normal(0, 1, size=len(nodes))
+        var = np.abs(random_state.normal(0, 1, size=len(nodes)))
 
     bn = GaussDAG(nodes=nodes, arcs=edges, biases=bias, variances=var)
     data = bn.sample(nsamples)
@@ -421,8 +425,9 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     delta = [s - p for (s, p) in zip(scores_s, scores_p)]
     return delta
 
-
-def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, rho: int = 0.01):
+# TODO implement random_state
+def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, 
+                   rho: int = 0.01, random_state: RandomState | int = 0):
     """Create a random network with k communities with the specified graph type and parameters. Create this by
     generating k disjoint communities adn using preferential attachment. Remove any cycles to 
     make this a DAG
@@ -440,6 +445,7 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
     Returns:
         tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
+    random_state = load_random_state(random_state)
     comms = []
     for i in np.arange(k):
         if type(m_list) == int:
@@ -451,7 +457,7 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         else:
             p = p_list[i]
         comm_k = get_random_graph_data(
-            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m
+            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
         )[0][0]
 
         comms.append(nx.DiGraph(comm_k))
@@ -480,8 +486,8 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
             for i in range(n):
                 node_label = t * n + i
                 if len(list(comm_graph.predecessors(node_label))) == 0:
-                    num_connected = np.random.choice(np.arange(A), size=1, p=probs)
-                    dest = np.random.choice(np.arange(t * n), size=num_connected)
+                    num_connected = random_state.choice(np.arange(A), size=1, p=probs)
+                    dest = random_state.choice(np.arange(t * n), size=num_connected)
                     connections = [(node_label, d) for d in dest]
                     comm_graph.add_edges_from(connections)
                     num_edges -= num_connected

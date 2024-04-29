@@ -4,8 +4,8 @@
 # Sweep number of samples
 
 import numpy as np
+from cd_v_partition.config import SimulationConfig
 from cd_v_partition.experiment import Experiment
-from cd_v_partition.configs import SimulationConfig, SimulationSpec
 from cd_v_partition.overlapping_partition import (
     PEF_partition,
     rand_edge_cover_partition,
@@ -24,7 +24,6 @@ import functools
 import networkx as nx
 from concurrent.futures import ProcessPoolExecutor
 from common_funcs import run_causal_discovery_serial, run_causal_discovery_partition, save
-
 import os
 import time
 
@@ -136,53 +135,72 @@ def run_samples_alg(
 
 
 if __name__ == "__main__":
-    sim_cfg = SimulationConfig(graph_per_spec=5,
-                               eval_algorithms=["no_partition", "modularity", "edge_cover", "expansive_causal", "PEF"],
-                               experiment_id="experiment_1_refactor",
-                               sweep_param="Number of samples",
-                               sweep_values=[10**i for i in np.arange(1, 7)])
-    
-    sim_spec = SimulationSpec( graph_kind="scale_free",
+    exp_1 = Experiment(32)
+    sim_cfg = SimulationConfig(graph_per_spec=2,
+                               experiment_id="simulations/experiment_1_refactor",
+                               partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
+                               num_samples=[10**i for i in np.arange(1, 3)],
+                               graph_kind="scale_free",
                                num_nodes=25,
-                               num_communities=2,
-                               inter_edge_prob=0.01,
-                               edge_prob_alpha=0.5,
-                               comm_pop_alpha=1, 
-                               comm_pop_coeff=1, # TODO can i get m1=1 and m2=2 with this? 
-                               partition_fn="modularity",
-                               partition_best_n=None,
-                               partition_cutoff=1,
-                               partition_resolution=1,
-                               merge_fn="screen projections", # PEF needs fusion
-                               merge_full_cand_set=False, # PEF needs True
-                               merge_ss_subset_flag=True,
-                               merge_finite_sample_flag=True,
-                               causal_learn_fn="GES",
-                               use_pc_algorithm=False,
-                               alpha=None,
-                               frac_extraneous=0.1,
-                               frac_retain_direction=0.1
+                               num_communities=2,                              
+                               causal_learn_fn=["GES"], 
+                               merge_fn=["screen"],
                                )
+    
+    sim_cfg_pef = SimulationConfig(graph_per_spec=2,
+                               experiment_id="experiment_1/pef",
+                               partition_fn=['PEF'],
+                               num_samples=[10**i for i in np.arange(1, 3)],
+                               graph_kind="scale_free",
+                               num_nodes=25,
+                               num_communities=2,                              
+                               causal_learn_fn=["GES"], 
+                               merge_fn=["fusion"],
+                               merge_full_cand_set=[True]
+                               )
+    exp_1.run(sim_cfg, random_state=1)
+    exp_1.run(sim_cfg_pef, random_state=1)
+    # sim_spec = SimulationSpec( graph_kind="scale_free",
+    #                            num_nodes=25,
+    #                            num_communities=2,
+    #                            inter_edge_prob=0.01,
+    #                            edge_prob_alpha=0.5,
+    #                            comm_pop_alpha=1, 
+    #                            comm_pop_coeff=1, # TODO can i get m1=1 and m2=2 with this? 
+    #                            partition_fn="modularity",
+    #                            partition_best_n=None,
+    #                            partition_cutoff=1,
+    #                            partition_resolution=1,
+    #                            merge_fn="screen", # PEF needs fusion
+    #                            merge_full_cand_set=False, # PEF needs True
+    #                            merge_ss_subset_flag=True,
+    #                            merge_finite_sample_flag=True,
+    #                            causal_learn_fn="GES",
+    #                            use_pc_algorithm=False,
+    #                            alpha=None,
+    #                            frac_extraneous=0.1,
+    #                            frac_retain_direction=0.1
+    #                            )
     # Simple case for debugging
-    algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    # algorithms = ["serial", "pef", "edge_cover", "expansive_causal", "mod"]
+    # # func_partial = functools.partial(
+    # #     run_samples_alg, 
+    # #     experiment_dir="./simulations/experiment_1_test_dagma/", 
+    # #     nthreads=16, 
+    # #     num_repeats=1, 
+    # #     sample_range=[10**i for i in np.arange(3,4)], 
+    # #     screen=True )
+    # # screen projections
     # func_partial = functools.partial(
-    #     run_samples_alg, 
-    #     experiment_dir="./simulations/experiment_1_test_dagma/", 
-    #     nthreads=16, 
-    #     num_repeats=1, 
-    #     sample_range=[10**i for i in np.arange(3,4)], 
-    #     screen=True )
-    # screen projections
-    func_partial = functools.partial(
-        run_samples_alg,
-        experiment_dir="./simulations/experiment_1_dagma/",
-        nthreads=64,
-        num_repeats=30,
-        sample_range=[10**i for i in np.arange(1, 7)],
-        screen=True,
-    )
-    results = []
-    with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
-        for result in executor.map(func_partial, algorithms, chunksize=1):
-            results.append(result)
+    #     run_samples_alg,
+    #     experiment_dir="./simulations/experiment_1_dagma/",
+    #     nthreads=64,
+    #     num_repeats=30,
+    #     sample_range=[10**i for i in np.arange(1, 7)],
+    #     screen=True,
+    # )
+    # results = []
+    # with ProcessPoolExecutor(max_workers=len(algorithms)) as executor:
+    #     for result in executor.map(func_partial, algorithms, chunksize=1):
+    #         results.append(result)
         
