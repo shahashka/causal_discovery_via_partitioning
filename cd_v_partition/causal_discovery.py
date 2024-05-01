@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
-
+from dagma.linear import DagmaLinear
 CUPC_DIR = Path("./cupc/cuPC.R")
 
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
@@ -68,9 +68,28 @@ def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         np.ndarray: local estimated adjancency matrix
     """
     skel, data = subproblem
-    adj, _ = fci(data, alpha=1e-3, num_cores=8, outdir=None)
-    return adj 
+    pag, mag = fci(data, alpha=1e-3, num_cores=8, outdir=None)
+    dag = mag2dag(mag)
+    return dag 
 
+def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    """Dagma algorithm for a subproblem
+    
+    Faster version of NOTEARS with log-det acyclicity characterization
+
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: locally estimated adjancency matrix 
+    """
+
+    skel, data = subproblem
+    data = data.drop(columns=['target']).to_numpy()
+    model = DagmaLinear(loss_type='l2')
+    adj = model.fit(data, lambda1=0.02)
+    return adj
+    
 def pc(
     data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -170,14 +189,39 @@ def fci(
     rcode = 'as(fci_fit@amat, "matrix")'
     pag = ro.r(rcode)
     ro.r.assign("pag", pag)
-
+    rcode = 'pag2magAM(pag, 0)'
+    mag = ro.r(rcode)
     if outdir:
         d = str(outdir)
         rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'fci-adj_mat.csv',sep = ''))"
         ro.r(rcode)
-    return pag
+        
+    return pag, mag
 
+def mag2dag(mag: np.ndarray) -> np.ndarray:
+    """
+    Convert a MAG adjacency matrix to a DAG by removing bidirected edges
 
+    Args:
+        mag (np.ndarray): Adjancency matrix for MAG, contains directed and bidirected edges
+
+    Returns:
+        np.ndarray: Adjacency for corresponding DAG without bidirected edges
+    """
+    # In the MAG representation (output of pag2mag) the edges mean:
+    # mag[i,j] = 0 iff no edge btw i,j
+    # mag[i.j] = 2 iff i *-> j
+    # mag[i,j] = 3 iff i *-- j
+    
+    for i in range(mag.shape[0]):
+        for j in range(mag.shape[1]):
+            if mag[i,j] == 2 and mag[j,i] == 3:
+                mag[i,j] = 1
+                mag[j,i] = 0
+            elif mag[i,j] ==2 and mag[j,i] == 2:
+                mag[i,j] = 0
+                mag[j,i] = 0
+    return mag
 
 def cu_pc(
     data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3

@@ -5,7 +5,7 @@
 
 import numpy as np
 from cd_v_partition.config import SimulationConfig
-from cd_v_partition.experiment import Experiment
+from cd_v_partition.experiment import Experiment, read_visualize
 from cd_v_partition.overlapping_partition import (
     PEF_partition,
     rand_edge_cover_partition,
@@ -135,31 +135,36 @@ def run_samples_alg(
 
 
 if __name__ == "__main__":
-    exp_1 = Experiment(32)
+    exp_1 = Experiment(64)
+    dir = "simulations/experiment_1_refactor"
     sim_cfg = SimulationConfig(graph_per_spec=2,
-                               experiment_id="simulations/experiment_1_refactor",
+                               experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
                                num_samples=[10**i for i in np.arange(1, 3)],
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["GES"], 
+                               causal_learn_fn=["GES", "PC", "FCI", "NOTEARS"], 
                                merge_fn=["screen"],
                                )
     
     sim_cfg_pef = SimulationConfig(graph_per_spec=2,
-                               experiment_id="experiment_1/pef",
+                               experiment_id=dir,
                                partition_fn=['PEF'],
                                num_samples=[10**i for i in np.arange(1, 3)],
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["GES"], 
+                               causal_learn_fn=["GES", "PC", "FCI", "NOTEARS"], 
                                merge_fn=["fusion"],
                                merge_full_cand_set=[True]
                                )
     exp_1.run(sim_cfg, random_state=1)
     exp_1.run(sim_cfg_pef, random_state=1)
+    # read_visualize(dir, 
+    #                ['no_partition', 'modularity', 'edge_cover', 'expansive_causal', 'PEF'],
+    #                sim_cfg.graph_per_spec, "Number of samples", sim_cfg.num_samples)
+
     # sim_spec = SimulationSpec( graph_kind="scale_free",
     #                            num_nodes=25,
     #                            num_communities=2,
