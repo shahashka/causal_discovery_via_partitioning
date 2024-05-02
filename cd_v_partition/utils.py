@@ -173,11 +173,11 @@ def get_scores(
         auc, pr = cdt.metrics.precision_recall(ground_truth, net)
         shd = cdt.metrics.SHD(ground_truth, net, False)
 
-        print(
-            "{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(
-                name, shd, sid, auc, tpr_fpr
-            )
-        )
+        # print(
+        #     "{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(
+        #         name, shd, sid, auc, tpr_fpr
+        #     )
+        # )
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
 
 

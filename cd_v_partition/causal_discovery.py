@@ -38,8 +38,11 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
     Returns:
         np.ndarray: local estimated adjancency matrix
     """
-    skel, data = subproblem
-    adj, _ = pc(data, alpha=1e-3, num_cores=8, outdir=None)
+    skel, data = subproblem    
+    if skel.shape[0] == 1:
+        adj = np.zeros((1,1))
+    else:  
+        adj, _ = pc(data, alpha=1e-3, num_cores=8, outdir=None)
     return adj 
 
 def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -54,7 +57,10 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         np.ndarray: local estimated adjacency matrix
     """
     skel, data = subproblem
-    adj_mat = sp_gies(data, skel=skel, outdir=None)
+    if skel.shape[0] == 1:
+        adj_mat = np.zeros((1,1))
+    else:
+        adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
 
 def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -68,8 +74,11 @@ def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         np.ndarray: local estimated adjancency matrix
     """
     skel, data = subproblem
-    pag, mag = fci(data, alpha=1e-3, num_cores=8, outdir=None)
-    dag = mag2dag(mag)
+    if skel.shape[0] == 1:
+        dag = np.zeros((1,1))
+    else:
+        pag, mag = fci(data, alpha=1e-3, num_cores=8, outdir=None)
+        dag = mag2dag(mag)
     return dag 
 
 def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -85,9 +94,12 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray
     """
 
     skel, data = subproblem
-    data = data.drop(columns=['target']).to_numpy()
-    model = DagmaLinear(loss_type='l2')
-    adj = model.fit(data, lambda1=0.02)
+    if skel.shape[0] == 1:
+        adj = np.zeros((1,1))
+    else:
+        data = data.drop(columns=['target']).to_numpy()
+        model = DagmaLinear(loss_type='l2')
+        adj = model.fit(data, lambda1=0.02)
     return adj
     
 def pc(

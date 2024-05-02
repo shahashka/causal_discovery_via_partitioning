@@ -1,4 +1,3 @@
-import datetime
 from concurrent.futures import as_completed, ProcessPoolExecutor, Future
 from pathlib import Path
 from typing import Any, Callable
@@ -9,8 +8,6 @@ import numpy as np
 import pandas as pd
 import tqdm
 from numpy.random import RandomState
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 import cd_v_partition.utils as utils
 from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, fci_local_learn, damga_local_learn
@@ -52,19 +49,19 @@ class Experiment:
         random_state = utils.load_random_state(random_state)
         #date = datetime.datetime.now()
         with ProcessPoolExecutor(self.workers) as executor:
-            futures: dict[Future, tuple[int, int, str]] = {}
+            futures: dict[Future, tuple[int, int, str, str]] = {}
             for trial in range(cfg.graph_per_spec):
                 seed = trial
                 for spec_id, spec in enumerate(cfg):
                     # fut = executor.submit(self.run_simulation, alg, spec_id, cfg.graph_per_spec, 
                     #                         cfg.experiment_id, date, spec, random_state=seed)
                     fut = executor.submit(self.run_simulation, spec, random_state=seed)
-                    futures[fut] = (spec_id, trial, spec.partition_fn)
+                    futures[fut] = (spec_id, trial, spec.partition_fn, spec.causal_learn_fn)
                     
             progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg))
             for fut in as_completed(futures):
-                spec_id, trial, alg = futures[fut]
-                outdir = Path(f"{cfg.experiment_id}/{alg}/spec_{spec_id}/trial_{trial}/")
+                spec_id, trial, p_alg, cd_alg = futures[fut]
+                outdir = Path(f"{cfg.experiment_id}/{p_alg}/{cd_alg}/spec_{spec_id}/trial_{trial}/")
                 if not outdir.exists():
                     outdir.mkdir(parents=True)
                 
@@ -73,8 +70,6 @@ class Experiment:
                 #spec.to_yaml(outdir / '..')         # TODO this is hanging  
                 # print('done yaml save')
                 progressbar.update()
-
-        #Experiment.read_visualize(date, cfg) 
 
     def run_serial(self, cfg: SimulationConfig, random_state: RandomState | int | None = None):
         random_state = utils.load_random_state(random_state)
@@ -93,39 +88,12 @@ class Experiment:
                 out_data[5] = time
                 np.savetxt(outdir / "chkpoint.txt", out_data)
                 spec.to_yaml(outdir / '..')           
-        #Experiment.read_visualize(date, cfg) 
 
-    # def run_simulation(
-    #     self, spec_id: int,  num_trials: int, experiment_id: int, date: str, spec: SimulationSpec, random_state: RandomState | int | None = None
-    # ) -> pd.DataFrame:
-    #     # for loop over trials with progress bar, no parallelism (for now)
-    #     progressbar = tqdm.tqdm(total=num_trials)
-    #     for trial in range(num_trials):
-    #         progressbar.set_description(f"Running {spec.partition_fn} spec id {spec_id}")
-    #         scores, time = Experiment.run_simulation_trial(spec, random_state)
-    #         outdir = Path(f"{experiment_id}/{date}/{spec.partition_fn}/spec_{spec_id}/trial_{trial}/")
-    #         if not outdir.exists():
-    #             outdir.mkdir(parents=True)
-                
-    #         # Create checkpoint object and save
-    #         out_data = np.zeros(5)
-    #         out_data[0:5] = scores
-    #         out_data[5] = time
-    #         np.savetxt(outdir / "chkpoint.txt", out_data)
-    #         progressbar.update()
 
     def run_simulation(
         self, spec: SimulationSpec, random_state: RandomState | int | None = None
     ) -> pd.DataFrame:
         random_state = utils.load_random_state(random_state)
-        # comm_popularity = random_state.dirichlet(
-        #     [spec.comm_pop_alpha] * spec.num_communities
-        # )
-        # comm_popularity = (comm_popularity * spec.comm_pop_coeff).astype(int)
-
-        # edge_prob = random_state.dirichlet(
-        #     [spec.edge_prob_alpha] * spec.num_communities
-        # )
 
         # GENERATE THE GRAPH AND DATA
         gen_graph = Experiment.generate_graph(
@@ -205,7 +173,6 @@ class Experiment:
             p_list=edge_prob,
             k=num_communities,
             rho=inter_edge_prob,
-            # TODO: Add `RandomState` here.
             random_state=random_state
         )
         # Generate a random network and corresponding dataset
@@ -249,7 +216,7 @@ class Experiment:
             case "FCI":
                 return fci_local_learn
             case "NOTEARS":
-                raise damga_local_learn
+                return damga_local_learn
             case "GPS":
                 raise NotImplementedError(f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`")
             case _:
@@ -264,81 +231,3 @@ class Experiment:
                 return screen_projections
             case _:
                 raise ValueError(f"`{spec.merge_fn=}` is an illegal value.`")
-
-def read_visualize(dir: Path | str, eval_algs: list[str], num_trials: int, 
-                   save_sweep_param: str, save_sweep_values:Any):
-    """Read checkpoints and visualize plots for scores from an experiment
-    
-    Plots the SHD, TPR and Time along the specified axis for the specified evaluation
-    algorithms
-
-    Args:
-        dir (Path | str): Path to the save directory for the experiment
-        eval_algs (list[str]): List of partitioning algorithms
-        num_trials (int): Number of trials/graphs per spec
-        save_sweep_param (str): The name of the sweep parameter (x-axis label for plots)
-        save_sweep_values (Any): The values for the sweep parameter (x-axis values for plots)
-    """
-    def sns_vis(results, ax, ind, label):
-        data = [ s[:,:,ind] for s in results]
-        data = [np.reshape(d,  num_trials * len(save_sweep_values)) for d in data]
-        df = pd.DataFrame(data=np.column_stack(data), columns=eval_algs)
-        df["samples"] = np.repeat(
-            [save_sweep_values], num_trials, axis=0
-        ).flatten()  # samples go 1e2->1e7 1e2->1e7 etc
-        df = df.melt(id_vars="samples", value_vars=eval_algs)
-        df= df[df['value'] != 0] # Remove incomplete rows 
-        x_order = np.unique(df["samples"])
-        g = sns.boxplot(
-            data=df,
-            x="samples",
-            y="value",
-            hue="variable",
-            order=x_order,
-            hue_order=eval_algs,
-            ax=ax,
-            showfliers=False,
-        )
-        sns.move_legend(g, "center left", bbox_to_anchor=(1, 0.5), title="Algorithm")
-        ax.set_xlabel(save_sweep_param)
-        ax.set_ylabel(label)
-        return g
-    
-    # Read checkpoints
-    results_algs = []
-    for alg in eval_algs:
-        results = np.zeros((num_trials, len(save_sweep_values), 6))
-        for spec_id in range(len(save_sweep_values)):
-            out_path = Path(f"{dir}/{alg}/")
-            if out_path.exists():
-                for spec_path in out_path.iterdir():
-                    for trial_id in range(num_trials):
-                        out_path = spec_path / f"trial_{trial_id}/chkpoint.txt"
-                        if out_path.exists():
-                            results[trial_id][spec_id] = np.loadtxt(out_path)
-                
-        results_algs.append(results)
-    
-    # Save plots 
-    shd_ind = 0
-    tpr_ind = 3
-    time_ind = 5
-    save_path = Path(dir)
-    _, axs = plt.subplots(2, figsize=(10, 12), sharex=True)
-    g = sns_vis(results_algs, axs[0],tpr_ind, "TPR")
-    g = sns_vis(results_algs, axs[1],shd_ind, "SHD")
-    plt.tight_layout()
-    plt.savefig(save_path / "fig.png")
-
-    plt.clf()
-    _, ax = plt.subplots()
-    g = sns_vis(results_algs, ax,time_ind, "Time to solution (s)")
-    g.set(yscale="log")
-    ax.set_ylabel("Time to solution (s)")
-    plt.savefig(save_path/ "time.png")
-
-    # Save score matrices
-    for s, l in zip(results_algs, eval_algs):
-        np.savetxt(
-            save_path / f"scores_{l}.txt", s.reshape(num_trials, -1)
-        )

@@ -1,4 +1,4 @@
-from cd_v_partition.causal_discovery import sp_gies
+from cd_v_partition.causal_discovery import sp_gies, damga_local_learn
 from cd_v_partition.utils import get_random_graph_data, get_data_from_graph, get_scores, edge_to_adj
 import numpy as np
 import itertools
@@ -65,5 +65,9 @@ for s in samples:
     get_scores(["GES"], [adj_mat], edge_to_adj(arcs, list(np.arange(nnodes)))
 )
     adj_mat_SS = sp_gies(data, skel=None, use_pc=True, alpha=0.5, outdir=None)
-    get_scores(["SP-GES"], [adj_mat_SS], edge_to_adj(arcs, list(np.arange(nnodes)))
+    get_scores(["SP-GES"], [adj_mat_SS], edge_to_adj(arcs, list(np.arange(nnodes))))
+               
+    adj = damga_local_learn([None, data])
+    get_scores(["DAGMA/NNOTEARS"], [adj], edge_to_adj(arcs, list(np.arange(nnodes)))
+
 )
