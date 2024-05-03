@@ -16,6 +16,7 @@ class ExecutorConfig:
 class SimulationSpec:
     # Graph params
     graph_kind: str = MISSING
+    graph_load_path: str = MISSING
     num_nodes: int = MISSING
     num_samples: int = MISSING
     inter_edge_prob: float = MISSING
@@ -69,6 +70,7 @@ class SimulationConfig:
     
     # Graph params
     graph_kind: list[str] = field(default_factory=lambda:['scale_free'])
+    graph_load_path : list[str] = field(default_factory=lambda:[None])
     num_nodes: list[int] = field(default_factory=lambda:[25])
     num_samples: list[int] = field(default_factory=lambda:[int(10**4)])
     inter_edge_prob: list[float] = field(default_factory=lambda:[0.01])

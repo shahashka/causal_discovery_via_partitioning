@@ -8,6 +8,7 @@ from typing import Any, Iterable, TypeAlias
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import warnings
 # Define metric constants.
 NDIM = 6
 SHD, SID, AUC, TPR, FPR, TIME = range(NDIM)
@@ -140,15 +141,30 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
     hue_order, marker_order = dict(), dict()
     match experiment_id:
         case 1:
-            vis_1(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs]) 
+            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs],
+                    "num_samples", "# Samples", "log") 
+        case 2:
+            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs],
+                    "rho", "Inter-community Edge Prob. ($\\rho$)", "linear" )
+        case 3:
+            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs], 
+                    "frac_extraneous_edges", "Fraction of Extraneous Edges", "linear" )
+        case 4:
+            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs], 
+                    "alpha", "$\\alpha$", "linear" )
+        case 5:
+            vis_5(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs]) 
+        case 6:
+            print(df)
         case _:
-            raise ValueError(f"`{experiment_id=}` is an illegal value.`")
+            raise ValueError(f"`{experiment_id=}` is an illegal value.`")  
 
-def vis_1(dir: Path | str, cd_alg:str, exp1: pd.DataFrame, eval_algs: list[str]): 
-    tpr = exp1.query("metric == 'TPR'")
-    shd = exp1.query("metric == 'SHD'")
+def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
+            eval_algs: list[str], x_param: str, x_label: str, x_scale: str): 
+    tpr = exp.query("metric == 'TPR'")
+    shd = exp.query("metric == 'SHD'")
     args = dict(
-        x="num_samples", y="value", hue="method", style="method", 
+        x=x_param, y="value", hue="method", style="method", 
         markers=MARKER_MAP, markersize=10, err_style=ERROR_STYLE, errorbar=ERROR_BAR,
         palette=COLOR_MAP, 
         hue_order=eval_algs, 
@@ -159,13 +175,41 @@ def vis_1(dir: Path | str, cd_alg:str, exp1: pd.DataFrame, eval_algs: list[str])
         fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(6, 5), sharex=True)
         sns.lineplot(tpr, ax=ax[0], **args)
         sns.lineplot(shd, ax=ax[1], **args)
-        ax[0].set(xscale="log")
-        ax[1].set(xscale="log")
-        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncol=3, title="Algorithm", frameon=False)
+        ax[0].set(xscale=x_scale)
+        ax[1].set(xscale=x_scale)
+        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncols=3, title="Algorithm", frameon=False)
         ax[1].get_legend().remove()
         ax[0].set_ylabel("TPR", weight="bold")
         ax[1].set_ylabel("SHD", weight="bold")
-        ax[1].set_xlabel("# Samples", weight="bold")
+        ax[1].set_xlabel(x_label, weight="bold")
         plt.setp(ax[0].get_legend().get_title(), weight="bold")
         plt.subplots_adjust(hspace=0.05)
         plt.savefig(dir / f"{cd_alg}_tpr_shd.png", bbox_inches="tight")
+        
+def vis_5(dir: Path | str, cd_alg:str, exp5: pd.DataFrame, eval_algs: list[str]):
+    time = exp5.query("metric == 'TIME'") # and num_nodes >= 10")
+    args = dict(
+        x="num_nodes", y="value", hue="method", style="method", 
+        markers=MARKER_MAP, markersize=10, err_style=ERROR_STYLE, errorbar=ERROR_BAR,
+        palette=COLOR_MAP, 
+        hue_order=eval_algs, 
+        style_order=eval_algs,
+    )
+    ax = sns.lineplot(time, **args)
+    ax.set(xscale="log", yscale="log")
+    plt.ylabel("Runtime (sec.)", weight="bold")
+    plt.xlabel("# Nodes", weight="bold")
+    plt.legend(bbox_to_anchor=(1.0, 1.0), frameon=False, title="Algorithm")
+    plt.setp(ax.get_legend().get_title(), weight="bold")
+    plt.savefig(dir / f"{cd_alg}_timing.png", bbox_inches="tight")
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        tmp = exp5.query("metric == 'TIME' and num_nodes == 10_000")
+        tpr = exp5.query("metric == 'TPR'  and num_nodes == 10_000")
+
+        tmp["hours"] = tmp.value.to_numpy() / 60 / 60  # Convert to hours
+        tmp["TPR"] = tpr.value.to_numpy()
+
+        gb = tmp.groupby(by=["method"])
+        print(gb[["hours", "TPR"]].mean().to_latex())

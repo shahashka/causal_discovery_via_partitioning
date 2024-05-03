@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import tqdm
 from numpy.random import RandomState
-
+import networkx as nx
 import cd_v_partition.utils as utils
 from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, fci_local_learn, damga_local_learn
 from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess
@@ -53,8 +53,6 @@ class Experiment:
             for trial in range(cfg.graph_per_spec):
                 seed = trial
                 for spec_id, spec in enumerate(cfg):
-                    # fut = executor.submit(self.run_simulation, alg, spec_id, cfg.graph_per_spec, 
-                    #                         cfg.experiment_id, date, spec, random_state=seed)
                     fut = executor.submit(self.run_simulation, spec, random_state=seed)
                     futures[fut] = (spec_id, trial, spec.partition_fn, spec.causal_learn_fn)
                     
@@ -98,6 +96,7 @@ class Experiment:
         # GENERATE THE GRAPH AND DATA
         gen_graph = Experiment.generate_graph(
             kind=spec.graph_kind,
+            load_path=spec.graph_load_path,
             num_nodes=spec.num_nodes,
             num_samples=spec.num_samples,
             num_communities=spec.num_communities,
@@ -157,6 +156,7 @@ class Experiment:
     @staticmethod
     def generate_graph(
         kind: GraphKind,
+        load_path: str,
         num_nodes: int,
         num_communities: int,
         num_samples: int,
@@ -166,19 +166,32 @@ class Experiment:
         random_state: RandomState | int | None = None,
     ) -> GeneratedGraph:
         random_state = utils.load_random_state(random_state)
-        default_partition, comm_graph = utils.create_k_comms(
-            graph_type=kind,
-            n=int(num_nodes / num_communities),
-            m_list=comm_popularity,
-            p_list=edge_prob,
-            k=num_communities,
-            rho=inter_edge_prob,
-            random_state=random_state
-        )
-        # Generate a random network and corresponding dataset
+        
+        # Generate graph topology 
+        if kind == "hierarchical":
+            graph = utils.directed_heirarchical_graph(num_nodes, random_state)
+            default_partition = None
+        elif kind == "ecoli":
+            if load_path is None:
+                raise ValueError("graph_load_path not set for ecoli graphs")
+            adj_mat = np.loadtxt(load_path)
+            graph =  nx.from_numpy_array(adj_mat, create_using=nx.DiGraph)
+            num_nodes = adj_mat.shape[0]
+            default_partition = None
+        else:
+            default_partition, graph = utils.create_k_comms(
+                graph_type=kind,
+                n=int(num_nodes / num_communities),
+                m_list=comm_popularity,
+                p_list=edge_prob,
+                k=num_communities,
+                rho=inter_edge_prob,
+                random_state=random_state
+            )
+        # Generate corresponding dataset
         (edges, nodes, bias, var), samples = utils.get_data_from_graph(
             list(np.arange(num_nodes)),
-            list(comm_graph.edges()),
+            list(graph.edges()),
             nsamples=int(num_samples),
             iv_samples=0,
             bias=None,

@@ -311,7 +311,6 @@ def get_data_from_graph(
     if bias is None or var is None:
         bias = random_state.normal(0, 1, size=len(nodes))
         var = np.abs(random_state.normal(0, 1, size=len(nodes)))
-
     bn = GaussDAG(nodes=nodes, arcs=edges, biases=bias, variances=var)
     data = bn.sample(nsamples)
 
@@ -546,7 +545,7 @@ def pick_k_random_edges(k, nodes):
     return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
 
 
-def directed_heirarchical_graph(num_nodes):
+def directed_heirarchical_graph(num_nodes, seed):
     G = nx.DiGraph(
         nx.scale_free_graph(
             num_nodes,
@@ -555,6 +554,7 @@ def directed_heirarchical_graph(num_nodes):
             beta=0.3,
             delta_in=0.0,
             delta_out=0.0,
+            seed=seed
         )
     )
     # find and remove cycles

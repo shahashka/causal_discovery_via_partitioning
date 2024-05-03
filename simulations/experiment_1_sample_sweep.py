@@ -9,12 +9,12 @@ from cd_v_partition.vis_experiment import vis_experiment
 import numpy as np
 import copy
 if __name__ == "__main__":
-    exp_1 = Experiment(4)
+    exp_1 = Experiment(16)
     dir = "simulations/experiment_1_refactor_multi_algs"
-    sim_cfg = SimulationConfig(graph_per_spec=2,
+    sim_cfg = SimulationConfig(graph_per_spec=10,
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
-                               num_samples=[10**i for i in np.arange(1, 3)],
+                               num_samples=[10**i for i in np.arange(1, 7)],
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
