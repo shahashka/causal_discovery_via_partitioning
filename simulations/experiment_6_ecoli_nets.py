@@ -7,12 +7,12 @@ import copy
 import os
 if __name__ == "__main__":
     exp_6 = Experiment(16)
-    dir = "simulations/experiment_6_refactor_multi_algs"
+    dir = "simulations/experiment_6_refactor_multi_algs_fewer_samples"
     ecoli_data_dir = "./datasets/bionetworks/ecoli/synthetic_copies"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
-                               num_samples=[int(1e5)],
+                               num_samples=[int(1e4)],
                                graph_kind="ecoli",
                                graph_load_path=[f"{ecoli_data_dir}/net_{i}.txt" for i in range(1,10)], 
                                causal_learn_fn=["GES", "PC", "FCI", "NOTEARS"], 

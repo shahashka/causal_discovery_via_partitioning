@@ -1,7 +1,7 @@
 # Experiment 5: hierarchical networks, num samples 1e5,
 # artificial superstructure with 10% extraneous edges,
 # num_trials=30, default modularity (rho=0.01), fusion + screen projections
-# Sweep the number of nodes 50 5e4
+# Sweep the number of nodes 10 1e4
 
 from cd_v_partition.config import SimulationConfig
 from cd_v_partition.experiment import Experiment

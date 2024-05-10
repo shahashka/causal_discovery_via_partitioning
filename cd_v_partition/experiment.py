@@ -108,7 +108,7 @@ class Experiment:
         # GENERATE THE SUPERSTRUCTURE
         if spec.use_pc_algorithm:
             super_struct, _ = pc(
-                gen_graph.samples_to_numpy(), alpha=spec.alpha, outdir=None, num_cores=16
+                gen_graph.samples, alpha=spec.alpha, outdir=None, num_cores=16
             )
         else:
             G_star = utils.edge_to_adj(list(gen_graph.edges), nodes=gen_graph.nodes)

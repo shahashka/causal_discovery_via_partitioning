@@ -177,7 +177,7 @@ def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
         sns.lineplot(shd, ax=ax[1], **args)
         ax[0].set(xscale=x_scale)
         ax[1].set(xscale=x_scale)
-        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncols=3, title="Algorithm", frameon=False)
+        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncol=3, title="Algorithm", frameon=False)
         ax[1].get_legend().remove()
         ax[0].set_ylabel("TPR", weight="bold")
         ax[1].set_ylabel("SHD", weight="bold")
