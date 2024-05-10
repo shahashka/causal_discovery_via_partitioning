@@ -145,7 +145,7 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
                     "num_samples", "# Samples", "log") 
         case 2:
             vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs],
-                    "rho", "Inter-community Edge Prob. ($\\rho$)", "linear" )
+                    "inter_edge_prob", "Inter-community Edge Prob. ($\\rho$)", "linear" )
         case 3:
             vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs], 
                     "frac_extraneous_edges", "Fraction of Extraneous Edges", "linear" )
@@ -178,7 +178,10 @@ def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
         ax[0].set(xscale=x_scale)
         ax[1].set(xscale=x_scale)
         ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncol=3, title="Algorithm", frameon=False)
-        ax[1].get_legend().remove()
+        try:
+            ax[1].get_legend().remove()
+        except:
+            pass
         ax[0].set_ylabel("TPR", weight="bold")
         ax[1].set_ylabel("SHD", weight="bold")
         ax[1].set_xlabel(x_label, weight="bold")
