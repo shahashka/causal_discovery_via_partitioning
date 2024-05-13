@@ -65,32 +65,30 @@ class Experiment:
                 
                 # Create checkpoint object and save
                 np.savetxt(outdir / "chkpoint.txt", fut.result())
-                #spec.to_yaml(outdir / '..')         # TODO this is hanging  
+                # spec.to_yaml(outdir / '..'/ 'spec.yaml')         # TODO this is hanging  
                 # print('done yaml save')
                 progressbar.update()
 
     def run_serial(self, cfg: SimulationConfig, random_state: RandomState | int | None = None):
         random_state = utils.load_random_state(random_state)
         #date = datetime.datetime.now()
+        progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg))
         for trial in range(cfg.graph_per_spec):
             seed = trial
             for spec_id, spec in enumerate(cfg):
-                scores,time = self.submit(self.run_simulation, spec, random_state=seed)
-                outdir = Path(f"{cfg.experiment_id}/{spec.partition_fn}/spec_{spec_id}/trial_{trial}/")
+                scores = self.run_simulation(spec, random_state=seed)
+                outdir = Path(f"{cfg.experiment_id}/{spec.partition_fn}/{spec.causal_learn_fn}/spec_{spec_id}/trial_{trial}/")
                 if not outdir.exists():
                     outdir.mkdir(parents=True)
                 
-                # Create checkpoint object and save
-                out_data = np.zeros(5)
-                out_data[0:5] = scores
-                out_data[5] = time
-                np.savetxt(outdir / "chkpoint.txt", out_data)
-                spec.to_yaml(outdir / '..')           
+                np.savetxt(outdir / "chkpoint.txt", scores)
+               # spec.to_yaml(outdir / '..' / 'spec.yaml')  
+                progressbar.update()         
 
 
     def run_simulation(
         self, spec: SimulationSpec, random_state: RandomState | int | None = None
-    ) -> pd.DataFrame:
+    ) -> np.ndarray:
         random_state = utils.load_random_state(random_state)
 
         # GENERATE THE GRAPH AND DATA

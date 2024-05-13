@@ -44,7 +44,8 @@ class SimulationSpec:
     frac_retain_direction: float = MISSING
     frac_extraneous: float = MISSING
     use_pc_algorithm: bool = MISSING
-
+    
+    @classmethod
     def to_yaml(self, outfile: Path | str) -> None:
             """
             Saves spec to yaml file.

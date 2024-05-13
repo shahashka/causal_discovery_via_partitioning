@@ -24,4 +24,4 @@ cd_algs = ["GES", "PC", "NOTEARS", "FCI"]
 dir = "simulations/experiment_5_refactor_multi_algs"
 for cd_alg in cd_algs:
     vis_experiment(5, dir, ['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
-                    cd_alg, 10, "num_nodes", [10**i for i in np.arange(1, 5)])
+                    cd_alg, 1, "num_nodes", [10**i for i in np.arange(1, 5)])
