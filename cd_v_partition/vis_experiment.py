@@ -100,7 +100,14 @@ def read_chkpoints(dir: Path | str, eval_algs: list[str], cd_alg:str,
         results = np.zeros((num_trials, len(save_sweep_values), NDIM))
         out_path = Path(f"{dir}/{alg}/{cd_alg}")
         if out_path.exists():
-            for spec_id, spec_path in enumerate(out_path.iterdir()):
+            inds, dirs = [], []
+            # Make sure we iterate through specs in sequential orer
+            for _, spec_path in enumerate(out_path.iterdir()):
+                spec_id = int(spec_path.name.split('_')[1]) # grab the spec id from the folder
+                inds.append(spec_id)
+                dirs.append(spec_path)
+            inds, dirs = zip(*sorted(zip(inds, dirs)))
+            for spec_id, spec_path in enumerate(dirs):
                 for trial_id in range(num_trials):
                     out_path = spec_path / f"trial_{trial_id}/chkpoint.txt"
                     if out_path.exists():
