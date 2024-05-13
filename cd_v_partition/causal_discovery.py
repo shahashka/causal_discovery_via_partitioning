@@ -78,7 +78,10 @@ def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         dag = np.zeros((1,1))
     else:
         pag, mag = fci(data, alpha=1e-3, num_cores=8, outdir=None)
-        dag = mag2dag(mag)
+        if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
+            dag = pag # TODO PAG2DAG 
+        else:
+            dag = mag2dag(mag)
     return dag 
 
 def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -125,7 +128,6 @@ def pc(
         significance level of each edge.
     """
     data = data.drop(columns=['target']).to_numpy(dtype=float)
-    print("Running multicore CPU implementation of PC algorithm")
     ro.r.assign("data", data)
     rcode = "cor(data)"
     corMat = ro.r(rcode)
@@ -194,7 +196,7 @@ def fci(
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'fci(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    rcode = 'rfci(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
     pc_fit = ro.r(rcode)
     ro.r.assign("fci_fit", pc_fit)
 

@@ -145,7 +145,7 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
                     "num_samples", "# Samples", "log") 
         case 2:
             vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs],
-                    "rho", "Inter-community Edge Prob. ($\\rho$)", "linear" )
+                    "inter_edge_prob", "Inter-community Edge Prob. ($\\rho$)", "linear" )
         case 3:
             vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs], 
                     "frac_extraneous_edges", "Fraction of Extraneous Edges", "linear" )
@@ -177,7 +177,7 @@ def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
         sns.lineplot(shd, ax=ax[1], **args)
         ax[0].set(xscale=x_scale)
         ax[1].set(xscale=x_scale)
-        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncols=3, title="Algorithm", frameon=False)
+        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncol=3, title="Algorithm", frameon=False)
         ax[1].get_legend().remove()
         ax[0].set_ylabel("TPR", weight="bold")
         ax[1].set_ylabel("SHD", weight="bold")
@@ -185,6 +185,7 @@ def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
         plt.setp(ax[0].get_legend().get_title(), weight="bold")
         plt.subplots_adjust(hspace=0.05)
         plt.savefig(dir / f"{cd_alg}_tpr_shd.png", bbox_inches="tight")
+        plt.clf()
         
 def vis_5(dir: Path | str, cd_alg:str, exp5: pd.DataFrame, eval_algs: list[str]):
     time = exp5.query("metric == 'TIME'") # and num_nodes >= 10")
@@ -195,18 +196,23 @@ def vis_5(dir: Path | str, cd_alg:str, exp5: pd.DataFrame, eval_algs: list[str])
         hue_order=eval_algs, 
         style_order=eval_algs,
     )
-    ax = sns.lineplot(time, **args)
-    ax.set(xscale="log", yscale="log")
-    plt.ylabel("Runtime (sec.)", weight="bold")
-    plt.xlabel("# Nodes", weight="bold")
-    plt.legend(bbox_to_anchor=(1.0, 1.0), frameon=False, title="Algorithm")
-    plt.setp(ax.get_legend().get_title(), weight="bold")
-    plt.savefig(dir / f"{cd_alg}_timing.png", bbox_inches="tight")
-    
+    with sns.plotting_context("paper", font_scale=1.5):
+        ax = sns.lineplot(time, **args)
+        ax.set(xscale="log", yscale="log")
+        plt.ylabel("Runtime (sec.)", weight="bold")
+        plt.xlabel("# Nodes", weight="bold")
+        plt.legend(bbox_to_anchor=(1.0, 1.0), frameon=False, title="Algorithm")
+        plt.setp(ax.get_legend().get_title(), weight="bold")
+        plt.savefig(dir / f"{cd_alg}_timing.png", bbox_inches="tight")
+        plt.clf()
+        
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        tmp = exp5.query("metric == 'TIME' and num_nodes == 10_000")
-        tpr = exp5.query("metric == 'TPR'  and num_nodes == 10_000")
+        # tmp = exp5.query("metric == 'TIME' and num_nodes == 10_000")
+        # tpr = exp5.query("metric == 'TPR'  and num_nodes == 10_000")
+        
+        tmp = exp5.query("metric == 'TIME' and num_nodes == 100")
+        tpr = exp5.query("metric == 'TPR'  and num_nodes == 100")
 
         tmp["hours"] = tmp.value.to_numpy() / 60 / 60  # Convert to hours
         tmp["TPR"] = tpr.value.to_numpy()
