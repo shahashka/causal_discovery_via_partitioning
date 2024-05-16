@@ -15,11 +15,11 @@ if __name__ == "__main__":
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
                                num_samples=[int(1e5)],
-                               frac_extraneous=np.arange(0, 4, 0.5),
+                               frac_extraneous=list(np.arange(0, 4, 0.5)),
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["GES", "PC", "FCI", "NOTEARS"], 
+                               causal_learn_fn=["PC", "RFCI", "NOTEARS"], #GES
                                merge_fn=["screen"],
                                )
     

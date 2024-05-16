@@ -221,8 +221,8 @@ def vis_5(dir: Path | str, cd_alg:str, exp5: pd.DataFrame, eval_algs: list[str])
         # tmp = exp5.query("metric == 'TIME' and num_nodes == 10_000")
         # tpr = exp5.query("metric == 'TPR'  and num_nodes == 10_000")
         
-        tmp = exp5.query("metric == 'TIME' and num_nodes == 100")
-        tpr = exp5.query("metric == 'TPR'  and num_nodes == 100")
+        tmp = exp5.query("metric == 'TIME' and num_nodes == 1000")
+        tpr = exp5.query("metric == 'TPR'  and num_nodes == 1000")
 
         tmp["hours"] = tmp.value.to_numpy() / 60 / 60  # Convert to hours
         tmp["TPR"] = tpr.value.to_numpy()

@@ -15,11 +15,11 @@ if __name__ == "__main__":
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
                                num_samples=[int(1e5)],
                                use_pc_algorithm=[True],
-                               alpha=np.arange(0.1, 1, 0.1),
+                               alpha=list(np.arange(0.1, 1, 0.1)),
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["GES", "PC", "FCI", "NOTEARS"], 
+                               causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"], 
                                merge_fn=["screen"],
                                )
     

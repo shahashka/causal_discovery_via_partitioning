@@ -3,14 +3,14 @@ from pathlib import Path
 from typing import Any, Callable
 import time
 import functools
-
+import os
 import numpy as np
 import pandas as pd
 import tqdm
 from numpy.random import RandomState
 import networkx as nx
 import cd_v_partition.utils as utils
-from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, fci_local_learn, damga_local_learn
+from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, rfci_local_learn, damga_local_learn
 from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess
 from cd_v_partition.overlapping_partition import (
     partition_problem,
@@ -133,7 +133,9 @@ class Experiment:
             func_partial = functools.partial(causal_discovery_alg)
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
-            with ProcessPoolExecutor(max_workers=self.workers) as executor:
+            workers = min(len(subproblems), self.workers,  os.cpu_count() + 4)
+            print(f"Launching {workers} workers for partitioned run")
+            with ProcessPoolExecutor(max_workers=workers) as executor:
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
             # Merge
@@ -224,8 +226,8 @@ class Experiment:
                 return ges_local_learn
             case "PC":
                 return pc_local_learn
-            case "FCI":
-                return fci_local_learn
+            case "RFCI":
+                return rfci_local_learn
             case "NOTEARS":
                 return damga_local_learn
             case "GPS":

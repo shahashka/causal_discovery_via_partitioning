@@ -63,10 +63,10 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
 
-def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
-    """FCI algorithm for a subproblem
+def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+    """RFCI algorithm for a subproblem
 
-    Local skeleton is ignored for FCI. Defaults to alpha=1e-3, 8 cores
+    Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
     Args:
         subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
 
@@ -77,11 +77,11 @@ def fci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
     if skel.shape[0] == 1:
         dag = np.zeros((1,1))
     else:
-        pag, mag = fci(data, alpha=1e-3, num_cores=8, outdir=None)
-        if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
-            dag = pag # TODO PAG2DAG 
-        else:
-            dag = mag2dag(mag)
+        pag, mag = rfci(data, alpha=1e-3, num_cores=8, outdir=None)
+        # if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
+        #     dag = pag # TODO PAG2DAG 
+        # else:
+        dag = mag2dag(mag)
     return dag 
 
 def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -160,11 +160,11 @@ def pc(
 
 
 
-def fci(
+def rfci(
     data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""
-    Python wrapper for the FCI algorithm.
+    Python wrapper for the RFCI algorithm (faster version of FCI).
 
     Args:
         data (pd.DataFrame): DataFrame containing observational and interventional samples.
@@ -197,17 +197,17 @@ def fci(
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
     rcode = 'rfci(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
-    pc_fit = ro.r(rcode)
-    ro.r.assign("fci_fit", pc_fit)
+    rfci_fit = ro.r(rcode)
+    ro.r.assign("rfci_fit", rfci_fit)
 
-    rcode = 'as(fci_fit@amat, "matrix")'
+    rcode = 'as(rfci_fit@amat, "matrix")'
     pag = ro.r(rcode)
     ro.r.assign("pag", pag)
-    rcode = 'pag2magAM(pag, 0)'
+    rcode = 'pag2magAM(pag, 0, verbose=FALSE)'
     mag = ro.r(rcode)
     if outdir:
         d = str(outdir)
-        rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'fci-adj_mat.csv',sep = ''))"
+        rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'rfci-adj_mat.csv',sep = ''))"
         ro.r(rcode)
         
     return pag, mag
@@ -236,6 +236,8 @@ def mag2dag(mag: np.ndarray) -> np.ndarray:
                 mag[i,j] = 0
                 mag[j,i] = 0
     return mag
+
+
 
 def cu_pc(
     data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3

@@ -1,4 +1,4 @@
-from cd_v_partition.causal_discovery import pc, cu_pc, weight_colliders, fci_local_learn
+from cd_v_partition.causal_discovery import pc, cu_pc, weight_colliders, rfci_local_learn, rfci
 from cd_v_partition.utils import get_data_from_graph, get_scores, edge_to_adj
 import numpy as np
 import itertools
@@ -63,6 +63,8 @@ data_subset = data.drop(data.columns[2], axis=1)
 
 # g, edges = fci(data_subset.to_numpy())
 # print(g.graph)
-dag = fci_local_learn((None, data_subset))
+dag = rfci_local_learn((np.ones((10,10)), data_subset))
 print(dag) # gets 2 edges wrong (wrong direction that don't correspond to colliders) 
+pag, mag = rfci(data_subset, None)
+print(pag)
 print("All tests passed!")
