@@ -42,7 +42,7 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:  
-        adj, _ = pc(data, alpha=1e-3, num_cores=8, outdir=None)
+        adj, _ = pc(data,skel=skel, alpha=1e-3, num_cores=8, outdir=None)
     return adj 
 
 def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
@@ -77,7 +77,7 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
     if skel.shape[0] == 1:
         dag = np.zeros((1,1))
     else:
-        pag, mag = rfci(data, alpha=1e-3, num_cores=8, outdir=None)
+        pag, mag = rfci(data, skel=skel, alpha=1e-3, num_cores=8, outdir=None)
         # if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
         #     dag = pag # TODO PAG2DAG 
         # else:
@@ -106,7 +106,7 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray
     return adj
     
 def pc(
-    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
+    data: pd.DataFrame, skel: np.ndarray, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Python wrapper for the PC algorithm.
@@ -132,6 +132,11 @@ def pc(
     rcode = "cor(data)"
     corMat = ro.r(rcode)
     ro.r.assign("correlationMatrix", corMat)
+    
+    fixed_gaps = np.array((skel == 0), dtype=int)
+    nr, nc = fixed_gaps.shape
+    FG = ro.r.matrix(fixed_gaps, nrow=nr, ncol=nc)
+    ro.r.assign("fixed_gaps", FG)
 
     p = data.shape[1]
     ro.r.assign("p", p)
@@ -141,7 +146,7 @@ def pc(
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'pc(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    rcode = 'pc(suffStat,fixedGaps=fixed_gaps, p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores, verbose=FALSE)'
     pc_fit = ro.r(rcode)
     ro.r.assign("pc_fit", pc_fit)
 
@@ -161,7 +166,7 @@ def pc(
 
 
 def rfci(
-    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
+    data: pd.DataFrame, skel: np.ndarray, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""
     Python wrapper for the RFCI algorithm (faster version of FCI).
@@ -191,13 +196,19 @@ def rfci(
     p = data.shape[1]
     ro.r.assign("p", p)
 
+    fixed_gaps = np.array((skel == 0), dtype=int)
+    nr, nc = fixed_gaps.shape
+    FG = ro.r.matrix(fixed_gaps, nrow=nr, ncol=nc)
+    ro.r.assign("fixed_gaps", FG)
+
     rcode = "list(C = correlationMatrix, n = nrow(data))"
     suffStat = ro.r(rcode)
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'rfci(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    rcode = 'rfci(suffStat,fixedGaps=fixed_gaps,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
     rfci_fit = ro.r(rcode)
+    
     ro.r.assign("rfci_fit", rfci_fit)
 
     rcode = 'as(rfci_fit@amat, "matrix")'
