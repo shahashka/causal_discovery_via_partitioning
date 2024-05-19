@@ -39,6 +39,7 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         np.ndarray: local estimated adjancency matrix
     """
     skel, data = subproblem    
+    skel = make_skel_symmetric(skel)
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:  
@@ -74,6 +75,7 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         np.ndarray: local estimated adjancency matrix
     """
     skel, data = subproblem
+    skel = make_skel_symmetric(skel)
     if skel.shape[0] == 1:
         dag = np.zeros((1,1))
     else:
@@ -454,3 +456,10 @@ def weight_colliders(adj_mat: np.ndarray, weight: int = 1):
                     weighted_adj_mat[i, col] = weight
                     weighted_adj_mat[j, col] = weight
     return weighted_adj_mat
+
+def make_skel_symmetric(skel: np.ndarray):
+    for i in range(skel.shape[0]):
+        for j in range(skel.shape[0]):
+            if skel[i][j] !=0:
+                skel[j][i] = skel[i][j]   
+    return skel

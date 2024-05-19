@@ -102,14 +102,13 @@ class Experiment:
             edge_prob=spec.comm_edge_prob,
             inter_edge_prob=spec.inter_edge_prob,  # rho
         )
-
+        G_star = utils.edge_to_adj(list(gen_graph.edges), nodes=gen_graph.nodes)
         # GENERATE THE SUPERSTRUCTURE
         if spec.use_pc_algorithm:
             super_struct, _ = pc(
-                gen_graph.samples, alpha=spec.alpha, outdir=None, num_cores=16
+                gen_graph.samples, skel=np.ones((spec.num_nodes,spec.num_nodes)), alpha=spec.alpha, outdir=None, num_cores=16
             )
         else:
-            G_star = utils.edge_to_adj(list(gen_graph.edges), nodes=gen_graph.nodes)
             super_struct = utils.artificial_superstructure(
                 G_star,
                 frac_retain_direction=spec.frac_retain_direction,
