@@ -145,6 +145,7 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
     df = df[df.value != 0]
     df = df.reset_index()
     df.replace({"method": ALG_MAP}, inplace=True)
+    df.to_csv(f"{dir}/scores_{experiment_id}_{cd_alg}.csv")
     hue_order, marker_order = dict(), dict()
     match experiment_id:
         case 1:

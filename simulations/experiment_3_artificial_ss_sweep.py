@@ -19,7 +19,7 @@ if __name__ == "__main__":
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["PC", "RFCI", "NOTEARS"], #GES
+                               causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"],
                                merge_fn=["screen"],
                                )
     
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     sim_cfg_pef.merge_fn = ["fusion"]
     sim_cfg_pef.merge_full_cand_set = [True]
     
-    exp_3.run(sim_cfg, random_state=1)
+    #exp_3.run(sim_cfg, random_state=1)
     exp_3.run(sim_cfg_pef, random_state=1)
     for cd_alg in sim_cfg.causal_learn_fn:
         vis_experiment(3, dir, sim_cfg.partition_fn + sim_cfg_pef.partition_fn,

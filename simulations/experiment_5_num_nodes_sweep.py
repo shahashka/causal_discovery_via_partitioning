@@ -9,19 +9,20 @@ from cd_v_partition.vis_experiment import vis_experiment
 import numpy as np
 import copy
 if __name__ == "__main__":
-    exp_5 = Experiment(1)
-    dir = "simulations/experiment_5_refactor_multi_algs_test"
+    exp_5 = Experiment(16)
+    large_num_nodes = int(1e4)
+    dir = "simulations/experiment_5_refactor_multi_algs"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
-                               partition_fn=['modularity', 'edge_cover', 'expansive_causal'],# [no_partition]
-                               num_samples=[int(1e3)],
+                               partition_fn=['modularity', 'edge_cover', 'expansive_causal', 'no_partition'],
+                               num_samples=[int(1e4)],
                                graph_kind="hierarchical", 
-                               num_nodes=[10**i for i in np.arange(1, 5)],
+                               num_nodes=[large_num_nodes],
                                causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"], 
-                               merge_fn=["screen"],
-                               partition_resolution=5,
-                               partition_best_n=10,
-                               partition_cutoff=10
+                               merge_fn=["screen"]
+                            #    partition_resolution=5,
+                            #    partition_best_n=int(large_num_nodes/10),
+                            #    partition_cutoff=int(large_num_nodes/10)
                                )
     
     sim_cfg_pef = copy.copy(sim_cfg)
