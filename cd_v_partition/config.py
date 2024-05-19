@@ -38,6 +38,7 @@ class SimulationSpec:
     
     # CD learn params
     causal_learn_fn: str = MISSING
+    causal_learn_use_skel: bool = MISSING
     
     # Superstructure params
     alpha: float = MISSING
@@ -93,6 +94,7 @@ class SimulationConfig:
     
     # CD learn params
     causal_learn_fn: list[str] = field(default_factory=lambda:["GES"])
+    causal_learn_use_skel: list[bool] = field(default_factory=lambda:["True"])
     
     # Superstructure params
     alpha: list[float] = field(default_factory=lambda:[0.1])

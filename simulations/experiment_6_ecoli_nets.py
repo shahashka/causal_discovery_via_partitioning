@@ -6,8 +6,8 @@ from cd_v_partition.vis_experiment import vis_experiment
 import copy
 import os
 if __name__ == "__main__":
-    exp_6 = Experiment(16)
-    dir = "simulations/experiment_6_refactor_multi_algs_net_2"
+    exp_6 = Experiment(1)
+    dir = "simulations/experiment_6_refactor_multi_algs_net_2_no_skel"
     ecoli_data_dir = "./datasets/bionetworks/ecoli/synthetic_copies"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
@@ -15,8 +15,9 @@ if __name__ == "__main__":
                                num_samples=[int(1e4)],
                                graph_kind="ecoli",
                                graph_load_path=[f"{ecoli_data_dir}/net_{i}.txt" for i in range(2,3)], 
-                               causal_learn_fn=["GES","RFCI", "PC","NOTEARS"], 
-                               merge_fn=["screen"]
+                               causal_learn_fn=["PC","RFCI", "GES","NOTEARS"], 
+                               merge_fn=["screen"],
+                               causal_learn_use_skel=False
                             #    partition_resolution=5,
                             #    partition_best_n=100,
                             #    partition_cutoff=100

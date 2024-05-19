@@ -28,7 +28,7 @@ base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
-def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """PC algorithm for a subproblem
 
     Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
@@ -40,13 +40,15 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
     """
     skel, data = subproblem    
     skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:  
         adj, _ = pc(data,skel=skel, alpha=1e-3, num_cores=8, outdir=None)
     return adj 
 
-def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """GES algorithm for subproblem
     
     Use the local skeleton to restrict the search space
@@ -58,13 +60,16 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         np.ndarray: local estimated adjacency matrix
     """
     skel, data = subproblem
+    # FOR GES we always use the skeleton 
+    # if not use_skel:
+    #     skel=np.ones(skel.shape)
     if skel.shape[0] == 1:
         adj_mat = np.zeros((1,1))
     else:
         adj_mat = sp_gies(data, skel=skel, outdir=None)
     return adj_mat
 
-def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """RFCI algorithm for a subproblem
 
     Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
@@ -76,6 +81,8 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
     """
     skel, data = subproblem
     skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
     if skel.shape[0] == 1:
         dag = np.zeros((1,1))
     else:
@@ -86,7 +93,7 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
         dag = mag2dag(mag)
     return dag 
 
-def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray:
+def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """Dagma algorithm for a subproblem
     
     Faster version of NOTEARS with log-det acyclicity characterization
@@ -99,6 +106,8 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame]) -> np.ndarray
     """
 
     skel, data = subproblem
+    if not use_skel:
+        skel=np.ones(skel.shape)
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:

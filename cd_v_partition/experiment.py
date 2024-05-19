@@ -118,7 +118,7 @@ class Experiment:
         causal_discovery_alg = Experiment.get_causal_discovery_alg(spec) 
         start = time.time()
         if spec.partition_fn == "no_partition":
-            out_adj = causal_discovery_alg((super_struct, gen_graph.samples))
+            out_adj = causal_discovery_alg((super_struct, gen_graph.samples), spec.causal_learn_use_skel)
             out_adj = no_partition_postprocess(super_struct, out_adj, ss_subset=spec.merge_ss_subset_flag)
         else:
             merge_alg = Experiment.get_merge_alg(spec) 
@@ -129,7 +129,7 @@ class Experiment:
                                       resolution=spec.partition_resolution, 
                                       best_n=spec.partition_best_n) 
             # Learn in parallel
-            func_partial = functools.partial(causal_discovery_alg)
+            func_partial = functools.partial(causal_discovery_alg, use_skel= spec.causal_learn_use_skel)
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
             workers = min(len(subproblems), self.workers,  os.cpu_count() + 4)
