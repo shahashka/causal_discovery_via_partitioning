@@ -69,7 +69,7 @@ progressbar2==4.2.0
 prompt-toolkit==3.0.40
 ptyprocess==0.7.0
 pure-eval==0.2.2
-pycausal==1.2.1
+#pycausal==1.2.1
 pycparser==2.21
 pydot==2.0.0
 pygam==0.8.0
@@ -102,5 +102,7 @@ tzlocal==5.2
 urllib3==2.1.0
 wcwidth==0.2.9
 xgboost==2.0.2
-zipp==3.17.0
+zipp
 seaborn
+dagma
+omegaconf
