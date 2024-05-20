@@ -10,7 +10,7 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_3 = Experiment(16)
-    dir = "simulations/experiment_3_refactor_multi_algs"
+    dir = "simulations/experiment_3_refactor_multi_algs_no_skel"
     sim_cfg = SimulationConfig(graph_per_spec=10,
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
@@ -20,16 +20,17 @@ if __name__ == "__main__":
                                num_nodes=25,
                                num_communities=2,                              
                                causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"],
+                               causal_learn_use_skel=False, # see if this improves RFCI
                                merge_fn=["screen"],
                                )
     
-    sim_cfg_pef = copy.copy(sim_cfg)
+    sim_cfg_pef = copy.copy(sim_cfg) 
     
     sim_cfg_pef.partition_fn = ['PEF']
     sim_cfg_pef.merge_fn = ["fusion"]
     sim_cfg_pef.merge_full_cand_set = [True]
     
-    #exp_3.run(sim_cfg, random_state=1)
+    exp_3.run(sim_cfg, random_state=1)
     exp_3.run(sim_cfg_pef, random_state=1)
     for cd_alg in sim_cfg.causal_learn_fn:
         vis_experiment(3, dir, sim_cfg.partition_fn + sim_cfg_pef.partition_fn,

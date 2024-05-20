@@ -29,7 +29,7 @@ if __name__ == "__main__":
     sim_cfg_pef.merge_fn = ["fusion"]
     sim_cfg_pef.merge_full_cand_set = [True]
     
-    exp_4.run(sim_cfg, random_state=1)
+    # exp_4.run(sim_cfg, random_state=1)
     exp_4.run(sim_cfg_pef, random_state=1)
     for cd_alg in sim_cfg.causal_learn_fn:
         vis_experiment(4, dir, sim_cfg.partition_fn + sim_cfg_pef.partition_fn,
