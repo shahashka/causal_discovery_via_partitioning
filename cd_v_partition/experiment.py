@@ -105,9 +105,11 @@ class Experiment:
         G_star = utils.edge_to_adj(list(gen_graph.edges), nodes=gen_graph.nodes)
         # GENERATE THE SUPERSTRUCTURE
         if spec.use_pc_algorithm:
+            print(f"ALPHA {spec.alpha}")
             super_struct, _ = pc(
                 gen_graph.samples, skel=np.ones((spec.num_nodes,spec.num_nodes)), alpha=spec.alpha, outdir=None, num_cores=16
             )
+            print(f"Number of edges in ss {np.sum(super_struct)}")
         else:
             super_struct = utils.artificial_superstructure(
                 G_star,
