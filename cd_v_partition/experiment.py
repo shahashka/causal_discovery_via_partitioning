@@ -136,6 +136,10 @@ class Experiment:
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
             workers = min(len(subproblems), self.workers,  os.cpu_count() + 4)
             print(f"Launching {workers} workers for partitioned run")
+            
+            partition_sizes = [len(p) for p in partition.values()]
+            print(f"Biggest partition size {max(partition_sizes)}")
+            
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
@@ -232,6 +236,8 @@ class Experiment:
             case "NOTEARS":
                 return damga_local_learn
             case "GPS":
+                raise NotImplementedError(f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`")
+            case "RFCI-PAG":
                 raise NotImplementedError(f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`")
             case _:
                 raise ValueError(f"`{spec.causal_learn_fn=}` is an illegal value.`")

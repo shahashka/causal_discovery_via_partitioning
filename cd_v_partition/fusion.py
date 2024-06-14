@@ -72,6 +72,17 @@ def no_partition_postprocess(
         )
     return est_adj_mat
 
+def screen_projections_pag2cpdag(
+    ss: np.ndarray,
+    partition: dict[Any, Any],
+    local_cd_adj_mats: list[np.ndarray],
+    ss_subset:bool =True,
+    finite_lim : bool = True,
+    data:np.ndarray =None,
+    full_cand_set: bool = False,
+) -> nx.DiGraph:
+    print("TODO")
+    
 def screen_projections(
     ss: np.ndarray,
     partition: dict[Any, Any],

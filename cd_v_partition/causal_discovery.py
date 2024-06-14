@@ -93,6 +93,26 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
         dag = mag2dag(mag)
     return dag 
 
+def rfci_pag_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+    """RFCI algorithm for a subproblem
+
+    Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem
+    skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        dag = np.zeros((1,1))
+    else:
+        pag, mag = rfci(data, skel=skel, alpha=1e-3, num_cores=8, outdir=None)
+    return pag 
+
 def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """Dagma algorithm for a subproblem
     
