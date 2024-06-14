@@ -81,7 +81,48 @@ def screen_projections_pag2cpdag(
     data:np.ndarray =None,
     full_cand_set: bool = False,
 ) -> nx.DiGraph:
+    
+    # The pag represetation has following edge to number mapping
+    # pag[i,j] = 0 iff no edge btw i,j
+    # pag[i,j] = 1 iff i *-o j
+    # pag[i,j] = 2 iff i *-> j
+    # pag[i,j] = 3 iff i *-- j
+    
+    # CPDAG
+    # cpdag[i,j] = 0 and cpdag[j,i] = 0 iff no edge between i, j
+    # cpdag[i,j] = 1 and cpdag[j,i] = 0 iff i->j 
+    # cpdag[i,j] = 1 and cpdag[j,i] = 1 iff i--j 
+    cpdag = np.ones((data.shape[1], data.shape[1]))
+    pag_edges = dict()
+    # Add all edges in the pag subsets to the global cpdag
+    # For overlapping edges, create a list of all end marks
+    for comm_id, pag in enumerate(local_cd_adj_mats):
+        for row, col in itertools.product(pag.shape[0], pag.shape[1]):
+            global_row = partition[comm_id][row]
+            global_col = partition[comm_id][col]
+            if pag[row, col] != 0:
+                if pag_edges.keys().contains((global_row, global_col)):
+                    pag_edges[global_row, global_col] += [pag[row,col]]
+                else:
+                    pag_edges[global_row, global_col] = list(pag[row,col])
+            else:
+                cpdag[global_row, global_col] = 0
+                cpdag[global_col, global_row] = 0
+    # Discard edges if end marks do not agree
+    for edge, end_marks in pag_edges:
+        if len(end_marks) > 0:
+            if not all(x==end_marks[0] for x in end_marks):
+                cpdag[edge] = 0            
+    
+    # Orient unshielded triples
     print("TODO")
+    
+    cpdag_digraph = nx.from_numpy_matrix(cpdag, create_using=nx.DiGraph)
+    
+    # Remove edges not in superstructure
+    if ss_subset:
+        global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
+    return cpdag_digraph
     
 def screen_projections(
     ss: np.ndarray,

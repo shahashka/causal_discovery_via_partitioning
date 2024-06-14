@@ -132,6 +132,9 @@ def tpr_fpr_score(
     return tpr[1], fpr[1]
 
 
+
+def get_scores_cpdag():
+    print("TODO")
 def get_scores(
     alg_names: list[str],
     networks: list[np.ndarray] | list[nx.DiGraph],
