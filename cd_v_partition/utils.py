@@ -130,11 +130,8 @@ def tpr_fpr_score(
     y_true = np.array(y_true != 0, dtype=int).flatten()
     fpr, tpr, _ = roc_curve(y_true.flatten(), y_pred.flatten())
     return tpr[1], fpr[1]
-
-
-
-def get_scores_cpdag():
-    print("TODO")
+    
+    
 def get_scores(
     alg_names: list[str],
     networks: list[np.ndarray] | list[nx.DiGraph],

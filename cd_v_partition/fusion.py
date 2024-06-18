@@ -92,36 +92,68 @@ def screen_projections_pag2cpdag(
     # cpdag[i,j] = 0 and cpdag[j,i] = 0 iff no edge between i, j
     # cpdag[i,j] = 1 and cpdag[j,i] = 0 iff i->j 
     # cpdag[i,j] = 1 and cpdag[j,i] = 1 iff i--j 
-    cpdag = np.ones((data.shape[1], data.shape[1]))
+    
+    # Start with a fully connected global CPDAG 
+    cpdag = np.ones(ss.shape)
     pag_edges = dict()
-    # Add all edges in the pag subsets to the global cpdag
-    # For overlapping edges, create a list of all end marks
+
     for comm_id, pag in enumerate(local_cd_adj_mats):
-        for row, col in itertools.product(pag.shape[0], pag.shape[1]):
+        for row, col in itertools.product(np.arange(pag.shape[0]), np.arange(pag.shape[1])):
             global_row = partition[comm_id][row]
             global_col = partition[comm_id][col]
-            if pag[row, col] != 0:
-                if pag_edges.keys().contains((global_row, global_col)):
-                    pag_edges[global_row, global_col] += [pag[row,col]]
-                else:
-                    pag_edges[global_row, global_col] = list(pag[row,col])
-            else:
+            # If edge does not exist in any PAG, remove it from the global CPDAG
+            # This ensures that edges in overlap that agree in the PAG space remain in the global CPDAG
+            # while edges that disagree are removed
+            if pag[row,col] == 0:
                 cpdag[global_row, global_col] = 0
                 cpdag[global_col, global_row] = 0
-    # Discard edges if end marks do not agree
-    for edge, end_marks in pag_edges:
-        if len(end_marks) > 0:
-            if not all(x==end_marks[0] for x in end_marks):
-                cpdag[edge] = 0            
+                
+            # Add edges to dictionary, create a list for overlapping edges
+            else:
+                if (global_row, global_col) in pag_edges:
+                    pag_edges[(global_row, global_col)] += [pag[row,col]]
+                else:
+                    pag_edges[(global_row, global_col)] = [pag[row,col]]
     
-    # Orient unshielded triples
-    print("TODO")
+    for edge, end_marks in pag_edges.items():
+        u = edge[0]
+        v = edge[1]
+        # Tag PAG arrowheads (that agree across all PAGs) in global CDPAG         
+        if all(x==2 for x in end_marks) and cpdag[u,v]==1:
+            cpdag[u,v]=2
     
-    cpdag_digraph = nx.from_numpy_matrix(cpdag, create_using=nx.DiGraph)
+    # Orient unshielded triples in CDPAG adjacency matrix
+    for col in range(cpdag.shape[1]):
+        arrowheads_from = [i for i in range(cpdag.shape[0]) if cpdag[i,col]==2]
+        # Check if there is a triple that is unshielded
+        if len(arrowheads_from) == 2:
+            u,v = arrowheads_from
+            if cpdag[u,v] == 0:
+                cpdag[u,col] = 1
+                cpdag[v,col] = 1
+                cpdag[col, u] = 0
+            cpdag[col, v] = 0
+        # For all other cases with a PAG arrowhead, 
+        # set to an undirected edge in the CPDAG
+        elif len(arrowheads_from) > 0:
+            for node in arrowheads_from:
+                cpdag[node, col] = 1
+    assert((cpdag < 2).all())
+    cpdag_digraph = nx.from_numpy_array(cpdag, create_using=nx.DiGraph)
     
-    # Remove edges not in superstructure
+    # Remove all edges not present in superstructure
     if ss_subset:
-        global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
+        ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
+        cpdag_digraph = remove_edges_not_in_ss(cpdag_digraph, ss_graph)
+        
+    if finite_lim:
+        cpdag_digraph = screen_projections_finite_lim_postprocessing(
+            ss_graph,
+            cpdag_digraph,
+            partition,
+            ss_subset,
+            data,
+        )
     return cpdag_digraph
     
 def screen_projections(
@@ -132,8 +164,6 @@ def screen_projections(
     finite_lim : bool = True,
     data:np.ndarray =None,
     full_cand_set: bool = False,
-
-    
 ) -> nx.DiGraph:
     """
     Fuse subgraphs by taking the union and resolving conflicts by favoring no edge over
