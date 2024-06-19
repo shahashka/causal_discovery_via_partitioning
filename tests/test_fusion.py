@@ -17,7 +17,6 @@ comm2 = nx.DiGraph()
 comm2.add_nodes_from(partition[1])
 comm2.add_edges_from([(1, 2), (2, 3)])
 
-# TODO fusion test cases are breaking, check when code changed...
 # Directed edges agree
 # Comm 1: 0->1->2
 # Comm 2: 1->2->3
@@ -29,7 +28,7 @@ ss_edges = [(0,1), (1,0), (1,2), (2,1), (2,3), (3,2)]
 ss = edge_to_adj(ss_edges, list(np.arange(4)))
 test1 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 assert(test1.edges() == chain.edges())  # 0->1->2->3
-test1 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
+test1 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False) # since partitions overlap, only add overlapping cand set
 print(test1.edges())
 assert list(test1.edges()) == G_star_edges  # 0->1->2->3
 
@@ -45,11 +44,11 @@ local_adj_mats = [
 test2 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 chain.add_edge(2, 1)
 assert test2.edges() == chain.edges()  # 0->1-2->3
-# test2 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
-# print(list(test2.edges()), G_star_edges)
-# assert (
-#     list(test2.edges()) == G_star_edges
-# )  # 0->1->2->3 
+test2 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False)
+print(list(test2.edges()), G_star_edges)
+assert (
+    list(test2.edges()) == G_star_edges
+)  # 0->1->2->3 
 
 # Comm1 has directed edge, Comm2 has no edge
 # Comm 1: 0->1->2
@@ -63,8 +62,8 @@ test3 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 chain.remove_edge(2, 1)
 chain.remove_edge(1, 2)
 assert test3.edges() == chain.edges()  # 0->1,2->3
-# test3 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
-# assert list(test3.edges()) == G_star_edges  # 0->1->2->3
+test3 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False)
+assert list(test3.edges()) == G_star_edges  # 0->1->2->3
 
 # Comm1 has no edge, Comm2 has directed edge
 # Comm 1: 0->1,2
@@ -77,8 +76,8 @@ local_adj_mats = [
 ]
 test4 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 assert test4.edges() == chain.edges()  # 0->1,2->3
-# test4 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
-# assert list(test4.edges()) == G_star_edges  # 0->1->2->3
+test4 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False)
+assert list(test4.edges()) == G_star_edges  # 0->1->2->3
 
 
 

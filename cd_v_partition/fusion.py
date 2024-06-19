@@ -389,11 +389,11 @@ def fusion(
         candidate_edges = []
         for pair_comm in all_comms:
             candidate_edges += list(itertools.product(pair_comm[0], pair_comm[1]))
+            candidate_edges += list(itertools.product(pair_comm[1], pair_comm[0]))
 
     else:
-        candidate_edges = list(itertools.combinations(overlaps, 2))
-
-    # First remove all candidate edges from the global graph so this does not interfere with correlation tests
+        candidate_edges = list(itertools.permutations(overlaps, 2))
+    # First remove all candidate edges in overlap from the global graph so this does not interfere with correlation tests
     # print("Global graph edges before discarding edges {}".format(len(global_graph.edges())))
     for i, j in candidate_edges:
         if global_graph.has_edge(j, i):
