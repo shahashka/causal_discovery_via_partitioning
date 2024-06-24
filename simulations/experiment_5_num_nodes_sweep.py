@@ -10,15 +10,15 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_5 = Experiment(16)
-    large_num_nodes = int(1e4)
-    dir = "simulations/experiment_5_refactor_multi_algs"
+    large_num_nodes = 100 #int(1e4)
+    dir = "simulations/experiment_5_refactor_multi_algs_small_time_test"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
-                               partition_fn=['modularity', 'edge_cover', 'expansive_causal', 'no_partition'],
+                               partition_fn=['no_partition'], #'modularity', 'edge_cover', 'expansive_causal', 
                                num_samples=[int(1e4)],
                                graph_kind="hierarchical", 
                                num_nodes=[large_num_nodes],
-                               causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"], 
+                               causal_learn_fn=["PC"],#["GES", "PC", "RFCI", "NOTEARS"], 
                                merge_fn=["screen"]
                                )
     

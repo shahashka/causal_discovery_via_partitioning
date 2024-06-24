@@ -99,6 +99,7 @@ def screen_projections_pag2cpdag(
 
     for comm_id, pag in enumerate(local_cd_adj_mats):
         for row, col in itertools.product(np.arange(pag.shape[0]), np.arange(pag.shape[1])):
+            print(row, col, partition[comm_id], pag.shape)
             global_row = partition[comm_id][row]
             global_col = partition[comm_id][col]
             # If edge does not exist in any PAG, remove it from the global CPDAG
@@ -192,7 +193,10 @@ def screen_projections(
         global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
 
     # global_graph = no edge if (no edge in comm1) or (no edge in comm2)
-    for comm, adj_comm in zip(partition.values(), local_cd_adj_mats):
+    k = list(partition.keys())
+    k.sort()
+    for i, adj_comm in zip(k, local_cd_adj_mats):
+        comm = partition[i]
         if len(comm) > 1:
             for row, col in itertools.product(
                 np.arange(adj_comm.shape[0]), np.arange(adj_comm.shape[0])
@@ -479,8 +483,10 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
         ...
     """
     local_cd_graphs = []
-    for part, adj in zip(partition.items(), local_cd_adj_mats):
-        _, node_ids = part
+    k = list(partition.keys())
+    k.sort()
+    for i, adj in zip(k, local_cd_adj_mats):
+        node_ids = partition[i]
         if len(node_ids) == 1:
             subgraph = nx.DiGraph()
             subgraph.add_nodes_from(node_ids)

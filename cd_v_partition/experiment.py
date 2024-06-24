@@ -10,8 +10,8 @@ import tqdm
 from numpy.random import RandomState
 import networkx as nx
 import cd_v_partition.utils as utils
-from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, rfci_local_learn, damga_local_learn
-from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess
+from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, rfci_local_learn, rfci_pag_local_learn, damga_local_learn
+from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess, screen_projections_pag2cpdag
 from cd_v_partition.overlapping_partition import (
     partition_problem,
     expansive_causal_partition,
@@ -238,7 +238,7 @@ class Experiment:
             case "GPS":
                 raise NotImplementedError(f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`")
             case "RFCI-PAG":
-                raise NotImplementedError(f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`")
+                return rfci_pag_local_learn
             case _:
                 raise ValueError(f"`{spec.causal_learn_fn=}` is an illegal value.`")
 
@@ -248,6 +248,9 @@ class Experiment:
             case "fusion":
                 return fusion
             case "screen":
-                return screen_projections
+                if spec.causal_learn_fn == "RFCI-PAG":
+                    return screen_projections_pag2cpdag
+                else:
+                    return screen_projections
             case _:
                 raise ValueError(f"`{spec.merge_fn=}` is an illegal value.`")
