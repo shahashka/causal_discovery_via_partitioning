@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
-
+from dagma.linear import DagmaLinear
 CUPC_DIR = Path("./cupc/cuPC.R")
 
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
@@ -28,11 +28,98 @@ base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
+def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+    """PC algorithm for a subproblem
 
+    Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): Tuple (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem    
+    skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        adj = np.zeros((1,1))
+    else:  
+        adj, _ = pc(data,skel=skel, alpha=1e-3, num_cores=8, outdir=None)
+    return adj 
+
+def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+    """GES algorithm for subproblem
+    
+    Use the local skeleton to restrict the search space
+
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjacency matrix
+    """
+    skel, data = subproblem
+    # FOR GES we always use the skeleton 
+    # if not use_skel:
+    #     skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        adj_mat = np.zeros((1,1))
+    else:
+        adj_mat = sp_gies(data, skel=skel, outdir=None)
+    return adj_mat
+
+def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+    """RFCI algorithm for a subproblem
+
+    Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem
+    skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        dag = np.zeros((1,1))
+    else:
+        pag, mag = rfci(data, skel=skel, alpha=1e-3, num_cores=8, outdir=None)
+        # if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
+        #     dag = pag # TODO PAG2DAG 
+        # else:
+        dag = mag2dag(mag)
+    return dag 
+
+def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+    """Dagma algorithm for a subproblem
+    
+    Faster version of NOTEARS with log-det acyclicity characterization
+
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: locally estimated adjancency matrix 
+    """
+
+    skel, data = subproblem
+    if not use_skel:
+        skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        adj = np.zeros((1,1))
+    else:
+        data = data.drop(columns=['target']).to_numpy()
+        model = DagmaLinear(loss_type='l2')
+        adj = model.fit(data, lambda1=0.02)
+    return adj
+    
 def pc(
-    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
+    data: pd.DataFrame, skel: np.ndarray, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""
+    """
     Python wrapper for the PC algorithm.
 
     Args:
@@ -52,11 +139,15 @@ def pc(
         significance level of each edge.
     """
     data = data.drop(columns=['target']).to_numpy(dtype=float)
-    print("Running multicore CPU implementation of PC algorithm")
     ro.r.assign("data", data)
     rcode = "cor(data)"
     corMat = ro.r(rcode)
     ro.r.assign("correlationMatrix", corMat)
+    
+    fixed_gaps = np.array((skel == 0), dtype=int)
+    nr, nc = fixed_gaps.shape
+    FG = ro.r.matrix(fixed_gaps, nrow=nr, ncol=nc)
+    ro.r.assign("fixed_gaps", FG)
 
     p = data.shape[1]
     ro.r.assign("p", p)
@@ -66,7 +157,7 @@ def pc(
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'pc(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    rcode = 'pc(suffStat,fixedGaps=fixed_gaps, p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores, verbose=FALSE)'
     pc_fit = ro.r(rcode)
     ro.r.assign("pc_fit", pc_fit)
 
@@ -85,11 +176,11 @@ def pc(
 
 
 
-def fci(
-    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
+def rfci(
+    data: pd.DataFrame, skel: np.ndarray, outdir: Path | str, alpha: float = 1e-3 , num_cores: int = 8
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""
-    Python wrapper for the FCI algorithm.
+    Python wrapper for the RFCI algorithm (faster version of FCI).
 
     Args:
         data (pd.DataFrame): DataFrame containing observational and interventional samples.
@@ -116,24 +207,57 @@ def fci(
     p = data.shape[1]
     ro.r.assign("p", p)
 
+    fixed_gaps = np.array((skel == 0), dtype=int)
+    nr, nc = fixed_gaps.shape
+    FG = ro.r.matrix(fixed_gaps, nrow=nr, ncol=nc)
+    ro.r.assign("fixed_gaps", FG)
+
     rcode = "list(C = correlationMatrix, n = nrow(data))"
     suffStat = ro.r(rcode)
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'fci(suffStat,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
-    pc_fit = ro.r(rcode)
-    ro.r.assign("fci_fit", pc_fit)
+    rcode = 'rfci(suffStat,fixedGaps=fixed_gaps,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    rfci_fit = ro.r(rcode)
+    
+    ro.r.assign("rfci_fit", rfci_fit)
 
-    rcode = 'as(fci_fit@amat, "matrix")'
+    rcode = 'as(rfci_fit@amat, "matrix")'
     pag = ro.r(rcode)
     ro.r.assign("pag", pag)
-
+    rcode = 'pag2magAM(pag, 0, verbose=FALSE)'
+    mag = ro.r(rcode)
     if outdir:
         d = str(outdir)
-        rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'fci-adj_mat.csv',sep = ''))"
+        rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'rfci-adj_mat.csv',sep = ''))"
         ro.r(rcode)
-    return pag
+        
+    return pag, mag
+
+def mag2dag(mag: np.ndarray) -> np.ndarray:
+    """
+    Convert a MAG adjacency matrix to a DAG by removing bidirected edges
+
+    Args:
+        mag (np.ndarray): Adjancency matrix for MAG, contains directed and bidirected edges
+
+    Returns:
+        np.ndarray: Adjacency for corresponding DAG without bidirected edges
+    """
+    # In the MAG representation (output of pag2mag) the edges mean:
+    # mag[i,j] = 0 iff no edge btw i,j
+    # mag[i.j] = 2 iff i *-> j
+    # mag[i,j] = 3 iff i *-- j
+    
+    for i in range(mag.shape[0]):
+        for j in range(mag.shape[1]):
+            if mag[i,j] == 2 and mag[j,i] == 3:
+                mag[i,j] = 1
+                mag[j,i] = 0
+            elif mag[i,j] ==2 and mag[j,i] == 2:
+                mag[i,j] = 0
+                mag[j,i] = 0
+    return mag
 
 
 
@@ -341,3 +465,10 @@ def weight_colliders(adj_mat: np.ndarray, weight: int = 1):
                     weighted_adj_mat[i, col] = weight
                     weighted_adj_mat[j, col] = weight
     return weighted_adj_mat
+
+def make_skel_symmetric(skel: np.ndarray):
+    for i in range(skel.shape[0]):
+        for j in range(skel.shape[0]):
+            if skel[i][j] !=0:
+                skel[j][i] = skel[i][j]   
+    return skel

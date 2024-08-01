@@ -11,7 +11,7 @@ import copy
 if __name__ == "__main__":
     exp_5 = Experiment(16)
     large_num_nodes = int(1e4)
-    dir = "simulations/experiment_5_refactor_multi_algs"
+    dir = "simulations/experiment_5_refactor_multi_algs_fixed_comm"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
                                partition_fn=['modularity', 'edge_cover', 'expansive_causal', 'no_partition'],
@@ -19,7 +19,10 @@ if __name__ == "__main__":
                                graph_kind="hierarchical", 
                                num_nodes=[large_num_nodes],
                                causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"], 
-                               merge_fn=["screen"]
+                               merge_fn=["screen"],
+                               partition_resolution=5,
+                               partition_best_n=int(large_num_nodes/10),
+                               partition_cutoff=int(large_num_nodes/10)
                                )
     
     sim_cfg_pef = copy.copy(sim_cfg)

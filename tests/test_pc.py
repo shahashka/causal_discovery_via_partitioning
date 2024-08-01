@@ -1,9 +1,8 @@
-from cd_v_partition.causal_discovery import pc, cu_pc, weight_colliders, fci
+from cd_v_partition.causal_discovery import pc, cu_pc, weight_colliders, rfci_local_learn, rfci
 from cd_v_partition.utils import get_data_from_graph, get_scores, edge_to_adj
 import numpy as np
 import itertools
-from causallearn.search.ConstraintBased.FCI import fci
-
+#from causallearn.search.ConstraintBased.FCI import fci
 """
     Create a simple 10 node graph with 2 colliders 
     Make sure the PC algorithm finds the skeleton + colliders
@@ -13,7 +12,9 @@ from causallearn.search.ConstraintBased.FCI import fci
 """
 
 nodes = np.arange(10)
-edges = [(0, 3), (0, 4), (0, 5), (1, 5), (1, 6), (1, 7), (1, 8), (2, 8), (2, 9)]
+edges = [(0, 3), (0, 4), (0, 5),
+         (1, 5), (1, 6), (1, 7), (1, 8),
+         (2, 8), (2, 9)]
 (arcs, _, _, _), data = get_data_from_graph(
     nodes, edges, nsamples=int(1e6), iv_samples=0, save=False, outdir="./tests"
 )
@@ -57,9 +58,13 @@ for row, col in itertools.product(np.arange(pdag.shape[0]), np.arange(pdag.shape
 # assert (pdag_gpu == pdag).all()
 # assert (np.abs(np.abs(p_values_gpu) - np.abs(p_values)) < 1e-4).all()
 data_subset = data.drop(data.columns[2], axis=1)
-data_subset = data_subset.drop(columns=['target'])
+#data_subset = data_subset.drop(columns=['target'])
 # print(data_subset.shape)
 
-g, edges = fci(data_subset.to_numpy())
-print(g.graph)
+# g, edges = fci(data_subset.to_numpy())
+# print(g.graph)
+dag = rfci_local_learn((np.ones((10,10)), data_subset))
+print(dag) # gets 2 edges wrong (wrong direction that don't correspond to colliders) 
+pag, mag = rfci(data_subset, None)
+print(pag)
 print("All tests passed!")

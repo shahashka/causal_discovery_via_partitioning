@@ -38,14 +38,50 @@ def remove_edges_not_in_ss(
     target_graph.add_edges_from(target_edges_in_superstructure)
     return target_graph
 
+def no_partition_postprocess(
+    ss: np.ndarray,
+    est_adj_mat: np.ndarray,
+    ss_subset: bool =True,
+) -> np.ndarray:
+    """Method to postprocess the graph when there is no partition. 
+    
+    If the ss_subset flag is set then remove all edges that are not in 
+    the provided supserstructure, otherwise return the estimated adjacency
+    matrix as is. 
+
+    Args:
+        ss (np.ndarray): adjacency matrix for superstructure
+        est_adj_mat (np.ndarray): estimated adjacency matrix
+        ss_subset (bool, optional): Flag to filter out edges not in the superstructure. Defaults to True.
+
+    Returns:
+        np.ndarray: The resultant graph as an adjancency matrix
+    """
+    if ss_subset:
+        ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
+        est_DiGraph = nx.from_numpy_array(
+            est_adj_mat, create_using=nx.DiGraph
+        )
+        subselected_serial_DiGraph = remove_edges_not_in_ss(
+            est_DiGraph, ss_graph
+        )
+        # convert back to numpy array
+        est_adj_mat = nx.to_numpy_array(
+            subselected_serial_DiGraph,
+            nodelist=np.arange(len(subselected_serial_DiGraph.nodes())),
+        )
+    return est_adj_mat
 
 def screen_projections(
     ss: np.ndarray,
     partition: dict[Any, Any],
     local_cd_adj_mats: list[np.ndarray],
-    ss_subset=True,
-    finite_lim=True,
-    data=None,
+    ss_subset:bool =True,
+    finite_lim : bool = True,
+    data:np.ndarray =None,
+    full_cand_set: bool = False,
+
+    
 ) -> nx.DiGraph:
     """
     Fuse subgraphs by taking the union and resolving conflicts by favoring no edge over
@@ -60,7 +96,7 @@ def screen_projections(
         finite_lim (bool): whether to include adaptations to finite limit setting, including
         resolving bidirected edges using RIC score and cycle detection/deletion.
         data (None or np.ndarray): if finite_lim==True, we need data to use RIC score
-
+        full_cand_set (bool): unused flag
     Returns:
         nx.DiGraph: the final global directed graph with all nodes and edges
     """
@@ -215,19 +251,28 @@ def fusion(
     ss: np.ndarray,
     partition: dict[Any, Any],
     local_cd_adj_mats: list[np.ndarray],
-    data: np.ndarray, ss_subset=False,
+    data: np.ndarray,
+    ss_subset=False,
+    finite_lim: bool=False,
     full_cand_set: bool = False,
 ):
     """
     Fuse subgraphs by taking the union and resolving conflicts by taking the lower
     scoring edge. Ensure that the edge added does not create a cycle
+    
+    Resolving bidirected edges using RIC score and cycle detection/deletion.
 
     Args:
         ss (np.ndarray): adjacency matrix for the super structure
-        partition (dict): the partition as a dictionary {comm_id : [nodes]}
-
+        partition (dict[Any, Any]): the partition as a dictionary {comm_id : [nodes]}
         local_cd_adj_mats (list[np.ndarray]): list of adjacency matrices for each local subgraph
-        data (): ...
+        ss_subset (bool): whether to only include edges in global_graph which are in ss
+        finite_lim (bool): unused flag
+        data (None or np.ndarray): if finite_lim==True, we need data to use RIC score
+        full_cand_set (bool): Flag to condition on the all nodes in the graph when determining
+                             if an edge exists between two nodes in different subsets. 
+                              If False, will only condition on nddes in overlapping sets.
+                              Default to False.
 
     Returns:
         nx.DiGraph: the final global directed graph with all nodes and edges
