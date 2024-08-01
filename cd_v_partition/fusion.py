@@ -99,7 +99,6 @@ def screen_projections_pag2cpdag(
 
     for comm_id, pag in enumerate(local_cd_adj_mats):
         for row, col in itertools.product(np.arange(pag.shape[0]), np.arange(pag.shape[1])):
-            print(row, col, partition[comm_id], pag.shape)
             global_row = partition[comm_id][row]
             global_col = partition[comm_id][col]
             # If edge does not exist in any PAG, remove it from the global CPDAG
