@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 from dagma.linear import DagmaLinear
+from dagma.nonlinear import DagmaNonlinear, DagmaMLP
+import torch
 CUPC_DIR = Path("./cupc/cuPC.R")
 
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
@@ -111,9 +113,13 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: boo
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:
-        data = data.drop(columns=['target']).to_numpy()
+        data = data.drop(columns=['target']).to_numpy(dtype=np.float64)
         model = DagmaLinear(loss_type='l2')
         adj = model.fit(data, lambda1=0.02)
+        
+        # eq_model = DagmaMLP(dims=[data.shape[1], 5, 1], bias=True, dtype=torch.double) # create the model for the structural equations, in this case MLPs
+        # model = DagmaNonlinear(eq_model, dtype=torch.double) # create the model for DAG learning
+        # adj = model.fit(data, lambda1=0.02, lambda2=0.005)
     return adj
     
 def pc(
@@ -372,11 +378,11 @@ def sp_gies(
 
     fixed_gaps = np.array((skel == 0), dtype=int)
     target_index = data.loc[:, "target"].to_numpy()
-    targets = (
-        multifactor_targets if multifactor_targets else np.unique(target_index)[1:]
-    )  # Remove 0 the observational target
-    # TODO with interventional data do the names and target_ids match?
-    target_index_R = target_index + 1  # R indexes from 1
+    targets = list(
+        multifactor_targets if multifactor_targets else np.unique(target_index)
+    )  
+    target_index_R = [targets.index(i)+1 for i in target_index] # index into target array 
+    targets = targets[1:] # 0 value is handled separately in R code 
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
 
     nr, nc = data.shape

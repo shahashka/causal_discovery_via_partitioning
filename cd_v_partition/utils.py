@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from graphical_models import rand, GaussDAG
 from numpy.random import RandomState
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, confusion_matrix
 
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
@@ -131,7 +131,24 @@ def tpr_fpr_score(
     fpr, tpr, _ = roc_curve(y_true.flatten(), y_pred.flatten())
     return tpr[1], fpr[1]
 
-
+def get_confusion_matrix(est_dag, true_dag):
+    if type(true_dag) == nx.DiGraph:
+        true_dag = nx.adjacency_matrix(
+            true_dag, nodelist=np.arange(len(true_dag.nodes()))
+        ).todense()
+    true_dag = (true_dag != 0).astype(int)
+    if type(est_dag) == nx.DiGraph:
+            est_dag = nx.adjacency_matrix(est_dag)
+            est_dag = est_dag.todense()
+    if type(true_dag) == nx.DiGraph:
+        true_dag = nx.adjacency_matrix(true_dag)
+        true_dag = true_dag.todense()
+    est_dag = np.array(est_dag != 0, dtype=int).flatten()
+    true_dag = np.array(true_dag != 0, dtype=int).flatten()
+    tn, fp, fn, tp = confusion_matrix(true_dag, est_dag).ravel()
+    return {"tn":tn, "fp":fp, "fn":fn, "tp":tp}
+    
+    
 def get_scores(
     alg_names: list[str],
     networks: list[np.ndarray] | list[nx.DiGraph],
@@ -173,11 +190,11 @@ def get_scores(
         auc, pr = cdt.metrics.precision_recall(ground_truth, net)
         shd = cdt.metrics.SHD(ground_truth, net, False)
 
-        # print(
-        #     "{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(
-        #         name, shd, sid, auc, tpr_fpr
-        #     )
-        # )
+        print(
+            "{} SHD: {} SID: {} AUC: {}, TPR,FPR: {}".format(
+                name, shd, sid, auc, tpr_fpr
+            )
+        )
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
 
 
