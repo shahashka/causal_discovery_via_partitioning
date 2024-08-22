@@ -9,7 +9,7 @@ from cd_v_partition.vis_experiment import vis_experiment
 import numpy as np
 import copy
 if __name__ == "__main__":
-    exp_1 = Experiment(1)
+    exp_1 = Experiment(2)
     dir = "simulations/experiment_base"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
