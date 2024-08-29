@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from graphical_models import rand, GaussDAG
 from numpy.random import RandomState
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, confusion_matrix
 
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
@@ -131,7 +131,31 @@ def tpr_fpr_score(
     fpr, tpr, _ = roc_curve(y_true.flatten(), y_pred.flatten())
     return tpr[1], fpr[1]
 
+def get_confusion_matrix(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+) -> tuple[int, int, int, int]:
+    if type(y_pred) == nx.DiGraph:
+        y_pred = nx.adjacency_matrix(y_pred)
+        y_pred = y_pred.todense()
+    if type(y_true) == nx.DiGraph:
+        y_true = nx.adjacency_matrix(y_true)
+        y_true = y_true.todense()
+    y_pred = np.array(y_pred != 0, dtype=int).flatten()
+    y_true = np.array(y_true != 0, dtype=int).flatten()
+    tn, fp, fn, tp  = confusion_matrix(y_true, y_pred).ravel()
+    return {'tn':tn, 'fp': fp, 'fn': fn, 'tp':tp}
 
+def shd(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+) -> int:
+    if type(y_pred) == nx.DiGraph:
+        y_pred = nx.adjacency_matrix(y_pred)
+        y_pred = y_pred.todense()
+    if type(y_true) == nx.DiGraph:
+        y_true = nx.adjacency_matrix(y_true)
+        y_true = y_true.todense()
+    y_pred = np.array(y_pred != 0, dtype=int).flatten()
+    y_true = np.array(y_true != 0, dtype=int).flatten()
+    return np.sum(np.abs(y_true-y_pred))
+    
 def get_scores(
     alg_names: list[str],
     networks: list[np.ndarray] | list[nx.DiGraph],
@@ -179,6 +203,8 @@ def get_scores(
         #     )
         # )
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
+
+
 
 
 def get_random_graph_data(

@@ -173,3 +173,4 @@ cython_debug/
 #.idea/
 /out/
 quickstart/out/
+packrat/lib*/

@@ -18,7 +18,7 @@ if __name__ == "__main__":
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["RFCI", "PC", "RFCI", "NOTEARS"], 
+                               causal_learn_fn=["RFCI", "PC", "GES", "NOTEARS"], 
                                merge_fn=["screen"],
                                )
     
