@@ -96,7 +96,7 @@ jobs:
   test-container:
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      image: ghcr.io/${{ github.repository }}
       credentials:
        username: ${{ github.actor }}
        password: ${{ secrets.github_token }}
