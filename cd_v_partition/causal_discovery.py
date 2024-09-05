@@ -50,7 +50,7 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) 
         adj, _ = pc(data,skel=skel, alpha=1e-3, num_cores=8, outdir=None)
     return adj 
 
-def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, reg:float=0.5) -> np.ndarray:
     """GES algorithm for subproblem
     
     Use the local skeleton to restrict the search space
@@ -68,7 +68,7 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool)
     if skel.shape[0] == 1:
         adj_mat = np.zeros((1,1))
     else:
-        adj_mat = sp_gies(data, skel=skel, outdir=None)
+        adj_mat = sp_gies(data, skel=skel, adaptive=False, outdir=None, reg=reg)
     return adj_mat
 
 def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
@@ -333,6 +333,7 @@ def sp_gies(
     use_pc: bool = True,
     multifactor_targets: list[list[Any]] = None,
     adaptive: bool = True,
+    reg: float = 0.5
 ):
     r"""
     Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
@@ -378,11 +379,12 @@ def sp_gies(
 
     fixed_gaps = np.array((skel == 0), dtype=int)
     target_index = data.loc[:, "target"].to_numpy()
-    targets = list(
-        multifactor_targets if multifactor_targets else np.unique(target_index)
-    )  
-    target_index_R = [targets.index(i)+1 for i in target_index] # index into target array 
-    targets = targets[1:] # 0 value is handled separately in R code 
+    targets = multifactor_targets if multifactor_targets else np.unique(target_index)
+    targets = list(targets+1)
+    # index into target array, we add 1 bc R indexes from 1 
+    target_index_R = [targets.index(i+1)+1 for i in target_index] 
+    np.savetxt("index.txt", np.array(target_index_R))
+    targets = targets[1:] # 0 value is handled separately in R code, R indexes from 1
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
 
     nr, nc = data.shape
@@ -399,6 +401,7 @@ def sp_gies(
             for i in targets
         )
         rcode = "append(list(integer(0)), list({}))".format(rcode)
+        #rcode = "list({})".format(rcode)
         T = ro.r(rcode)
         ro.r.assign("targets", T)
     else:
@@ -408,15 +411,20 @@ def sp_gies(
 
     TI = ro.IntVector(target_index_R)
     ro.r.assign("target_index", TI)
-
+    # print(T)
+    # print(TI)
     nr, nc = fixed_gaps.shape
     FG = ro.r.matrix(fixed_gaps, nrow=nr, ncol=nc)
     ro.r.assign("fixed_gaps", FG)
     if data.shape[1] > 1:
-        score = ro.r.new(
-            "GaussL0penIntScore", ro.r["data"], ro.r["targets"], ro.r["target_index"]
-        )
-        ro.r.assign("score", score)
+        # score = ro.r.new(
+        #     "GaussL0penIntScore", ro.r["data"], ro.r["targets"], ro.r["target_index"],reg*np.log(data.shape[0])
+
+        # )
+        # ro.r.assign("score", score)
+        ro.r.assign("reg", reg)
+        rcode = 'score = new("GaussL0penIntScore", data=data, targets=targets, target.index=target_index,lambda=reg*log(nrow(data)) )'
+        ro.r(rcode)
         if adaptive:
             result = pcalg.gies(
                 ro.r["score"],

@@ -1,47 +1,61 @@
-asttokens==2.4.1
-backcall==0.2.0
-backports.zoneinfo==0.2.1
-black==23.12.1
-causal-learn==0.1.3.7
+ananke==0.1
+antlr4-python3-runtime==4.9.3
+asttokens @ file:///home/conda/feedstock_root/build_artifacts/asttokens_1698341106958/work
+autograd==1.6.2
+backcall @ file:///home/conda/feedstock_root/build_artifacts/backcall_1592338393461/work
+bnlearn==0.8.9
 causaldag==0.1a163
-certifi==2023.7.22
+cd-v-partition @ file:///nfs/lambda_stor_01/homes/shahashka/causal_discovery_via_partitioning
+cdt==0.6.0
+certifi==2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
-click==8.1.7
+comm==0.2.2
 conditional-independence==0.1a6
-contourpy==1.1.1
 cycler==0.12.1
+dagma==1.1.1
 dataclasses==0.6
-decorator==5.1.1
+datazets==0.1.9
+debugpy @ file:///home/conda/feedstock_root/build_artifacts/debugpy_1722923764973/work
+decorator @ file:///home/conda/feedstock_root/build_artifacts/decorator_1641555617451/work
+df2onehot==1.0.7
 einops==0.7.0
-executing==2.0.1
-filelock==3.13.1
-fonttools==4.44.0
-frozendict==2.3.8
-fsspec==2023.10.0
-future==0.18.3
+entrypoints @ file:///home/conda/feedstock_root/build_artifacts/entrypoints_1643888246732/work
+exceptiongroup==1.2.1
+executing @ file:///home/conda/feedstock_root/build_artifacts/executing_1698579936712/work
+filelock==3.13.4
+fonttools==4.51.0
+frozendict==2.4.2
+fsspec==2024.3.1
+funcsigs==1.0.2
+future==1.0.0
 GPUtil==1.4.0
 grandalf==0.8
 graphical-model-learning==0.1a8
-graphical-models==0.1a19
-graphviz==0.20.1
-idna==3.4
-importlib-resources==6.1.1
+graphical-models==0.1a21
+idna==3.7
+igraph==0.11.4
 ipdb==0.13.13
-ipython==8.12.3
-jedi==0.19.1
-Jinja2==3.1.2
-joblib==1.3.2
+ipykernel @ file:///home/conda/feedstock_root/build_artifacts/ipykernel_1655241617783/work
+ipython==8.23.0
+ipywidgets==8.1.3
+ismember==1.0.5
+jedi @ file:///home/conda/feedstock_root/build_artifacts/jedi_1696326070614/work
+Jinja2==3.1.3
+joblib==1.4.0
+jupyter-client @ file:///home/conda/feedstock_root/build_artifacts/jupyter_client_1654730843242/work
+jupyter_core @ file:///home/conda/feedstock_root/build_artifacts/jupyter_core_1710257277185/work
+jupyterlab_widgets==3.0.11
 kiwisolver==1.4.5
-MarkupSafe==2.1.3
+MarkupSafe==2.1.5
 matplotlib==3.5.3
-matplotlib-inline==0.1.6
+matplotlib-inline @ file:///home/conda/feedstock_root/build_artifacts/matplotlib-inline_1713250518406/work
 mpmath==1.3.0
-mypy-extensions==1.0.0
-netgraph==4.12.11
-networkx==3.1
-numexpr==2.8.6
-numpy==1.24.4
+nest_asyncio @ file:///home/conda/feedstock_root/build_artifacts/nest-asyncio_1705850609492/work
+netgraph==4.13.2
+networkx==3.3
+numexpr==2.10.0
+numpy==1.25.2
 nvidia-cublas-cu12==12.1.3.1
 nvidia-cuda-cupti-cu12==12.1.105
 nvidia-cuda-nvrtc-cu12==12.1.105
@@ -51,58 +65,62 @@ nvidia-cufft-cu12==11.0.2.54
 nvidia-curand-cu12==10.3.2.106
 nvidia-cusolver-cu12==11.4.5.107
 nvidia-cusparse-cu12==12.1.0.106
-nvidia-nccl-cu12==2.18.1
-nvidia-nvjitlink-cu12==12.3.52
+nvidia-nccl-cu12==2.20.5
+nvidia-nvjitlink-cu12==12.4.127
 nvidia-nvtx-cu12==12.1.105
+omegaconf==2.3.0
 opt-einsum==3.3.0
-packaging==23.2
+packaging==24.0
+paho-mqtt==2.1.0
 pandas==1.5.3
-parso==0.8.3
-pathspec==0.12.1
-patsy==0.5.3
-pexpect==4.8.0
-pgmpy==0.1.24
-pickleshare==0.7.5
-Pillow==10.1.0
-platformdirs==4.1.0
-progressbar2==4.2.0
-prompt-toolkit==3.0.40
-ptyprocess==0.7.0
+parso @ file:///home/conda/feedstock_root/build_artifacts/parso_1712320355065/work
+patsy==0.5.6
+pexpect @ file:///home/conda/feedstock_root/build_artifacts/pexpect_1706113125309/work
+pgmpy==0.1.25
+pickleshare @ file:///home/conda/feedstock_root/build_artifacts/pickleshare_1602536217715/work
+pillow==10.3.0
+platformdirs @ file:///home/conda/feedstock_root/build_artifacts/platformdirs_1715777629804/work
+progressbar2==4.4.2
+prompt-toolkit==3.0.43
+psutil @ file:///home/conda/feedstock_root/build_artifacts/psutil_1719274566094/work
+ptyprocess @ file:///home/conda/feedstock_root/build_artifacts/ptyprocess_1609419310487/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl
 pure-eval==0.2.2
-#pycausal==1.2.1
-pycparser==2.21
-pydot==2.0.0
+pycparser==2.22
 pygam==0.8.0
-Pygments==2.16.1
-pyparsing==3.1.1
-python-dateutil==2.8.2
-python-utils==3.8.1
-pytz==2023.3.post1
+Pygments==2.17.2
+pyparsing==3.1.2
+pypickle==1.1.0
+python-dateutil @ file:///home/conda/feedstock_root/build_artifacts/python-dateutil_1709299778482/work
+python-louvain==0.16
+python-utils==3.8.2
+pytz==2024.1
+PyYAML==6.0.1
+pyzmq @ file:///home/conda/feedstock_root/build_artifacts/pyzmq_1724088076295/work
 rectangle-packer==2.0.2
 requests==2.31.0
-rpy2==3.5.14
-scikit-learn==1.3.2
+rpy2==3.5.16
+scikit-learn==1.4.2
 scipy==1.9.3
-seaborn==0.13.1
-six==1.16.0
+seaborn==0.13.2
+six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
 skrebate==0.62
-stack-data==0.6.3
-statsmodels==0.14.0
+stack-data @ file:///home/conda/feedstock_root/build_artifacts/stack_data_1669632077133/work
+statsmodels==0.14.2
 sympy==1.12
-threadpoolctl==3.2.0
+tabulate==0.9.0
+texttable==1.7.0
+threadpoolctl==3.4.0
 tomli==2.0.1
-torch==2.1.0
-tqdm==4.66.1
-traitlets==5.13.0
-triton==2.1.0
+torch==2.3.0
+tornado @ file:///home/conda/feedstock_root/build_artifacts/tornado_1648827254365/work
+tqdm==4.66.2
+traitlets @ file:///home/conda/feedstock_root/build_artifacts/traitlets_1713535121073/work
+triton==2.3.0
 typing==3.7.4.3
-typing_extensions==4.8.0
-tzdata==2023.3
+typing_extensions==4.11.0
 tzlocal==5.2
-urllib3==2.1.0
-wcwidth==0.2.9
-xgboost==2.0.2
-zipp
-seaborn
-dagma
-omegaconf
+urllib3==2.2.1
+wcwidth @ file:///home/conda/feedstock_root/build_artifacts/wcwidth_1704731205417/work
+widgetsnbextension==4.0.11
+xgboost==2.0.3
+xlrd==2.0.1

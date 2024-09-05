@@ -131,23 +131,30 @@ def tpr_fpr_score(
     fpr, tpr, _ = roc_curve(y_true.flatten(), y_pred.flatten())
     return tpr[1], fpr[1]
 
-def get_confusion_matrix(est_dag, true_dag):
-    if type(true_dag) == nx.DiGraph:
-        true_dag = nx.adjacency_matrix(
-            true_dag, nodelist=np.arange(len(true_dag.nodes()))
-        ).todense()
-    true_dag = (true_dag != 0).astype(int)
-    if type(est_dag) == nx.DiGraph:
-            est_dag = nx.adjacency_matrix(est_dag)
-            est_dag = est_dag.todense()
-    if type(true_dag) == nx.DiGraph:
-        true_dag = nx.adjacency_matrix(true_dag)
-        true_dag = true_dag.todense()
-    est_dag = np.array(est_dag != 0, dtype=int).flatten()
-    true_dag = np.array(true_dag != 0, dtype=int).flatten()
-    tn, fp, fn, tp = confusion_matrix(true_dag, est_dag).ravel()
-    return {"tn":tn, "fp":fp, "fn":fn, "tp":tp}
-    
+def get_confusion_matrix(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+) -> tuple[int, int, int, int]:
+    if type(y_pred) == nx.DiGraph:
+        y_pred = nx.adjacency_matrix(y_pred)
+        y_pred = y_pred.todense()
+    if type(y_true) == nx.DiGraph:
+        y_true = nx.adjacency_matrix(y_true)
+        y_true = y_true.todense()
+    y_pred = np.array(y_pred != 0, dtype=int).flatten()
+    y_true = np.array(y_true != 0, dtype=int).flatten()
+    tn, fp, fn, tp  = confusion_matrix(y_true, y_pred).ravel()
+    return {'tn':tn, 'fp': fp, 'fn': fn, 'tp':tp}
+
+def shd(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+) -> int:
+    if type(y_pred) == nx.DiGraph:
+        y_pred = nx.adjacency_matrix(y_pred)
+        y_pred = y_pred.todense()
+    if type(y_true) == nx.DiGraph:
+        y_true = nx.adjacency_matrix(y_true)
+        y_true = y_true.todense()
+    y_pred = np.array(y_pred != 0, dtype=int).flatten()
+    y_true = np.array(y_true != 0, dtype=int).flatten()
+    return np.sum(np.abs(y_true-y_pred))
     
 def get_scores(
     alg_names: list[str],
@@ -196,6 +203,8 @@ def get_scores(
             )
         )
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
+
+
 
 
 def get_random_graph_data(
