@@ -9,6 +9,7 @@ import pandas as pd
 import tqdm
 from numpy.random import RandomState
 import networkx as nx
+from cd_v_partition.vis_partition import create_partition_plot
 import cd_v_partition.utils as utils
 from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, rfci_local_learn, rfci_pag_local_learn, damga_local_learn
 from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess, screen_projections_pag2cpdag
@@ -64,7 +65,9 @@ class Experiment:
                     outdir.mkdir(parents=True)
                 
                 # Create checkpoint object and save
-                np.savetxt(outdir / "chkpoint.txt", fut.result())
+                np.savetxt(outdir / "chkpoint.txt", fut.result()[0])
+                np.savetxt(outdir / "sizes.txt", fut.result()[1])
+
                 # spec.to_yaml(outdir / '..'/ 'spec.yaml')         # TODO this is hanging  
                 # print('done yaml save')
                 progressbar.update()
@@ -139,7 +142,8 @@ class Experiment:
             
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
-            
+            print(partition_sizes)
+        #return np.zeros(6), partition_sizes
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
@@ -155,7 +159,7 @@ class Experiment:
         out_data = np.zeros(6)
         out_data[0:5] = scores
         out_data[5] = total_time
-        return out_data
+        return out_data, partition_sizes
     
         
     @staticmethod

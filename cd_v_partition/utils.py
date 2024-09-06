@@ -472,7 +472,7 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
     # The number of attached nodes is given by a probability distribution over
     # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
     # in the community
-    A = np.min([dmax, 4])
+    A = np.min([dmax, 2])
     in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
     leftover = n - sum(in_degree_a)
     in_degree_a[-1] += leftover
@@ -480,6 +480,7 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
 
     # Add connections from one community to the previous communities based on probability distribution
     num_edges = rho * n**2 * k
+    print(num_edges)
     while num_edges > 0:
         for t in range(1, k):
             for i in range(n):

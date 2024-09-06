@@ -11,21 +11,23 @@ import copy
 if __name__ == "__main__":
     exp_5 = Experiment(16)
     large_num_nodes = int(1e4)
-    num_communities = 1000
-    dir = "simulations/experiment_5_refactor_multi_algs_small_comms"
+    num_communities = 500
+    dir = "simulations/experiment_5_refactor_multi_algs_small_comms_20"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
                                partition_fn=['modularity', 'edge_cover', 'expansive_causal'],#, 'no_partition'],
                                num_samples=[int(1e4)],
                                graph_kind="erdos_renyi", 
                                num_nodes=[large_num_nodes],
-                               causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"], 
+                               causal_learn_fn=[ "NOTEARS", "GES", "PC", "RFCI","RFCI-PAG"],
                                merge_fn=["screen"],
                                partition_resolution=5,
+                               num_communities=num_communities,
                                partition_best_n=num_communities,
                                partition_cutoff=num_communities, 
                                comm_edge_prob=[num_communities*[0.5]],
-                               comm_pop = [num_communities*[1]]
+                               comm_pop = [num_communities*[1]],
+                               inter_edge_prob=[1e-8]
                                )
     
     sim_cfg_pef = copy.copy(sim_cfg)
@@ -35,9 +37,9 @@ if __name__ == "__main__":
     sim_cfg_pef.merge_full_cand_set = [True]
     
     exp_5.run(sim_cfg, random_state=1)
-    exp_5.run(sim_cfg_pef, random_state=1)
+    #exp_5.run(sim_cfg_pef, random_state=1)
     for cd_alg in sim_cfg.causal_learn_fn:
-        vis_experiment(5, dir, sim_cfg.partition_fn + sim_cfg_pef.partition_fn,
+        vis_experiment(5, dir, sim_cfg.partition_fn,
                        cd_alg, sim_cfg.graph_per_spec, "num_nodes", sim_cfg.num_nodes)
 
     
