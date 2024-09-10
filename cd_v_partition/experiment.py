@@ -75,7 +75,7 @@ class Experiment:
     def run_serial(self, cfg: SimulationConfig, random_state: RandomState | int | None = None):
         random_state = utils.load_random_state(random_state)
         #date = datetime.datetime.now()
-        progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg))
+        progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg), desc='Working on experiment configurations...')
         for trial in range(cfg.graph_per_spec):
             seed = trial
             for spec_id, spec in enumerate(cfg):
@@ -84,7 +84,8 @@ class Experiment:
                 if not outdir.exists():
                     outdir.mkdir(parents=True)
                 
-                np.savetxt(outdir / "chkpoint.txt", scores)
+                np.savetxt(outdir / "chkpoint.txt", scores[0])
+                np.savetxt(outdir / "sizes.txt", scores[1])
                # spec.to_yaml(outdir / '..' / 'spec.yaml')  
                 progressbar.update()         
 
@@ -143,9 +144,12 @@ class Experiment:
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
             print(partition_sizes)
+        # return np.zeros(6), partition_sizes
+            progressbar = tqdm.tqdm(total=len(subproblems), desc="Working on subproblems...")
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
+                    progressbar.update()
             print("CD done")
             # Merge
             out_adj = merge_alg(ss=super_struct,partition=partition, local_cd_adj_mats=results,

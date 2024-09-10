@@ -445,58 +445,60 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
     random_state = load_random_state(random_state)
-    # if graph_type=='erdos_renyi':
-    #     return stochastic_block_model(n, p_list, k, rho, random_state=random_state)
-    comms = []
-    for i in np.arange(k):
-        if type(m_list) == int:
-            m = m_list
-        else:
-            m = m_list[i]
-        if type(p_list) == int:
-            p = p_list
-        else:
-            p = p_list[i]
-        comm_k = get_random_graph_data(
-            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
-        )[0][0]
+    if False:#graph_type=='erdos_renyi':
+        comm_graph = stochastic_block_model(n, p_list, k, rho, random_state=random_state)
+        init_partition = None
+    else:
+        comms = []
+        for i in np.arange(k):
+            if type(m_list) == int:
+                m = m_list
+            else:
+                m = m_list[i]
+            if type(p_list) == int:
+                p = p_list
+            else:
+                p = p_list[i]
+            comm_k = get_random_graph_data(
+                graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
+            )[0][0]
 
-        comms.append(nx.DiGraph(comm_k))
+            comms.append(nx.DiGraph(comm_k))
 
-    # connect the communities using preferential attachment
-    degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
-    dmax = max(degree_sequence)
+        # connect the communities using preferential attachment
+        degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
+        dmax = max(degree_sequence)
 
-    # First add all communities as disjoint graphs
-    comm_graph = nx.disjoint_union_all(comms)
+        # First add all communities as disjoint graphs
+        comm_graph = nx.disjoint_union_all(comms)
 
-    # Each node is preferentially attached to other nodes
-    # The number of attached nodes is given by a probability distribution over
-    # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
-    # in the community
-    A = np.min([dmax, 2])
-    in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
-    leftover = n - sum(in_degree_a)
-    in_degree_a[-1] += leftover
-    probs = np.array(in_degree_a) / (n)
+        # Each node is preferentially attached to other nodes
+        # The number of attached nodes is given by a probability distribution over
+        # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
+        # in the community
+        A = np.min([dmax, 2])
+        in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
+        leftover = n - sum(in_degree_a)
+        in_degree_a[-1] += leftover
+        probs = np.array(in_degree_a) / (n)
 
-    # Add connections from one community to the previous communities based on probability distribution
-    num_edges = rho * n**2 * k
-    print(num_edges)
-    while num_edges > 0:
-        for t in range(1, k):
-            for i in range(n):
-                node_label = t * n + i
-                if len(list(comm_graph.predecessors(node_label))) == 0:
-                    num_connected = random_state.choice(np.arange(A), size=1, p=probs)
-                    dest = random_state.choice(np.arange(t * n), size=num_connected)
-                    connections = [(node_label, d) for d in dest]
-                    comm_graph.add_edges_from(connections)
-                    num_edges -= num_connected
+        # Add connections from one community to the previous communities based on probability distribution
+        num_edges = rho * n**2 * k
+        print(num_edges)
+        while num_edges > 0:
+            for t in range(1, k):
+                for i in range(n):
+                    node_label = t * n + i
+                    if len(list(comm_graph.predecessors(node_label))) == 0:
+                        num_connected = random_state.choice(np.arange(A), size=1, p=probs)
+                        dest = random_state.choice(np.arange(t * n), size=num_connected)
+                        connections = [(node_label, d) for d in dest]
+                        comm_graph.add_edges_from(connections)
+                        num_edges -= num_connected
 
-    init_partition = dict()
-    for i in np.arange(k):
-        init_partition[i] = list(np.arange(i * n, (i + 1) * n))
+        init_partition = dict()
+        for i in np.arange(k):
+            init_partition[i] = list(np.arange(i * n, (i + 1) * n))
     comm_graph = _remove_cycles(comm_graph)
     return init_partition, comm_graph
 
@@ -505,8 +507,8 @@ def stochastic_block_model(n: int, p_list: list[int], k: int,
     sizes = k*[n]
     prob_matrix = rho*np.ones((k,k))
     np.fill_diagonal(prob_matrix,p_list)
-    G = nx.stochastic_block_model(sizes=sizes, p=p_list, directed=True, seed=random_state)
-    return None, G
+    G = nx.stochastic_block_model(sizes=sizes, p=prob_matrix, directed=True, seed=random_state)
+    return G
 
 def _remove_cycles(G):
     # find and remove cycles

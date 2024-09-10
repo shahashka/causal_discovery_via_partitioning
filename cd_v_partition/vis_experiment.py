@@ -147,13 +147,12 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
     """
     df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values )
     sizes = read_sizes(dir, eval_algs, cd_alg)
-    print(len(sizes))
     for e,s in zip(eval_algs, sizes):
-        print(s)
         plt.hist(s, label=e)
     plt.title(f"Partition sizes by algorithm")
     plt.legend()
     plt.savefig(f"{dir}/size_hist.png")
+    plt.clf()
         
     df = df.replace({
         "param": {
