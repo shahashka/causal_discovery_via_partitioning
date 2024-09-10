@@ -137,16 +137,16 @@ class Experiment:
             func_partial = functools.partial(causal_discovery_alg, use_skel= spec.causal_learn_use_skel)
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
-            workers = min(len(subproblems), self.workers,  os.cpu_count() + 4)
+            workers = min(len(subproblems), os.cpu_count() + 8)
             print(f"Launching {workers} workers for partitioned run")
             
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
             print(partition_sizes)
-        #return np.zeros(6), partition_sizes
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
+            print("CD done")
             # Merge
             out_adj = merge_alg(ss=super_struct,partition=partition, local_cd_adj_mats=results,
                         data= gen_graph.samples_to_numpy(), 
@@ -154,6 +154,7 @@ class Experiment:
                         finite_lim=spec.merge_finite_sample_flag,
                         full_cand_set=spec.merge_full_cand_set
                         )
+            print('merge done')
         total_time = time.time() - start
         scores = utils.get_scores([spec.partition_fn], [out_adj], G_star)
         out_data = np.zeros(6)

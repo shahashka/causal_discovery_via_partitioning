@@ -445,6 +445,8 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
     random_state = load_random_state(random_state)
+    # if graph_type=='erdos_renyi':
+    #     return stochastic_block_model(n, p_list, k, rho, random_state=random_state)
     comms = []
     for i in np.arange(k):
         if type(m_list) == int:
@@ -498,6 +500,13 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
     comm_graph = _remove_cycles(comm_graph)
     return init_partition, comm_graph
 
+def stochastic_block_model(n: int, p_list: list[int], k: int, 
+                   rho: int = 0.01, random_state: RandomState | int = 0):
+    sizes = k*[n]
+    prob_matrix = rho*np.ones((k,k))
+    np.fill_diagonal(prob_matrix,p_list)
+    G = nx.stochastic_block_model(sizes=sizes, p=p_list, directed=True, seed=random_state)
+    return None, G
 
 def _remove_cycles(G):
     # find and remove cycles

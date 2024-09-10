@@ -9,17 +9,17 @@ from cd_v_partition.vis_experiment import vis_experiment
 import numpy as np
 import copy
 if __name__ == "__main__":
-    exp_5 = Experiment(16)
-    large_num_nodes = int(1e4)
-    num_communities = 500
-    dir = "simulations/experiment_5_refactor_multi_algs_small_comms_20"
+    exp_5 = Experiment(2)
+    large_num_nodes = int(1e3)
+    num_communities = 50
+    dir = "simulations/experiment_5_refactor_multi_algs_small_comms_20_GES"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
-                               partition_fn=['modularity', 'edge_cover', 'expansive_causal'],#, 'no_partition'],
+                               partition_fn=['modularity'],#, 'edge_cover', 'expansive_causal'],#, 'no_partition'],
                                num_samples=[int(1e4)],
                                graph_kind="erdos_renyi", 
                                num_nodes=[large_num_nodes],
-                               causal_learn_fn=[ "NOTEARS", "GES", "PC", "RFCI","RFCI-PAG"],
+                               causal_learn_fn=["GES"],#[ "NOTEARS", "GES", "PC", "RFCI","RFCI-PAG"],
                                merge_fn=["screen"],
                                partition_resolution=5,
                                num_communities=num_communities,
