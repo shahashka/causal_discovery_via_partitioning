@@ -72,6 +72,90 @@ def no_partition_postprocess(
         )
     return est_adj_mat
 
+def screen_projections_pag2cpdag(
+    ss: np.ndarray,
+    partition: dict[Any, Any],
+    local_cd_adj_mats: list[np.ndarray],
+    ss_subset:bool =True,
+    finite_lim : bool = True,
+    data:np.ndarray =None,
+    full_cand_set: bool = False,
+) -> nx.DiGraph:
+    
+    # The pag represetation has following edge to number mapping
+    # pag[i,j] = 0 iff no edge btw i,j
+    # pag[i,j] = 1 iff i *-o j
+    # pag[i,j] = 2 iff i *-> j
+    # pag[i,j] = 3 iff i *-- j
+    
+    # CPDAG
+    # cpdag[i,j] = 0 and cpdag[j,i] = 0 iff no edge between i, j
+    # cpdag[i,j] = 1 and cpdag[j,i] = 0 iff i->j 
+    # cpdag[i,j] = 1 and cpdag[j,i] = 1 iff i--j 
+    
+    # Start with a fully connected global CPDAG 
+    cpdag = np.ones(ss.shape)
+    pag_edges = dict()
+
+    for comm_id, pag in enumerate(local_cd_adj_mats):
+        for row, col in itertools.product(np.arange(pag.shape[0]), np.arange(pag.shape[1])):
+            global_row = partition[comm_id][row]
+            global_col = partition[comm_id][col]
+            # If edge does not exist in any PAG, remove it from the global CPDAG
+            # This ensures that edges in overlap that agree in the PAG space remain in the global CPDAG
+            # while edges that disagree are removed
+            if pag[row,col] == 0:
+                cpdag[global_row, global_col] = 0
+                cpdag[global_col, global_row] = 0
+                
+            # Add edges to dictionary, create a list for overlapping edges
+            else:
+                if (global_row, global_col) in pag_edges:
+                    pag_edges[(global_row, global_col)] += [pag[row,col]]
+                else:
+                    pag_edges[(global_row, global_col)] = [pag[row,col]]
+    
+    for edge, end_marks in pag_edges.items():
+        u = edge[0]
+        v = edge[1]
+        # Tag PAG arrowheads (that agree across all PAGs) in global CDPAG         
+        if all(x==2 for x in end_marks) and cpdag[u,v]==1:
+            cpdag[u,v]=2
+    
+    # Orient unshielded triples in CDPAG adjacency matrix
+    for col in range(cpdag.shape[1]):
+        arrowheads_from = [i for i in range(cpdag.shape[0]) if cpdag[i,col]==2]
+        # Check if there is a triple that is unshielded
+        if len(arrowheads_from) == 2:
+            u,v = arrowheads_from
+            if cpdag[u,v] == 0:
+                cpdag[u,col] = 1
+                cpdag[v,col] = 1
+                cpdag[col, u] = 0
+            cpdag[col, v] = 0
+        # For all other cases with a PAG arrowhead, 
+        # set to an undirected edge in the CPDAG
+        elif len(arrowheads_from) > 0:
+            for node in arrowheads_from:
+                cpdag[node, col] = 1
+    assert((cpdag < 2).all())
+    cpdag_digraph = nx.from_numpy_array(cpdag, create_using=nx.DiGraph)
+    
+    # Remove all edges not present in superstructure
+    if ss_subset:
+        ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
+        cpdag_digraph = remove_edges_not_in_ss(cpdag_digraph, ss_graph)
+        
+    if finite_lim:
+        cpdag_digraph = screen_projections_finite_lim_postprocessing(
+            ss_graph,
+            cpdag_digraph,
+            partition,
+            ss_subset,
+            data,
+        )
+    return cpdag_digraph
+    
 def screen_projections(
     ss: np.ndarray,
     partition: dict[Any, Any],
@@ -80,8 +164,6 @@ def screen_projections(
     finite_lim : bool = True,
     data:np.ndarray =None,
     full_cand_set: bool = False,
-
-    
 ) -> nx.DiGraph:
     """
     Fuse subgraphs by taking the union and resolving conflicts by favoring no edge over
@@ -110,7 +192,10 @@ def screen_projections(
         global_graph = remove_edges_not_in_ss(global_graph, ss_graph)
 
     # global_graph = no edge if (no edge in comm1) or (no edge in comm2)
-    for comm, adj_comm in zip(partition.values(), local_cd_adj_mats):
+    k = list(partition.keys())
+    k.sort()
+    for i, adj_comm in zip(k, local_cd_adj_mats):
+        comm = partition[i]
         if len(comm) > 1:
             for row, col in itertools.product(
                 np.arange(adj_comm.shape[0]), np.arange(adj_comm.shape[0])
@@ -307,11 +392,11 @@ def fusion(
         candidate_edges = []
         for pair_comm in all_comms:
             candidate_edges += list(itertools.product(pair_comm[0], pair_comm[1]))
+            candidate_edges += list(itertools.product(pair_comm[1], pair_comm[0]))
 
     else:
-        candidate_edges = list(itertools.combinations(overlaps, 2))
-
-    # First remove all candidate edges from the global graph so this does not interfere with correlation tests
+        candidate_edges = list(itertools.permutations(overlaps, 2))
+    # First remove all candidate edges in overlap from the global graph so this does not interfere with correlation tests
     # print("Global graph edges before discarding edges {}".format(len(global_graph.edges())))
     for i, j in candidate_edges:
         if global_graph.has_edge(j, i):
@@ -397,8 +482,10 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
         ...
     """
     local_cd_graphs = []
-    for part, adj in zip(partition.items(), local_cd_adj_mats):
-        _, node_ids = part
+    k = list(partition.keys())
+    k.sort()
+    for i, adj in zip(k, local_cd_adj_mats):
+        node_ids = partition[i]
         if len(node_ids) == 1:
             subgraph = nx.DiGraph()
             subgraph.add_nodes_from(node_ids)
