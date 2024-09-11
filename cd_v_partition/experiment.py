@@ -139,7 +139,7 @@ class Experiment:
             func_partial = functools.partial(causal_discovery_alg, use_skel= spec.causal_learn_use_skel)
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
-            workers = min(len(subproblems), os.cpu_count() + 8)
+            workers = min(len(subproblems), os.cpu_count())
             print(f"Launching {workers} workers for partitioned run")
             
             partition_sizes = [len(p) for p in partition.values()]

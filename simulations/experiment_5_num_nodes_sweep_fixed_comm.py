@@ -10,8 +10,10 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_5 = Experiment(1)
-    large_num_nodes = int(1e4)
-    num_communities = 500
+    size_of_comm = 100
+    num_communities = 100
+    large_num_nodes = int(num_communities*size_of_comm)
+
     dir = "simulations/experiment_5_refactor_multi_algs_small_comms_20"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
