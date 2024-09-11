@@ -120,12 +120,13 @@ class Experiment:
                 frac_retain_direction=spec.frac_retain_direction,
                 frac_extraneous=spec.frac_extraneous,
             )
-
+        print("Generated graph")
         causal_discovery_alg = Experiment.get_causal_discovery_alg(spec) 
         start = time.time()
         partition_sizes=[]
         if spec.partition_fn == "no_partition":
             out_adj = causal_discovery_alg((super_struct, gen_graph.samples), spec.causal_learn_use_skel)
+            print("CD Done")
             out_adj = no_partition_postprocess(super_struct, out_adj, ss_subset=spec.merge_ss_subset_flag)
         else:
             merge_alg = Experiment.get_merge_alg(spec) 
@@ -139,18 +140,27 @@ class Experiment:
             func_partial = functools.partial(causal_discovery_alg, use_skel= spec.causal_learn_use_skel)
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
-            workers = min(len(subproblems), os.cpu_count() + 8)
+            workers = min(len(subproblems), os.cpu_count())
             print(f"Launching {workers} workers for partitioned run")
             
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
             print(partition_sizes)
-        # return np.zeros(6), partition_sizes
-            progressbar = tqdm.tqdm(total=len(subproblems), desc="Working on subproblems...")
             with ProcessPoolExecutor(max_workers=workers) as executor:
+                # results = list(tqdm.tqdm(executor.map(func_partial, subproblems, chunksize=1), total=len(subproblems)))
+                # futures = []
+                # for i,s in enumerate(subproblems):
+                #     fut = executor.submit(func_partial, s)
+                #     futures.append(fut)
+                    
+                # progressbar = tqdm.tqdm(total=len(subproblems))
+                # results = []
+                # for fut in as_completed(futures):
+                #     results.append(fut.result())
+                #     progressbar.update()
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
-                    progressbar.update()
+
             print("CD done")
             # Merge
             out_adj = merge_alg(ss=super_struct,partition=partition, local_cd_adj_mats=results,

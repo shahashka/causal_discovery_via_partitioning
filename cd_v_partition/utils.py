@@ -471,26 +471,23 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
     random_state = load_random_state(random_state)
-    if False:#graph_type=='erdos_renyi':
-        comm_graph = stochastic_block_model(n, p_list, k, rho, random_state=random_state)
-        init_partition = None
-    else:
-        comms = []
-        for i in np.arange(k):
-            if type(m_list) == int:
-                m = m_list
-            else:
-                m = m_list[i]
-            if type(p_list) == int:
-                p = p_list
-            else:
-                p = p_list[i]
-            comm_k = get_random_graph_data(
-                graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
-            )[0][0]
 
-            comms.append(nx.DiGraph(comm_k))
+    comms = []
+    for i in np.arange(k):
+        if type(m_list) == int:
+            m = m_list
+        else:
+            m = m_list[i]
+        if type(p_list) == int:
+            p = p_list
+        else:
+            p = p_list[i]
+        comm_k = get_random_graph_data(
+            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
+        )[0][0]
 
+        comms.append(nx.DiGraph(comm_k))
+    if len(comms) > 1:
         # connect the communities using preferential attachment
         degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
         dmax = max(degree_sequence)
@@ -525,7 +522,11 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         init_partition = dict()
         for i in np.arange(k):
             init_partition[i] = list(np.arange(i * n, (i + 1) * n))
-    comm_graph = _remove_cycles(comm_graph)
+        comm_graph = _remove_cycles(comm_graph)
+    else:
+        init_partition=None
+        comm_graph = comms[0]
+    
     return init_partition, comm_graph
 
 def stochastic_block_model(n: int, p_list: list[int], k: int, 
