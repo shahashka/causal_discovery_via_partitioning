@@ -82,7 +82,7 @@ jobs:
 
       - name: Test image
         run: |
-          docker run --rm ${{ steps.meta.outputs.tags }}  
+          docker run --rm ${{ steps.meta.outputs.tags }} python /causal_discovery_via_partitioning/simulations/experiment_basecase.py
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
