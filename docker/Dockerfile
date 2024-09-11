@@ -19,4 +19,4 @@ RUN pip install -e . -r docker/requirements.txt
 RUN Rscript docker/requirements.R
 RUN conda install -c conda-forge gcc=12.1.0
 
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "causal_discovery", "python", "/causal_discovery_via_partitioning/simulations/experiment_basecase.py"]
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "causal_discovery"]
