@@ -72,6 +72,8 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool)
 def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """RFCI algorithm for a subproblem
 
+    Converts the estimated PAG to a MAG, from which bi-directed edges are
+    removed resulting in a DAG.  
     Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
     Args:
         subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
@@ -92,6 +94,26 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
         # else:
         dag = mag2dag(mag)
     return dag 
+
+def rfci_pag_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+    """RFCI algorithm for a subproblem
+
+    Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem
+    skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        pag = np.zeros((1,1))
+    else:
+        pag, mag = rfci(data, skel=skel, alpha=1e-3, num_cores=8, outdir=None)
+    return pag 
 
 def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
     """Dagma algorithm for a subproblem
@@ -231,7 +253,8 @@ def rfci(
         d = str(outdir)
         rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'rfci-adj_mat.csv',sep = ''))"
         ro.r(rcode)
-        
+    # Return both the mag and the pag
+    # the mag is created by removing 
     return pag, mag
 
 def mag2dag(mag: np.ndarray) -> np.ndarray:

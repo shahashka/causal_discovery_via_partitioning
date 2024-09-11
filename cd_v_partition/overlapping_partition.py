@@ -218,7 +218,10 @@ def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame
         list: a list of tuples holding the sub structure and data subsets for each partition
     """
     sub_problems = []
-    for _, sub_nodes in partition.items():
+    k = list(partition.keys())
+    k.sort()
+    for i in k:
+        sub_nodes = partition[i]
         sub_structure = structure[sub_nodes][:, sub_nodes]
         sub_nodes = list(sub_nodes)
         sub_nodes.append(-1)  # add 'target' vector at the end of dataframe

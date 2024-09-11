@@ -1,4 +1,4 @@
-from cd_v_partition.fusion import screen_projections, fusion
+from cd_v_partition.fusion import screen_projections, fusion, screen_projections_pag2cpdag
 import networkx as nx
 from cd_v_partition.utils import get_data_from_graph, edge_to_adj
 import numpy as np
@@ -26,9 +26,9 @@ local_adj_mats = [
 ]
 ss_edges = [(0,1), (1,0), (1,2), (2,1), (2,3), (3,2)]
 ss = edge_to_adj(ss_edges, list(np.arange(4)))
-test1, _ = screen_projections(partition, local_adj_mats)
+test1 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 assert(test1.edges() == chain.edges())  # 0->1->2->3
-test1, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
+test1 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False) # since partitions overlap, only add overlapping cand set
 print(test1.edges())
 assert list(test1.edges()) == G_star_edges  # 0->1->2->3
 
@@ -41,10 +41,10 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test2, _ = screen_projections(partition, local_adj_mats)
+test2 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 chain.add_edge(2, 1)
 assert test2.edges() == chain.edges()  # 0->1-2->3
-test2, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
+test2 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False)
 print(list(test2.edges()), G_star_edges)
 assert (
     list(test2.edges()) == G_star_edges
@@ -58,11 +58,11 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test3, _ = screen_projections(partition, local_adj_mats)
+test3 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 chain.remove_edge(2, 1)
 chain.remove_edge(1, 2)
 assert test3.edges() == chain.edges()  # 0->1,2->3
-test3, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
+test3 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False)
 assert list(test3.edges()) == G_star_edges  # 0->1->2->3
 
 # Comm1 has no edge, Comm2 has directed edge
@@ -74,8 +74,59 @@ local_adj_mats = [
     nx.adjacency_matrix(comm1, nodelist=[0, 1, 2]),
     nx.adjacency_matrix(comm2, nodelist=[1, 2, 3]),
 ]
-test4, _ = screen_projections(partition, local_adj_mats)
+test4 = screen_projections(ss, partition, local_adj_mats, finite_lim=False)
 assert test4.edges() == chain.edges()  # 0->1,2->3
-test4, _ = fusion(ss, partition, local_adj_mats, samples, full_cand_set=True)
+test4 = fusion(ss, partition, local_adj_mats, samples, full_cand_set=False)
 assert list(test4.edges()) == G_star_edges  # 0->1->2->3
+
+
+
+## PAG fusion method tests
+
+# Arrowheads agree
+# Comm 1: 0 -> 1 <- 2
+# Comm 2: 1 <- 2 -> 3
+# Expected Output: 0 -> 1 <- 2 -- 3
+expected_edges = [(0,1), (2,1), (2,3), (3,2)]
+adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
+adj_2 = np.array([[ 0, 3, 0 ], [ 2, 0, 2] , [ 0, 3, 0]])
+test5 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
+print(test5.edges())
+assert set(test5.edges()) == set(expected_edges)
+# Comm 1: 0 -> 1 <- 2
+# Comm 2: 1 <-o 2 -> 3
+# Expected Output: 0 -> 1 <- 2 -- 3
+adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
+adj_2 = np.array([[ 0, 1, 0 ], [ 2, 0, 2] , [ 0, 3, 0]])
+test6 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
+assert set(test6.edges()) == set(expected_edges)
+
+# Arrowheads disagree
+# Comm 1: 0 -> 1 <- 2
+# Comm 2: 1 o-o 2 -> 3
+# Expected Output: 0 -- 1 -- 2 -- 3
+expected_edges = [(0,1), (1,0), (1,2), (2,1), (2,3), (3,2)]
+adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
+adj_2 = np.array([[ 0, 1, 0 ], [ 1, 0, 2] , [ 0, 3, 0]])
+test7 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
+assert set(test7.edges()) == set(expected_edges)
+
+# Comm 1: 0 -> 1 <- 2
+# Comm 2: 1 o-> 2 -> 3
+# Expected Output: 0 -- 1 -- 2 -- 3
+adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
+adj_2 = np.array([[ 0, 2, 0 ], [ 1, 0, 2] , [ 0, 3, 0]])
+test8 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
+assert set(test8.edges()) == set(expected_edges)
+
+# Edges disagree
+# Comm 1: 0 -> 1 -> 2
+# Comm 2: 1, 2 -> 3
+# Expected Output: 0 -- 1, 2 -- 3
+expected_edges = [(0,1), (1,0), (2,3), (3,2)]
+adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
+adj_2 = np.array([[ 0, 0, 0 ], [ 0, 0, 2] , [ 0, 3, 0]])
+test9 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
+print(test9.edges())
+assert set(test9.edges()) == set(expected_edges)
 print("All tests passed!")

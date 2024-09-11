@@ -117,7 +117,18 @@ def read_chkpoints(dir: Path | str, eval_algs: list[str], cd_alg:str,
             rec = load_iteration(trial, trial=t, method=alg)
             records.extend(rec)
     return pd.DataFrame.from_records(records)
-        
+
+def read_sizes(dir, eval_algs, cd_alg):
+    trial_id=0
+    sizes_by_eval_alg = []
+    for alg in eval_algs:
+        out_path = Path(f"{dir}/{alg}/{cd_alg}")
+        spec_path = next(out_path.iterdir())
+        out_path = spec_path / f"trial_{trial_id}/sizes.txt"
+        s = np.loadtxt(out_path)
+        sizes_by_eval_alg.append(s)
+    return sizes_by_eval_alg
+    
 def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:str,num_trials: int, 
                    save_sweep_param: str, save_sweep_values:Any):
     """Read checkpoints and visualize plots for scores from an experiment
@@ -135,6 +146,14 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
         save_sweep_values (Any): The values for the sweep parameter (x-axis values for plots)
     """
     df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values )
+    sizes = read_sizes(dir, eval_algs, cd_alg)
+    for e,s in zip(eval_algs, sizes):
+        plt.hist(s, label=e)
+    plt.title(f"Partition sizes by algorithm")
+    plt.legend()
+    plt.savefig(f"{dir}/size_hist.png")
+    plt.clf()
+        
     df = df.replace({
         "param": {
             i: val 

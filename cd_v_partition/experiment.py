@@ -9,9 +9,10 @@ import pandas as pd
 import tqdm
 from numpy.random import RandomState
 import networkx as nx
+from cd_v_partition.vis_partition import create_partition_plot
 import cd_v_partition.utils as utils
-from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, rfci_local_learn, damga_local_learn
-from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess
+from cd_v_partition.causal_discovery import pc, pc_local_learn, ges_local_learn, rfci_local_learn, rfci_pag_local_learn, damga_local_learn
+from cd_v_partition.fusion import fusion, screen_projections, no_partition_postprocess, screen_projections_pag2cpdag
 from cd_v_partition.overlapping_partition import (
     partition_problem,
     expansive_causal_partition,
@@ -64,7 +65,9 @@ class Experiment:
                     outdir.mkdir(parents=True)
                 
                 # Create checkpoint object and save
-                np.savetxt(outdir / "chkpoint.txt", fut.result())
+                np.savetxt(outdir / "chkpoint.txt", fut.result()[0])
+                np.savetxt(outdir / "sizes.txt", fut.result()[1])
+
                 # spec.to_yaml(outdir / '..'/ 'spec.yaml')         # TODO this is hanging  
                 # print('done yaml save')
                 progressbar.update()
@@ -72,7 +75,7 @@ class Experiment:
     def run_serial(self, cfg: SimulationConfig, random_state: RandomState | int | None = None):
         random_state = utils.load_random_state(random_state)
         #date = datetime.datetime.now()
-        progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg))
+        progressbar = tqdm.tqdm(total=cfg.graph_per_spec * len(cfg), desc='Working on experiment configurations...')
         for trial in range(cfg.graph_per_spec):
             seed = trial
             for spec_id, spec in enumerate(cfg):
@@ -81,7 +84,8 @@ class Experiment:
                 if not outdir.exists():
                     outdir.mkdir(parents=True)
                 
-                np.savetxt(outdir / "chkpoint.txt", scores)
+                np.savetxt(outdir / "chkpoint.txt", scores[0])
+                np.savetxt(outdir / "sizes.txt", scores[1])
                # spec.to_yaml(outdir / '..' / 'spec.yaml')  
                 progressbar.update()         
 
@@ -119,6 +123,7 @@ class Experiment:
 
         causal_discovery_alg = Experiment.get_causal_discovery_alg(spec) 
         start = time.time()
+        partition_sizes=[]
         if spec.partition_fn == "no_partition":
             out_adj = causal_discovery_alg((super_struct, gen_graph.samples), spec.causal_learn_use_skel)
             out_adj = no_partition_postprocess(super_struct, out_adj, ss_subset=spec.merge_ss_subset_flag)
@@ -134,11 +139,19 @@ class Experiment:
             func_partial = functools.partial(causal_discovery_alg, use_skel= spec.causal_learn_use_skel)
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
-            workers = min(len(subproblems), self.workers,  os.cpu_count() + 4)
+            workers = min(len(subproblems), os.cpu_count() + 8)
             print(f"Launching {workers} workers for partitioned run")
+            
+            partition_sizes = [len(p) for p in partition.values()]
+            print(f"Biggest partition size {max(partition_sizes)}")
+            print(partition_sizes)
+        # return np.zeros(6), partition_sizes
+            progressbar = tqdm.tqdm(total=len(subproblems), desc="Working on subproblems...")
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 for result in executor.map(func_partial, subproblems, chunksize=1):
                     results.append(result) 
+                    progressbar.update()
+            print("CD done")
             # Merge
             out_adj = merge_alg(ss=super_struct,partition=partition, local_cd_adj_mats=results,
                         data= gen_graph.samples_to_numpy(), 
@@ -146,12 +159,13 @@ class Experiment:
                         finite_lim=spec.merge_finite_sample_flag,
                         full_cand_set=spec.merge_full_cand_set
                         )
+            print('merge done')
         total_time = time.time() - start
         scores = utils.get_scores([spec.partition_fn], [out_adj], G_star)
         out_data = np.zeros(6)
         out_data[0:5] = scores
         out_data[5] = total_time
-        return out_data
+        return out_data, partition_sizes
     
         
     @staticmethod
@@ -233,6 +247,8 @@ class Experiment:
                 return damga_local_learn
             case "GPS":
                 raise NotImplementedError(f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`")
+            case "RFCI-PAG":
+                return rfci_pag_local_learn
             case _:
                 raise ValueError(f"`{spec.causal_learn_fn=}` is an illegal value.`")
 
@@ -242,6 +258,9 @@ class Experiment:
             case "fusion":
                 return fusion
             case "screen":
-                return screen_projections
+                if spec.causal_learn_fn == "RFCI-PAG":
+                    return screen_projections_pag2cpdag
+                else:
+                    return screen_projections
             case _:
                 raise ValueError(f"`{spec.merge_fn=}` is an illegal value.`")

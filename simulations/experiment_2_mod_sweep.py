@@ -10,7 +10,7 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_2 = Experiment(16)
-    dir = "simulations/experiment_2_refactor_multi_algs"
+    dir = "simulations/experiment_2_refactor_multi_algs_new_exps"
     sim_cfg = SimulationConfig(graph_per_spec=10,
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
@@ -19,7 +19,7 @@ if __name__ == "__main__":
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["GES", "PC", "RFCI", "NOTEARS"], 
+                               causal_learn_fn=["GES", "PC", "RFCI", "RFCI-PAG", "NOTEARS"], 
                                merge_fn=["screen"],
                                )
     
