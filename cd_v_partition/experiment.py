@@ -141,13 +141,14 @@ class Experiment:
             results = []
             subproblems = partition_problem(partition, super_struct, gen_graph.samples)
             workers = min(len(subproblems), os.cpu_count())
+            # workers=1 # Serial for debuggign 
             print(f"Launching {workers} workers for partitioned run")
             
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
             print(partition_sizes)
             with ProcessPoolExecutor(max_workers=workers) as executor:
-                # results = list(tqdm.tqdm(executor.map(func_partial, subproblems, chunksize=1), total=len(subproblems)))
+                results = list(tqdm.tqdm(executor.map(func_partial, subproblems, chunksize=1), total=len(subproblems)))
                 # futures = []
                 # for i,s in enumerate(subproblems):
                 #     fut = executor.submit(func_partial, s)
@@ -158,8 +159,8 @@ class Experiment:
                 # for fut in as_completed(futures):
                 #     results.append(fut.result())
                 #     progressbar.update()
-                for result in executor.map(func_partial, subproblems, chunksize=1):
-                    results.append(result) 
+                # for result in executor.map(func_partial, subproblems, chunksize=1):
+                #     results.append(result) 
 
             print("CD done")
             # Merge

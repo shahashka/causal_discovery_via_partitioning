@@ -121,23 +121,35 @@ def screen_projections_pag2cpdag(
         # Tag PAG arrowheads (that agree across all PAGs) in global CDPAG         
         if all(x==2 for x in end_marks) and cpdag[u,v]==1:
             cpdag[u,v]=2
-    
+    print(len(np.where(cpdag==2)[0]))
     # Orient unshielded triples in CDPAG adjacency matrix
+    all_twos=0
+    arrowheads_from = [[i for i in range(cpdag.shape[0]) if cpdag[i,col]==2] for col in range(cpdag.shape[1])]
     for col in range(cpdag.shape[1]):
-        arrowheads_from = [i for i in range(cpdag.shape[0]) if cpdag[i,col]==2]
+        all_twos+=len(arrowheads_from[col])
         # Check if there is a triple that is unshielded
-        if len(arrowheads_from) == 2:
-            u,v = arrowheads_from
+        if len(arrowheads_from[col]) == 2:
+            u,v = arrowheads_from[col]
+            #usheilded
             if cpdag[u,v] == 0:
                 cpdag[u,col] = 1
                 cpdag[v,col] = 1
                 cpdag[col, u] = 0
-            cpdag[col, v] = 0
+                cpdag[col, v] = 0
+            #shielded
+            else:
+                cpdag[u,col] = 1
+                cpdag[v,col] = 1
+                cpdag[col, u] = 1
+                cpdag[col, v] = 1
         # For all other cases with a PAG arrowhead, 
         # set to an undirected edge in the CPDAG
-        elif len(arrowheads_from) > 0:
-            for node in arrowheads_from:
-                cpdag[node, col] = 1
+        elif len(arrowheads_from[col]) > 0:
+            for node in arrowheads_from[col]:
+                if cpdag[node,col] == 2:
+                    cpdag[node, col] = 1
+    print(all_twos)
+    print(len(np.where(cpdag==2)[0]))
     assert((cpdag < 2).all())
     cpdag_digraph = nx.from_numpy_array(cpdag, create_using=nx.DiGraph)
     

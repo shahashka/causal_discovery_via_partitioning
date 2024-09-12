@@ -10,8 +10,8 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_5 = Experiment(1)
-    size_of_comm = 100
-    num_communities = 100
+    size_of_comm = 20
+    num_communities = 500
     large_num_nodes = int(num_communities*size_of_comm)
 
     dir = "simulations/experiment_5_refactor_multi_algs_small_comms_20"
@@ -21,7 +21,7 @@ if __name__ == "__main__":
                                num_samples=[int(1e4)],
                                graph_kind="erdos_renyi", 
                                num_nodes=[large_num_nodes],
-                               causal_learn_fn=["GES"],#[ "NOTEARS", "GES", "PC","RFCI-PAG"],
+                               causal_learn_fn=["RFCI-PAG"],#[ "NOTEARS", "GES", "PC","RFCI-PAG"],
                                merge_fn=["screen"],
                                partition_resolution=5,
                                num_communities=num_communities,
