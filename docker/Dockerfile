@@ -4,7 +4,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y r-base
 
-RUN git clone -b ci https://github.com/shahashka/causal_discovery_via_partitioning.git
+ADD https://api.github.com/repos/shahashka/causal_discovery_via_partitioning/git/refs/heads/main version.json
+RUN git clone https://github.com/shahashka/causal_discovery_via_partitioning.git
 
 WORKDIR /causal_discovery_via_partitioning
 
