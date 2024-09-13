@@ -30,7 +30,7 @@ base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
-def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, alpha=1e-3, num_cores=8) -> np.ndarray:
     """PC algorithm for a subproblem
 
     Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
@@ -47,10 +47,10 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) 
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:  
-        adj, _ = pc(data,skel=skel, alpha=1e-3, num_cores=8, outdir=None)
+        adj, _ = pc(data,skel=skel, alpha=alpha, num_cores=num_cores, outdir=None)
     return adj 
 
-def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, reg:float=0.5) -> np.ndarray:
+def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, reg:float=0.5, maxDegree=None) -> np.ndarray:
     """GES algorithm for subproblem
     
     Use the local skeleton to restrict the search space
@@ -68,10 +68,10 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool,
     if skel.shape[0] == 1:
         adj_mat = np.zeros((1,1))
     else:
-        adj_mat = sp_gies(data, skel=skel, adaptive=False, outdir=None, reg=reg)
+        adj_mat = sp_gies(data, skel=skel, adaptive=False, outdir=None, reg=reg, maxDegree=maxDegree)
     return adj_mat
 
-def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, alpha=1e-3, num_cores=8) -> np.ndarray:
     """RFCI algorithm for a subproblem
 
     Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
@@ -88,14 +88,14 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
     if skel.shape[0] == 1:
         dag = np.zeros((1,1))
     else:
-        pag, mag = rfci(data, skel=skel, alpha=1e-3, num_cores=8, outdir=None)
+        pag, mag = rfci(data, skel=skel, alpha=alpha, num_cores=num_cores, outdir=None)
         # if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
         #     dag = pag # TODO PAG2DAG 
         # else:
         dag = mag2dag(mag)
     return dag 
 
-def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool) -> np.ndarray:
+def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, maxIter=6e4) -> np.ndarray:
     """Dagma algorithm for a subproblem
     
     Faster version of NOTEARS with log-det acyclicity characterization
@@ -115,7 +115,7 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: boo
     else:
         data = data.drop(columns=['target']).to_numpy(dtype=np.float64)
         model = DagmaLinear(loss_type='l2')
-        adj = model.fit(data, lambda1=0.02)
+        adj = model.fit(data, lambda1=0.02, max_iter=maxIter)
         
         # eq_model = DagmaMLP(dims=[data.shape[1], 5, 1], bias=True, dtype=torch.double) # create the model for the structural equations, in this case MLPs
         # model = DagmaNonlinear(eq_model, dtype=torch.double) # create the model for DAG learning
@@ -333,7 +333,8 @@ def sp_gies(
     use_pc: bool = True,
     multifactor_targets: list[list[Any]] = None,
     adaptive: bool = True,
-    reg: float = 0.5
+    reg: float = 0.5,
+    max_degree: Any = None
 ):
     r"""
     Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
@@ -411,34 +412,22 @@ def sp_gies(
 
     TI = ro.IntVector(target_index_R)
     ro.r.assign("target_index", TI)
-    # print(T)
-    # print(TI)
+
     nr, nc = fixed_gaps.shape
     FG = ro.r.matrix(fixed_gaps, nrow=nr, ncol=nc)
     ro.r.assign("fixed_gaps", FG)
     if data.shape[1] > 1:
-        # score = ro.r.new(
-        #     "GaussL0penIntScore", ro.r["data"], ro.r["targets"], ro.r["target_index"],reg*np.log(data.shape[0])
-
-        # )
-        # ro.r.assign("score", score)
         ro.r.assign("reg", reg)
         rcode = 'score = new("GaussL0penIntScore", data=data, targets=targets, target.index=target_index,lambda=reg*log(nrow(data)) )'
         ro.r(rcode)
+        
+        max_degree = "integer(0)" if max_degree is None else max_degree
+        ro.r.assign("max_degree", max_degree)
         if adaptive:
-            result = pcalg.gies(
-                ro.r["score"],
-                fixedGaps=ro.r["fixed_gaps"],
-                targets=ro.r["targets"],
-                adaptive="triples", iterate=True, verbose=False
-            )
+            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, adaptive="triples", maxDegree=max_degree)'
         else:
-            result = pcalg.gies(
-                ro.r["score"], fixedGaps=ro.r["fixed_gaps"], targets=ro.r["targets"]
-            )
-
-        ro.r.assign("result", result)
-
+            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, maxDegree=max_degree)'
+        ro.rcode(rcode)
         rcode = "result$repr$weight.mat()"  # weight: ith column contains the regression coefficients of the ith stuctural equation
         adj_mat = ro.r(rcode)
     else:
