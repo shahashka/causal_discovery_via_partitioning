@@ -39,6 +39,7 @@ class SimulationSpec:
     # CD learn params
     causal_learn_fn: str = MISSING
     causal_learn_use_skel: bool = MISSING
+    causal_learn_params: dict = MISSING
     
     # Superstructure params
     alpha: float = MISSING
@@ -65,6 +66,7 @@ class SimulationConfig:
     graph_per_spec: int = 1
     #eval_algorithms: list[str] = MISSING # These are the partitioning functions, all need to be run for each spec
     experiment_id: str = MISSING
+    save_vis: bool = False 
     #sweep_param: str = MISSING
     #sweep_values:list[float | int] = MISSING
     
@@ -95,6 +97,7 @@ class SimulationConfig:
     # CD learn params
     causal_learn_fn: list[str] = field(default_factory=lambda:["GES"])
     causal_learn_use_skel: list[bool] = field(default_factory=lambda:["True"])
+    causal_learn_params: list[dict] = field(default_factory=lambda:None)
     
     # Superstructure params
     alpha: list[float] = field(default_factory=lambda:[0.1])
@@ -123,6 +126,7 @@ class SimulationConfig:
             del spec["executor_args"]
             del spec["graph_per_spec"]
             del spec["experiment_id"]
+            del spec["save_vis"]
             yield SimulationSpec(**spec)
     
     def __len__(self) -> int:

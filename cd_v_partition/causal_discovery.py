@@ -30,7 +30,7 @@ base = importr("base")
 GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
-def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, alpha=1e-3, num_cores=8) -> np.ndarray:
+def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, params: dict = {"alpha":1e-3, "num_cores":8}) -> np.ndarray:
     """PC algorithm for a subproblem
 
     Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
@@ -47,10 +47,10 @@ def pc_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, 
     if skel.shape[0] == 1:
         adj = np.zeros((1,1))
     else:  
-        adj, _ = pc(data,skel=skel, alpha=alpha, num_cores=num_cores, outdir=None)
+        adj, _ = pc(data,skel=skel, alpha=params['alpha'], num_cores=params['num_cores'], outdir=None)
     return adj 
 
-def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, reg:float=0.5, maxDegree=None) -> np.ndarray:
+def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, params:dict={'reg':0.5, 'maxDegree':None}) -> np.ndarray:
     """GES algorithm for subproblem
     
     Use the local skeleton to restrict the search space
@@ -68,12 +68,14 @@ def ges_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool,
     if skel.shape[0] == 1:
         adj_mat = np.zeros((1,1))
     else:
-        adj_mat = sp_gies(data, skel=skel, adaptive=False, outdir=None, reg=reg, maxDegree=maxDegree)
+        adj_mat = sp_gies(data, skel=skel, adaptive=False, outdir=None, reg=params['reg'], max_degree=params['maxDegree'])
     return adj_mat
 
-def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, alpha=1e-3, num_cores=8) -> np.ndarray:
+def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, params:dict = {'alpha':1e-3, 'num_cores':8}) -> np.ndarray:
     """RFCI algorithm for a subproblem
 
+    Converts the estimated PAG to a MAG, from which bi-directed edges are
+    removed resulting in a DAG.  
     Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
     Args:
         subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
@@ -88,14 +90,34 @@ def rfci_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
     if skel.shape[0] == 1:
         dag = np.zeros((1,1))
     else:
-        pag, mag = rfci(data, skel=skel, alpha=alpha, num_cores=num_cores, outdir=None)
+        pag, mag = rfci(data, skel=skel, alpha=params['alpha'], num_cores=params['num_cores'], outdir=None)
         # if type(mag) == rpy2.rinterface_lib.sexp.NULLType:
         #     dag = pag # TODO PAG2DAG 
         # else:
         dag = mag2dag(mag)
     return dag 
 
-def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, maxIter=6e4) -> np.ndarray:
+def rfci_pag_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool,  params:dict = {'alpha':1e-3, 'num_cores':8}) -> np.ndarray:
+    """RFCI algorithm for a subproblem
+
+    Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
+    Args:
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+
+    Returns:
+        np.ndarray: local estimated adjancency matrix
+    """
+    skel, data = subproblem
+    skel = make_skel_symmetric(skel)
+    if not use_skel:
+        skel=np.ones(skel.shape)
+    if skel.shape[0] == 1:
+        pag = np.zeros((1,1))
+    else:
+        pag, mag = rfci(data, skel=skel, alpha=params['alpha'], num_cores=params['num_cores'], outdir=None)
+    return pag 
+
+def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, params:dict={'maxIter':6e4}) -> np.ndarray:
     """Dagma algorithm for a subproblem
     
     Faster version of NOTEARS with log-det acyclicity characterization
@@ -115,7 +137,7 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: boo
     else:
         data = data.drop(columns=['target']).to_numpy(dtype=np.float64)
         model = DagmaLinear(loss_type='l2')
-        adj = model.fit(data, lambda1=0.02, max_iter=maxIter)
+        adj = model.fit(data, lambda1=0.02, max_iter=params['maxIter'])
         
         # eq_model = DagmaMLP(dims=[data.shape[1], 5, 1], bias=True, dtype=torch.double) # create the model for the structural equations, in this case MLPs
         # model = DagmaNonlinear(eq_model, dtype=torch.double) # create the model for DAG learning
@@ -237,7 +259,8 @@ def rfci(
         d = str(outdir)
         rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'rfci-adj_mat.csv',sep = ''))"
         ro.r(rcode)
-        
+    # Return both the mag and the pag
+    # the mag is created by removing 
     return pag, mag
 
 def mag2dag(mag: np.ndarray) -> np.ndarray:
@@ -424,10 +447,10 @@ def sp_gies(
         max_degree = "integer(0)" if max_degree is None else max_degree
         ro.r.assign("max_degree", max_degree)
         if adaptive:
-            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, adaptive="triples", maxDegree=max_degree)'
+            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, adaptive="triples", maxDegree=max_degree, verbose=TRUE)'
         else:
-            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, maxDegree=max_degree)'
-        ro.rcode(rcode)
+            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, maxDegree=max_degree, verbose=TRUE)'
+        ro.r(rcode)
         rcode = "result$repr$weight.mat()"  # weight: ith column contains the regression coefficients of the ith stuctural equation
         adj_mat = ro.r(rcode)
     else:

@@ -8,20 +8,20 @@ from cd_v_partition.vis_experiment import vis_experiment
 import numpy as np
 import copy
 if __name__ == "__main__":
-    exp_4 = Experiment(1)
-    dir = "simulations/experiment_4_refactor_multi_algs_test"
-    sim_cfg = SimulationConfig(graph_per_spec=1,
+    exp_4 = Experiment(16)
+    dir = "simulations/experiment_4_refactor_multi_algs_new_exps"
+    sim_cfg = SimulationConfig(graph_per_spec=10,
                                experiment_id=dir,
-                               partition_fn=['no_partition'],#, 'modularity', 'edge_cover', 'expansive_causal'],
+                               partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
                                num_samples=[int(1e5)],
                                use_pc_algorithm=[True],
                                alpha=list(np.arange(0.1, 1, 0.05)),
                                graph_kind="scale_free",
                                num_nodes=25,
                                num_communities=2,                              
-                               causal_learn_fn=["GES"],#, "PC", "RFCI", "NOTEARS"], 
-                               causal_learn_use_skel=True,
+                               causal_learn_fn=["GES", "PC", "RFCI", "RFCI-PAG", "NOTEARS"], 
                                merge_fn=["screen"],
+                               merge_ss_subset_flag=False
                                )
     
     sim_cfg_pef = copy.copy(sim_cfg)

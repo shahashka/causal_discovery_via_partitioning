@@ -57,7 +57,7 @@ partition_alg = Experiment.get_partitioning_alg(spec)
 # Partition
 partition = partition_alg(super_struct, data=obs_final_data_set_w_condition, resolution=5) 
 # Learn in parallel
-func_partial = functools.partial(causal_discovery_alg, use_skel= True)
+func_partial = functools.partial(ges_local_learn, maxDegree=100, use_skel= True)
 results = []
 subproblems = partition_problem(partition, super_struct, obs_final_data_set_w_condition)
 workers = min(len(subproblems), os.cpu_count())

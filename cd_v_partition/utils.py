@@ -471,6 +471,7 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
     """
     random_state = load_random_state(random_state)
+
     comms = []
     for i in np.arange(k):
         if type(m_list) == int:
@@ -486,43 +487,55 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         )[0][0]
 
         comms.append(nx.DiGraph(comm_k))
+    if len(comms) > 1:
+        # connect the communities using preferential attachment
+        degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
+        dmax = max(degree_sequence)
 
-    # connect the communities using preferential attachment
-    degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
-    dmax = max(degree_sequence)
+        # First add all communities as disjoint graphs
+        comm_graph = nx.disjoint_union_all(comms)
 
-    # First add all communities as disjoint graphs
-    comm_graph = nx.disjoint_union_all(comms)
+        # Each node is preferentially attached to other nodes
+        # The number of attached nodes is given by a probability distribution over
+        # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
+        # in the community
+        A = np.min([dmax, 2])
+        in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
+        leftover = n - sum(in_degree_a)
+        in_degree_a[-1] += leftover
+        probs = np.array(in_degree_a) / (n)
 
-    # Each node is preferentially attached to other nodes
-    # The number of attached nodes is given by a probability distribution over
-    # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
-    # in the community
-    A = np.min([dmax, 4])
-    in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
-    leftover = n - sum(in_degree_a)
-    in_degree_a[-1] += leftover
-    probs = np.array(in_degree_a) / (n)
+        # Add connections from one community to the previous communities based on probability distribution
+        num_edges = rho * n**2 * k
+        print(num_edges)
+        while num_edges > 0:
+            for t in range(1, k):
+                for i in range(n):
+                    node_label = t * n + i
+                    if len(list(comm_graph.predecessors(node_label))) == 0:
+                        num_connected = random_state.choice(np.arange(A), size=1, p=probs)
+                        dest = random_state.choice(np.arange(t * n), size=num_connected)
+                        connections = [(node_label, d) for d in dest]
+                        comm_graph.add_edges_from(connections)
+                        num_edges -= num_connected
 
-    # Add connections from one community to the previous communities based on probability distribution
-    num_edges = rho * n**2 * k
-    while num_edges > 0:
-        for t in range(1, k):
-            for i in range(n):
-                node_label = t * n + i
-                if len(list(comm_graph.predecessors(node_label))) == 0:
-                    num_connected = random_state.choice(np.arange(A), size=1, p=probs)
-                    dest = random_state.choice(np.arange(t * n), size=num_connected)
-                    connections = [(node_label, d) for d in dest]
-                    comm_graph.add_edges_from(connections)
-                    num_edges -= num_connected
-
-    init_partition = dict()
-    for i in np.arange(k):
-        init_partition[i] = list(np.arange(i * n, (i + 1) * n))
-    comm_graph = _remove_cycles(comm_graph)
+        init_partition = dict()
+        for i in np.arange(k):
+            init_partition[i] = list(np.arange(i * n, (i + 1) * n))
+        comm_graph = _remove_cycles(comm_graph)
+    else:
+        init_partition=None
+        comm_graph = comms[0]
+    
     return init_partition, comm_graph
 
+def stochastic_block_model(n: int, p_list: list[int], k: int, 
+                   rho: int = 0.01, random_state: RandomState | int = 0):
+    sizes = k*[n]
+    prob_matrix = rho*np.ones((k,k))
+    np.fill_diagonal(prob_matrix,p_list)
+    G = nx.stochastic_block_model(sizes=sizes, p=prob_matrix, directed=True, seed=random_state)
+    return G
 
 def _remove_cycles(G):
     # find and remove cycles
