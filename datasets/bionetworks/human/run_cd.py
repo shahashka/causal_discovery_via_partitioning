@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 import tqdm 
 from cd_v_partition.config import SimulationSpec
 import os
+import networkx as nx
 radbio_data = pd.read_csv("GSE43151_gs.csv")
 num_genes = radbio_data.shape[1] - 1 
 gene_ids = [int(i) for i in radbio_data.columns[0:num_genes]]
@@ -49,7 +50,7 @@ obs_final_data_set_w_condition['target'] = np.zeros(radbio_data.shape[0])
 
 spec = SimulationSpec(causal_learn_fn="GES", 
                       merge_fn="screen", 
-                      partition_fn="modularity")
+                      partition_fn="expansive_causal")
 causal_discovery_alg = Experiment.get_causal_discovery_alg(spec)
 merge_alg = Experiment.get_merge_alg(spec) 
 partition_alg = Experiment.get_partitioning_alg(spec)
@@ -57,7 +58,7 @@ partition_alg = Experiment.get_partitioning_alg(spec)
 # Partition
 partition = partition_alg(super_struct, data=obs_final_data_set_w_condition, resolution=5) 
 # Learn in parallel
-func_partial = functools.partial(ges_local_learn, maxDegree=100, use_skel= True)
+func_partial = functools.partial(ges_local_learn, params={'reg':0.5, 'maxDegree':100}, use_skel= True)
 results = []
 subproblems = partition_problem(partition, super_struct, obs_final_data_set_w_condition)
 workers = min(len(subproblems), os.cpu_count())
@@ -72,11 +73,12 @@ with ProcessPoolExecutor(max_workers=workers) as executor:
 
 print("CD done")
 # Merge
-out_adj = merge_alg(ss=super_struct,partition=partition, local_cd_adj_mats=results,
+graph = merge_alg(ss=super_struct,partition=partition, local_cd_adj_mats=results,
             data= obs_final_data_set_w_condition.to_numpy(), 
             ss_subset=True, 
             finite_lim=False,
             full_cand_set=False)
                         
 #est_dag = ges_local_learn((corr_mat, obs_final_data_set_w_condition), use_skel=True)
-print(np.sum(out_adj))
+print(len(graph.edges()))
+nx.write_edgelist(graph, "edges_dag_w_ss_corr_exp_causal.csv")

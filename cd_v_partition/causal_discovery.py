@@ -14,6 +14,7 @@ import pandas as pd
 from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 from dagma.linear import DagmaLinear
 from dagma.nonlinear import DagmaNonlinear, DagmaMLP
+from cd_v_partition.utils import adj_to_edge
 import torch
 CUPC_DIR = Path("./cupc/cuPC.R")
 
@@ -117,7 +118,7 @@ def rfci_pag_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: 
         pag, mag = rfci(data, skel=skel, alpha=params['alpha'], num_cores=params['num_cores'], outdir=None)
     return pag 
 
-def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, params:dict={'maxIter':6e4}) -> np.ndarray:
+def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool, params:dict={'maxIter':6e4, 'warmIter':3e4}) -> np.ndarray:
     """Dagma algorithm for a subproblem
     
     Faster version of NOTEARS with log-det acyclicity characterization
@@ -137,7 +138,8 @@ def damga_local_learn(subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: boo
     else:
         data = data.drop(columns=['target']).to_numpy(dtype=np.float64)
         model = DagmaLinear(loss_type='l2')
-        adj = model.fit(data, lambda1=0.02, max_iter=params['maxIter'])
+        exclude_edges = adj_to_edge(np.abs(1-skel), np.arange(skel.shape[0]))
+        adj = model.fit(data, lambda1=0.02, T=5, max_iter=params['maxIter'], warm_iter=params['warmIter'], exclude_edges=exclude_edges)
         
         # eq_model = DagmaMLP(dims=[data.shape[1], 5, 1], bias=True, dtype=torch.double) # create the model for the structural equations, in this case MLPs
         # model = DagmaNonlinear(eq_model, dtype=torch.double) # create the model for DAG learning
