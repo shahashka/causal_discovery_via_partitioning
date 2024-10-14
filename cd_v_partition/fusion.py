@@ -57,7 +57,18 @@ def no_partition_postprocess(
     Returns:
         np.ndarray: The resultant graph as an adjancency matrix
     """
-    if ss_subset:
+    if np.any(est_adj_mat == 2) or np.any(est_adj_mat == 3):
+        #print("NO PARTITION CONVERSION TO CPDAG")
+        est_dag = screen_projections_pag2cpdag(ss, partition={0:np.arange(est_adj_mat.shape[0])}, 
+                                               local_cd_adj_mats=[est_adj_mat], ss_subset=ss_subset,
+                                                 finite_lim=False )
+        # convert back to numpy array
+        est_adj_mat = nx.to_numpy_array(
+            est_dag,
+            nodelist=np.arange(len(est_dag.nodes())),
+        )
+
+    elif ss_subset:
         ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
         est_DiGraph = nx.from_numpy_array(
             est_adj_mat, create_using=nx.DiGraph
@@ -93,66 +104,56 @@ def screen_projections_pag2cpdag(
     # cpdag[i,j] = 1 and cpdag[j,i] = 0 iff i->j 
     # cpdag[i,j] = 1 and cpdag[j,i] = 1 iff i--j 
     
-    # Start with a fully connected global CPDAG 
-    cpdag = np.ones(ss.shape)
+    # Start with an empty global CPDAG 
+    cpdag = np.zeros(ss.shape)
     pag_edges = dict()
-
     for comm_id, pag in enumerate(local_cd_adj_mats):
         for row, col in itertools.product(np.arange(pag.shape[0]), np.arange(pag.shape[1])):
             global_row = partition[comm_id][row]
             global_col = partition[comm_id][col]
-            # If edge does not exist in any PAG, remove it from the global CPDAG
-            # This ensures that edges in overlap that agree in the PAG space remain in the global CPDAG
-            # while edges that disagree are removed
-            if pag[row,col] == 0:
-                cpdag[global_row, global_col] = 0
-                cpdag[global_col, global_row] = 0
-                
+            # # If edge exists in local pag, add an undirected edge in cdpag
+            # if pag[row,col] > 0:
+            #     cpdag[global_row, global_col] = 1
+               
             # Add edges to dictionary, create a list for overlapping edges
+            if (global_row, global_col) in pag_edges:
+                pag_edges[(global_row, global_col)] += [pag[row,col]]
             else:
-                if (global_row, global_col) in pag_edges:
-                    pag_edges[(global_row, global_col)] += [pag[row,col]]
-                else:
-                    pag_edges[(global_row, global_col)] = [pag[row,col]]
+                pag_edges[(global_row, global_col)] = [pag[row,col]]
     
+    # Add all adjacencies that agree
     for edge, end_marks in pag_edges.items():
         u = edge[0]
         v = edge[1]
-        # Tag PAG arrowheads (that agree across all PAGs) in global CDPAG         
-        if all(x==2 for x in end_marks) and cpdag[u,v]==1:
-            cpdag[u,v]=2
-    print(len(np.where(cpdag==2)[0]))
-    # Orient unshielded triples in CDPAG adjacency matrix
-    all_twos=0
-    arrowheads_from = [[i for i in range(cpdag.shape[0]) if cpdag[i,col]==2] for col in range(cpdag.shape[1])]
-    for col in range(cpdag.shape[1]):
-        all_twos+=len(arrowheads_from[col])
-        # Check if there is a triple that is unshielded
-        if len(arrowheads_from[col]) == 2:
-            u,v = arrowheads_from[col]
-            #usheilded
-            if cpdag[u,v] == 0:
-                cpdag[u,col] = 1
-                cpdag[v,col] = 1
-                cpdag[col, u] = 0
-                cpdag[col, v] = 0
-            #shielded
-            else:
-                cpdag[u,col] = 1
-                cpdag[v,col] = 1
-                cpdag[col, u] = 1
-                cpdag[col, v] = 1
-        # For all other cases with a PAG arrowhead, 
-        # set to an undirected edge in the CPDAG
-        elif len(arrowheads_from[col]) > 0:
-            for node in arrowheads_from[col]:
-                if cpdag[node,col] == 2:
-                    cpdag[node, col] = 1
-    print(all_twos)
-    print(len(np.where(cpdag==2)[0]))
-    assert((cpdag < 2).all())
-    cpdag_digraph = nx.from_numpy_array(cpdag, create_using=nx.DiGraph)
+        # # Tag PAG arrowheads in global CDPAG         
+        # if any(x==2 for x in end_marks):
+        #     cpdag[u,v]=2
+        # Add undirected edges 
+        if all((x==1 or x==2 or x==3) for x in end_marks):
+            cpdag[u,v]=1
+            cpdag[v,u]=1
+        # Otherwise, there is disagreement in edge type so remove the edge 
+        else:
+            cpdag[u,v]=0
     
+    # Find all unshielded colliders in local estimated graphs
+    for comm_id, pag in enumerate(local_cd_adj_mats):
+        arrowheads_from = [[i for i in range(pag.shape[0]) if pag[i,col]==2] for col in range(pag.shape[1])]
+        for col in range(pag.shape[1]):
+            # Check if there is a triple 
+            if len(arrowheads_from[col]) == 2:
+                u,v = arrowheads_from[col]
+                # check if unshielded
+                if pag[u,v] == 0 :
+                    global_u = partition[comm_id][u]
+                    global_v = partition[comm_id][v]
+                    global_col = partition[comm_id][col]
+                    # print(f"unshielded collider {global_u,global_col,global_v}")
+                    cpdag[global_u,global_col] = 1
+                    cpdag[global_v,global_col] = 1
+                    cpdag[global_col, global_u] = 0
+                    cpdag[global_col, global_v] = 0
+    cpdag_digraph = nx.from_numpy_array(cpdag, create_using=nx.DiGraph)    
     # Remove all edges not present in superstructure
     if ss_subset:
         ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)

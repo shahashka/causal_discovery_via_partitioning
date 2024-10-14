@@ -104,16 +104,17 @@ assert set(test6.edges()) == set(expected_edges)
 # Arrowheads disagree
 # Comm 1: 0 -> 1 <- 2
 # Comm 2: 1 o-o 2 -> 3
-# Expected Output: 0 -- 1 -- 2 -- 3
-expected_edges = [(0,1), (1,0), (1,2), (2,1), (2,3), (3,2)]
+# Expected Output: 0 -> 1 <- 2 -- 3
+expected_edges = [(0,1), (2,1), (2,3), (3,2)]
 adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
 adj_2 = np.array([[ 0, 1, 0 ], [ 1, 0, 2] , [ 0, 3, 0]])
 test7 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
+print(test7.edges(), expected_edges)
 assert set(test7.edges()) == set(expected_edges)
 
 # Comm 1: 0 -> 1 <- 2
 # Comm 2: 1 o-> 2 -> 3
-# Expected Output: 0 -- 1 -- 2 -- 3
+# Expected Output: 0 -> 1 <- 2 -- 3
 adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
 adj_2 = np.array([[ 0, 2, 0 ], [ 1, 0, 2] , [ 0, 3, 0]])
 test8 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
@@ -124,7 +125,7 @@ assert set(test8.edges()) == set(expected_edges)
 # Comm 2: 1, 2 -> 3
 # Expected Output: 0 -- 1, 2 -- 3
 expected_edges = [(0,1), (1,0), (2,3), (3,2)]
-adj_1 = np.array([[0, 2, 0], [3, 0, 3], [0, 2, 0]])
+adj_1 = np.array([[0, 2, 0], [3, 0, 2], [0, 3, 0]])
 adj_2 = np.array([[ 0, 0, 0 ], [ 0, 0, 2] , [ 0, 3, 0]])
 test9 = screen_projections_pag2cpdag(ss, partition, [adj_1, adj_2], finite_lim=False)
 print(test9.edges())
