@@ -45,6 +45,7 @@ class SimulationSpec:
     frac_retain_direction: float = MISSING
     frac_extraneous: float = MISSING
     use_pc_algorithm: bool = MISSING
+    use_corr_mat: bool=MISSING
     
     @classmethod
     def to_yaml(self, outfile: Path | str) -> None:
@@ -101,6 +102,7 @@ class SimulationConfig:
     frac_retain_direction: list[float] = field(default_factory=lambda:[0.1])
     frac_extraneous: list[float] = field(default_factory=lambda:[0.1])
     use_pc_algorithm: list[bool] = field(default_factory=lambda:[False])
+    use_corr_mat: list[bool] = field(default_factory=lambda:[False])
 
     def __iter__(self) -> Iterator[SimulationSpec]:
         """

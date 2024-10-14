@@ -10,13 +10,13 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_1 = Experiment(4)
-    dir = "simulations/experiment_1_refactor_multi_algs_new_exps_rfci_pag"
+    dir = "simulations/experiment_1_refactor_multi_algs_new_exps_rfci"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
                                num_samples=[10**i for i in np.arange(1, 7)],
                                graph_kind="scale_free",
-                               num_nodes=25,
+                               num_nodes=50,
                                num_communities=2,                              
                                causal_learn_fn=["RFCI-PAG"],#, "GES", "PC", "RFCI", "NOTEARS"], 
                                merge_fn=["screen"],

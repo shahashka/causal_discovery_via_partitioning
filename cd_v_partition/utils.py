@@ -15,7 +15,7 @@ import pandas as pd
 from graphical_models import rand, GaussDAG
 from numpy.random import RandomState
 from sklearn.metrics import roc_curve, confusion_matrix
-
+import scipy
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
     if random_state is None:
@@ -554,6 +554,40 @@ def _remove_cycles(G):
         return G
     except:
         return G
+
+def correlation_superstructure(data: pd.DataFrame) -> np.ndarray:
+    """Creates a superstructure by calculating the correlation matrix from the data.
+
+    A cutoff value is chosen using permutation testing: randomly shuffling the data amtrix and
+    recalculating the correlation matrix over 100 iterations. The upper bound of the 95% confidence interval 
+    for the maximum value in each shuffled matrix is used as the threshold for the superstructure
+
+    Args:
+        data(pd.DataFrame): sampled data set, each column is a random variable
+
+    Returns:
+        corr_mat (np.ndarray): an adjacency matrix for the superstructure we've created
+    """
+    corr_mat = data.corr('pearson').to_numpy()
+    np.fill_diagonal(corr_mat, 0)
+    random_corr_coef = []
+    # Permutation testing
+    for _ in range(100):
+        shuffled_array = np.zeros(data.shape)
+        for row in np.arange(data.shape[0]): # randomly shuffle each row
+            shuffled_array[row] = np.random.permutation(data.iloc[row])
+        shuffled_final_data_set = pd.DataFrame(data=shuffled_array)
+        shuffle_corr_mat = shuffled_final_data_set.corr('pearson')
+        shuffle_corr_mat = shuffle_corr_mat.to_numpy()
+        np.fill_diagonal(shuffle_corr_mat, 0)
+        random_corr_coef.append(np.max(shuffle_corr_mat)) # find the max value (excluding diagonal)
+    ci_interval = scipy.stats.t.interval(0.95, len(random_corr_coef)-1, loc=np.mean(random_corr_coef),
+                                          scale=scipy.stats.sem(random_corr_coef))
+    cutoff = ci_interval[1] # upper bound of CI is used a the threshold
+    corr_mat[corr_mat<=cutoff] = 0
+    corr_mat[corr_mat>cutoff] = 1
+    return corr_mat
+
 
 def artificial_superstructure(
     G_star_adj_mat, frac_retain_direction=0.1, frac_extraneous=0.5

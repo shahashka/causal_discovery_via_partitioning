@@ -114,6 +114,9 @@ class Experiment:
                 gen_graph.samples, skel=np.ones((spec.num_nodes,spec.num_nodes)), alpha=spec.alpha, outdir=None, num_cores=16
             )
             print(f"Number of edges in ss {np.sum(super_struct)}")
+        elif spec.use_corr_mat:
+            super_struct, _ = utils(gen_graph.samples)
+            print(f"Number of edges in ss {np.sum(super_struct)}")
         else:
             super_struct = utils.artificial_superstructure(
                 G_star,

@@ -17,7 +17,7 @@ if __name__ == "__main__":
                                use_pc_algorithm=[True],
                                alpha=list(np.arange(0.1, 1, 0.05)),
                                graph_kind="scale_free",
-                               num_nodes=25,
+                               num_nodes=50,
                                num_communities=2,                              
                                causal_learn_fn=["GES", "PC", "RFCI", "RFCI-PAG", "NOTEARS"], 
                                merge_fn=["screen"],

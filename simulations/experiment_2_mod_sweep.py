@@ -17,7 +17,7 @@ if __name__ == "__main__":
                                num_samples=[int(1e5)],
                                inter_edge_prob=[0, 0.01, 0.05, 0.075, 0.1, 0.2, 0.3, 0.4, 0.5],
                                graph_kind="scale_free",
-                               num_nodes=25,
+                               num_nodes=50,
                                num_communities=2,                              
                                causal_learn_fn=["GES", "PC", "RFCI", "RFCI-PAG", "NOTEARS"], 
                                merge_fn=["screen"],
