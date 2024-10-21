@@ -23,17 +23,9 @@ def is_inducing(path, subset, dag):
                 inducing = False
     return inducing
 
-# def remove_common_cause_edge(rfci_pags):
-#     for pag in rfci_pags:
-        
-
 results_rfci = []
 results_my_pag_rep = []
-rfci_failures_edge_location = []
-rfci_failures_endpoint_location = []
-rfci_failures_edges_agree_over_subsets = []
 for seed in np.arange(100):
-#for seed in [7]:
     random.seed(seed)
 
     # (1) Sample random trees over 10 nodes
@@ -53,7 +45,7 @@ for seed in np.arange(100):
     G_S_undir = [G_dir.subgraph(c).copy() for c in nx.connected_components(G_undir)]
     S = [list(gs.nodes) for gs in G_S_undir ]
 
-    # (3) Add an edge between subsets to create a more interesting structure
+    # (3) Add an edge between subsets to create a more interesting structure (ensure acyclicity)
     new_edge = [random.choice(S[0]), random.choice(S[1])]
     while G_dir.has_edge(new_edge[0], new_edge[1]):
         new_edge = [random.choice(S[0]), random.choice(S[1])]
@@ -206,10 +198,7 @@ for seed in np.arange(100):
     print(f"My CPDAG rep is consistent w ground truth MEC? {my_test}")   
     results_rfci.append(rfci_test)
     results_my_pag_rep.append(my_test)
-    if not rfci_test :
-        print(f"RFCI cpdag \n {cpdag_rfci.edges}")
-        print(f"True cpdag \n {G_cpdag.edges}")
-
+    if not rfci_test or not my_test :
         # Visualize all three cpdags
         pos = nx.planar_layout(G_dir)
         fig, axs = plt.subplots(ncols=4)
@@ -218,55 +207,13 @@ for seed in np.arange(100):
         axs[2].set_title("RFCI CPDAG")
         axs[3].set_title("My latent rep CPDAG")
 
-        
         nx.draw(G_dir,ax=axs[0], with_labels=True,node_color=[color_map[node] for node in list(G_dir.nodes)], pos=pos)
         nx.draw(G_cpdag,ax=axs[1], with_labels=True,node_color=[color_map[node] for node in list(G_cpdag.nodes)], pos=pos)
         nx.draw(cpdag_rfci,ax=axs[2], with_labels=True,node_color=[color_map[node] for node in list(cpdag_rfci.nodes)], pos=pos)
         nx.draw(cpdag_my_latent_rep,ax=axs[3], with_labels=True,node_color=[color_map[node] for node in list(cpdag_my_latent_rep.nodes)], pos=pos)
-        
-        #Track failure
-        
-        # Do the failures always occur as EXTRA edges in the CPDAG?
-        has_extra_edges_always = True
-        for edge in G_cpdag.edges:
-            if edge not in cpdag_rfci.edges:
-                has_extra_edges_always = False
-        #has_extra_edges_always = has_extra_edges_always and (len(cpdag_rfci.edges - G_cpdag.edges) == 1)
-        rfci_failures_edge_location.append(has_extra_edges_always)
-        
-        # Do these edges always occur between nodes the overlapping set?
-        in_overlap=True
-        for edge in cpdag_rfci.edges - G_cpdag.edges:
-            for node in edge:
-                if color_map[node] != 'purple':
-                    in_overlap=False
-        rfci_failures_endpoint_location.append(in_overlap)
-        
-        # Do these edges agree across the PAG subsets? or did the screen algorithm not account for these edges?
-        agreement = True
-        for edge in cpdag_rfci.edges - G_cpdag.edges:
-            agree_subset = True
-            for i,pag in enumerate(rfci_pags):
-                subset = causal_partition[i]
-                local_ind_start = subset.index(edge[0])
-                local_ind_end = subset.index(edge[1])
-                print(f"Edge endpoints pag are {pag[local_ind_start, local_ind_end], pag[local_ind_end, local_ind_start]} for edge {edge}")
-                if pag[local_ind_start, local_ind_end] == 0:
-                    agree_subset=False
-                agreement = agreement and agree_subset
-        rfci_failures_edges_agree_over_subsets.append(agreement)
-                
-            
-        text = fig.text(0.50, 0.02, 
-        f'Extra edges in rfci are {cpdag_rfci.edges - G_cpdag.edges}', 
-        horizontalalignment='center', wrap=True ) 
-        fig.tight_layout(rect=(0,.05,1,1)) 
-        plt.savefig(f"tests/sanity_check_rfci_failures_high_sample/trial_{seed}.png")
+
+        plt.savefig(f"tests/sanity_check_failures_high_sample/trial_{seed}.png")
         
         
 print(f"RFCI tests {sum(results_rfci)} passed out of {len(results_rfci)}")
-# print(f"RFCI failures have extra edges {sum(rfci_failures_edge_location)} out of {100 - sum(results_rfci)} total failures")
-# print(f"RFCI failures extra edges are in the overlap {sum(rfci_failures_endpoint_location)} out of { sum(rfci_failures_edge_location)} total failures with extra edges")
-# print(f"RFCI failures edges in overlap agree across local pags {sum(rfci_failures_edges_agree_over_subsets)} out of { sum(rfci_failures_endpoint_location)} total failures with extra overlap edges")
-
 print(f"My tests {sum(results_my_pag_rep)} passed out of {len(results_my_pag_rep)}")
