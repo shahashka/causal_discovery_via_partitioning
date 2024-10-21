@@ -143,16 +143,16 @@ def screen_projections_pag2cpdag(
             # Check if there is a triple 
             if len(arrowheads_from[col]) == 2:
                 u,v = arrowheads_from[col]
-                # check if unshielded
-                if pag[u,v] == 0 :
+                # check if unshielded and agrees across subsets
+                if pag[u,v] == 0:
                     global_u = partition[comm_id][u]
                     global_v = partition[comm_id][v]
                     global_col = partition[comm_id][col]
-                    # print(f"unshielded collider {global_u,global_col,global_v}")
-                    cpdag[global_u,global_col] = 1
-                    cpdag[global_v,global_col] = 1
-                    cpdag[global_col, global_u] = 0
-                    cpdag[global_col, global_v] = 0
+                    if cpdag[global_u,global_col] ==1 and cpdag[global_col,global_v] == 1:
+                        cpdag[global_u,global_col] = 1
+                        cpdag[global_v,global_col] = 1
+                        cpdag[global_col, global_u] = 0
+                        cpdag[global_col, global_v] = 0
     cpdag_digraph = nx.from_numpy_array(cpdag, create_using=nx.DiGraph)    
     # Remove all edges not present in superstructure
     if ss_subset:

@@ -115,7 +115,7 @@ class Experiment:
             )
             print(f"Number of edges in ss {np.sum(super_struct)}")
         elif spec.use_corr_mat:
-            super_struct, _ = utils(gen_graph.samples)
+            super_struct = utils.correlation_superstructure(gen_graph.samples, num_iterations=10)
             print(f"Number of edges in ss {np.sum(super_struct)}")
         else:
             super_struct = utils.artificial_superstructure(

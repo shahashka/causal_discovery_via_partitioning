@@ -507,7 +507,6 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
 
         # Add connections from one community to the previous communities based on probability distribution
         num_edges = rho * n**2 * k
-        print(num_edges)
         while num_edges > 0:
             for t in range(1, k):
                 for i in range(n):
@@ -555,24 +554,27 @@ def _remove_cycles(G):
     except:
         return G
 
-def correlation_superstructure(data: pd.DataFrame) -> np.ndarray:
+def correlation_superstructure(data: pd.DataFrame, num_iterations:int = 100) -> np.ndarray:
     """Creates a superstructure by calculating the correlation matrix from the data.
 
     A cutoff value is chosen using permutation testing: randomly shuffling the data amtrix and
-    recalculating the correlation matrix over 100 iterations. The upper bound of the 95% confidence interval 
+    recalculating the correlation matrix over a specified number of iterations. The upper bound of the 95% confidence interval 
     for the maximum value in each shuffled matrix is used as the threshold for the superstructure
 
     Args:
-        data(pd.DataFrame): sampled data set, each column is a random variable
+        data (pd.DataFrame) : sampled data set, each column is a random variable
+        num_iterations (int) : number of iterations for permutation testing
+
 
     Returns:
         corr_mat (np.ndarray): an adjacency matrix for the superstructure we've created
     """
+    data = data.drop(columns=['target'])
     corr_mat = data.corr('pearson').to_numpy()
     np.fill_diagonal(corr_mat, 0)
     random_corr_coef = []
     # Permutation testing
-    for _ in range(100):
+    for _ in range(num_iterations):
         shuffled_array = np.zeros(data.shape)
         for row in np.arange(data.shape[0]): # randomly shuffle each row
             shuffled_array[row] = np.random.permutation(data.iloc[row])
