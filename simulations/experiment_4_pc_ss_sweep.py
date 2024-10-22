@@ -9,7 +9,7 @@ import numpy as np
 import copy
 if __name__ == "__main__":
     exp_4 = Experiment(16)
-    dir = "simulations/experiment_4_refactor_multi_algs_new_exps"
+    dir = "simulations/experiment_4_refactor_multi_algs_new_exps_rfci_tmlr"
     sim_cfg = SimulationConfig(graph_per_spec=10,
                                experiment_id=dir,
                                partition_fn=['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
@@ -19,7 +19,7 @@ if __name__ == "__main__":
                                graph_kind="scale_free",
                                num_nodes=50,
                                num_communities=2,                              
-                               causal_learn_fn=["GES", "PC", "RFCI", "RFCI-PAG", "NOTEARS"], 
+                               causal_learn_fn=["RFCI-PAG"], 
                                merge_fn=["screen"],
                                merge_ss_subset_flag=False
                                )
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     sim_cfg_pef.merge_full_cand_set = [True]
     
     exp_4.run(sim_cfg, random_state=1)
-    #exp_4.run(sim_cfg_pef, random_state=1)
+    exp_4.run(sim_cfg_pef, random_state=1)
     for cd_alg in sim_cfg.causal_learn_fn:
         vis_experiment(4, dir, sim_cfg.partition_fn + sim_cfg_pef.partition_fn,
                        cd_alg, sim_cfg.graph_per_spec, "alpha", sim_cfg.alpha)
