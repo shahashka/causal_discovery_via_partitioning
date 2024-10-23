@@ -12,10 +12,11 @@ import cdt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from graphical_models import rand, GaussDAG
+from graphical_models import GaussDAG, DAG
 from numpy.random import RandomState
 from sklearn.metrics import roc_curve, confusion_matrix
 import scipy
+from typing import Callable, Union, List
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
     if random_state is None:
@@ -29,8 +30,66 @@ def load_random_state(random_state: RandomState | int | None = None) -> RandomSt
             "Illegal value for `load_random_state()` Must be either an instance of "
             "`RandomState`, an integer to seed with, or None."
         )
+# override graphical_models.rand.directed_random_graph to take in a random state
+def directed_random_graph(nnodes: int, random_graph_model: Callable, random_state: RandomState, size=1, as_list=False) -> Union[DAG, List[DAG]]:
+    if size == 1:
+        # generate a random undirected graph
+        edges = random_graph_model(nnodes).edges
 
+        # generate a random permutation
+        random_permutation = np.arange(nnodes)
+        random_state.shuffle(random_permutation)
 
+        arcs = []
+        for edge in edges:
+            node1, node2 = edge
+            node1_position = np.where(random_permutation == node1)[0][0]
+            node2_position = np.where(random_permutation == node2)[0][0]
+            if node1_position < node2_position:
+                source = node1
+                endpoint = node2
+            else:
+                source = node2
+                endpoint = node1
+            arcs.append((source, endpoint))
+        d = DAG(nodes=set(range(nnodes)), arcs=arcs)
+        return [d] if as_list else d
+    else:
+        return [directed_random_graph(nnodes, random_graph_model) for _ in range(size)]
+# Override GaussDAG.sample to take in random state
+def sample(gaussdag: GaussDAG, random_state:RandomState, nsamples: int = 1) -> np.array:
+        """
+        Return `nsamples` samples from the graph.
+
+        Parameters
+        ----------
+        nsamples:
+            Number of samples.
+
+        Returns
+        -------
+        (nsamples x nnodes) matrix of samples.
+
+        Examples
+        --------
+        TODO
+        """
+        samples = np.zeros((nsamples, len(gaussdag._nodes)))
+        noise = np.zeros((nsamples, len(gaussdag._nodes)))
+        for ix, (bias, var) in enumerate(zip(gaussdag._biases, gaussdag._variances)):
+            noise[:, ix] = random_state.normal(loc=bias, scale=var ** .5, size=nsamples)
+        t = gaussdag.topological_sort()
+        for node in t:
+            ix = gaussdag._node2ix[node]
+            parents = gaussdag._parents[node]
+            if len(parents) != 0:
+                parent_ixs = [gaussdag._node2ix[p] for p in gaussdag._parents[node]]
+                parent_vals = samples[:, parent_ixs]
+                samples[:, ix] = np.sum(parent_vals * gaussdag._weight_mat[parent_ixs, node], axis=1) + noise[:, ix]
+            else:
+                samples[:, ix] = noise[:, ix]
+        return samples
+    
 def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False):
     r"""
     Helper function to convert an adjacency matrix into an edge list. Optionally include weights so that
@@ -269,14 +328,13 @@ def get_random_graph_data(
     else:
         raise ValueError("Unsupported random graph")
 
-    # TODO this should take a random state
-    dag = rand.directed_random_graph(num_nodes, random_graph_model)
+    dag = directed_random_graph(num_nodes, random_graph_model, random_state)
     nodes_inds = list(dag.nodes)
     bias = random_state.normal(0, 1, size=len(nodes_inds))
     var = np.abs(random_state.normal(0, 1, size=len(nodes_inds)))
 
     bn = GaussDAG(nodes=nodes_inds, arcs=dag.arcs, biases=bias, variances=var)
-    data = bn.sample(nsamples)
+    data = sample(bn, random_state, nsamples)
 
     df = pd.DataFrame(data=data, columns=nodes_inds)
     df["target"] = np.zeros(data.shape[0])
@@ -338,7 +396,7 @@ def get_data_from_graph(
         bias = random_state.normal(0, 1, size=len(nodes))
         var = np.abs(random_state.normal(0, 1, size=len(nodes)))
     bn = GaussDAG(nodes=nodes, arcs=edges, biases=bias, variances=var)
-    data = bn.sample(nsamples)
+    data = sample(bn, random_state, nsamples)
 
     df = pd.DataFrame(data=data, columns=nodes)
     df["target"] = np.zeros(data.shape[0])
@@ -554,7 +612,7 @@ def _remove_cycles(G):
     except:
         return G
 
-def correlation_superstructure(data: pd.DataFrame, num_iterations:int = 100) -> np.ndarray:
+def correlation_superstructure(data: pd.DataFrame, seed: int|RandomState, num_iterations:int = 100) -> np.ndarray:
     """Creates a superstructure by calculating the correlation matrix from the data.
 
     A cutoff value is chosen using permutation testing: randomly shuffling the data amtrix and
@@ -569,6 +627,7 @@ def correlation_superstructure(data: pd.DataFrame, num_iterations:int = 100) -> 
     Returns:
         corr_mat (np.ndarray): an adjacency matrix for the superstructure we've created
     """
+    random_state = load_random_state(seed)
     data = data.drop(columns=['target'])
     corr_mat = data.corr('pearson').to_numpy()
     np.fill_diagonal(corr_mat, 0)
@@ -577,7 +636,7 @@ def correlation_superstructure(data: pd.DataFrame, num_iterations:int = 100) -> 
     for _ in range(num_iterations):
         shuffled_array = np.zeros(data.shape)
         for row in np.arange(data.shape[0]): # randomly shuffle each row
-            shuffled_array[row] = np.random.permutation(data.iloc[row])
+            shuffled_array[row] = random_state.permutation(data.iloc[row])
         shuffled_final_data_set = pd.DataFrame(data=shuffled_array)
         shuffle_corr_mat = shuffled_final_data_set.corr('pearson')
         shuffle_corr_mat = shuffle_corr_mat.to_numpy()

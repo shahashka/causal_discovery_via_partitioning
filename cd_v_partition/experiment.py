@@ -104,7 +104,8 @@ class Experiment:
             num_communities=spec.num_communities,
             comm_popularity=spec.comm_pop,
             edge_prob=spec.comm_edge_prob,
-            inter_edge_prob=spec.inter_edge_prob,  # rho
+            inter_edge_prob=spec.inter_edge_prob, #rho
+            random_state=random_state
         )
         G_star = utils.edge_to_adj(list(gen_graph.edges), nodes=gen_graph.nodes)
         # GENERATE THE SUPERSTRUCTURE
@@ -115,7 +116,7 @@ class Experiment:
             )
             print(f"Number of edges in ss {np.sum(super_struct)}")
         elif spec.use_corr_mat:
-            super_struct = utils.correlation_superstructure(gen_graph.samples, num_iterations=10)
+            super_struct = utils.correlation_superstructure(gen_graph.samples, seed=random_state, num_iterations=10)
             print(f"Number of edges in ss {np.sum(super_struct)}")
         else:
             super_struct = utils.artificial_superstructure(
