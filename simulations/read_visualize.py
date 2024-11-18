@@ -26,6 +26,14 @@ cd_algs = ["GES", "PC", "NOTEARS", "RFCI"]
 #     vis_experiment(5, dir, ['no_partition', 'modularity', 'edge_cover', 'expansive_causal'],
 #                     cd_alg, 1, "num_nodes", [10**i for i in np.arange(1, 5)])
 
-dir = "simulations/experiment_5_refactor_multi_algs_small_comms"
-vis_experiment(5, dir, ['modularity', 'edge_cover', 'expansive_causal'],
+# dir = "simulations/experiment_5_refactor_multi_algs_small_comms_100_sf_sizes"
+# vis_experiment(5, dir, ['modularity', 'edge_cover', 'expansive_causal', 'PEF'],
+#                      "GES", 1, "num_nodes", [10**i for i in np.arange(4, 5)])
+
+# dir = "simulations/experiment_5_refactor_multi_algs_sizes"
+# vis_experiment(5, dir, ['edge_cover', 'expansive_causal', "edge_cover_fixed_comm", "expansive_causal_fixed_comm"],
+#                      "GES", 1, "num_nodes", [10**i for i in np.arange(4, 5)])
+
+dir = "simulations/experiment_6_refactor_multi_algs_net_2_sizes"
+vis_experiment(6, dir, ['modularity', 'edge_cover', 'expansive_causal', 'PEF'],
                      "GES", 1, "num_nodes", [10**i for i in np.arange(4, 5)])

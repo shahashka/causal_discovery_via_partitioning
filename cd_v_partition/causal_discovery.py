@@ -449,9 +449,9 @@ def sp_gies(
         max_degree = "integer(0)" if max_degree is None else max_degree
         ro.r.assign("max_degree", max_degree)
         if adaptive:
-            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, adaptive="triples", maxDegree=max_degree, verbose=TRUE)'
+            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, adaptive="triples", maxDegree=max_degree, verbose=FALSE)'
         else:
-            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, maxDegree=max_degree, verbose=TRUE)'
+            rcode = 'result = gies(score, fixedGaps=fixed_gaps, targets=targets, maxDegree=max_degree, verbose=FALSE)'
         ro.r(rcode)
         rcode = "result$repr$weight.mat()"  # weight: ith column contains the regression coefficients of the ith stuctural equation
         adj_mat = ro.r(rcode)

@@ -145,15 +145,28 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
         save_sweep_param (str): The name of the sweep parameter (x-axis label for plots)
         save_sweep_values (Any): The values for the sweep parameter (x-axis values for plots)
     """
-    df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values )
     sizes = read_sizes(dir, eval_algs, cd_alg)
-    for e,s in zip(eval_algs, sizes):
-        plt.hist(s, label=e)
-    plt.title(f"Partition sizes by algorithm")
-    plt.legend()
+    top_bin = max([s[i] for s in sizes for i in range(len(s))])
+    bins = np.linspace(0, top_bin+10, 100)
+    fig, axs = plt.subplots(len(eval_algs),1, sharex=True, sharey=True)
+    #colors = [ 'tab:red', 'tab:gray', "lightcoral", "lightgray"]
+    colors = ['tab:orange', 'tab:red', 'tab:gray', 'tab:green']
+    plt.suptitle(f"Distribution of subset sizes by partition algorithm")
+
+    for i, (e,s) in enumerate(zip(eval_algs, sizes)):
+        if e =='modularity':
+            e = 'disjoint'
+        axs[i].hist(s, bins, color=colors[i],label=e, edgecolor='grey', alpha=0.8)
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    fig.legend(lines, labels, loc='upper center', bbox_to_anchor=(0.8, 0.9), shadow=True)
+    # plt.hist(sizes, bins, stacked=True, label=eval_algs, edgecolor='grey', alpha=0.8 )
+    fig.supxlabel("Subset size")
+    fig.supylabel("Frequency")
     plt.savefig(f"{dir}/size_hist.png")
     plt.clf()
-        
+    
+    df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values )
     df = df.replace({
         "param": {
             i: val 

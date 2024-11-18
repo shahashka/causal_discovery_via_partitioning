@@ -140,6 +140,18 @@ class Experiment:
             partition = partition_alg(super_struct, data=gen_graph.samples, cutoff=spec.partition_cutoff, 
                                       resolution=spec.partition_resolution, 
                                       best_n=spec.partition_best_n) 
+                    
+            if save_vis:
+                print("Saving graph as a gephy file with estimated partition")
+                G = nx.from_numpy_array(G_star, create_using=nx.DiGraph)
+                partition_by_node = {}
+                for comm, nodes in partition.items():
+                    for n in nodes:
+                        partition_by_node[n] = comm # note that this doesn't include overlaps
+                nx.set_node_attributes(G , partition_by_node, name='community')
+                nx.write_gexf(G, f"{save_path}/{spec.partition_fn}_estimated_graph.gexf")
+            
+            
             
             # Learn in parallel
             func_partial = functools.partial(causal_discovery_alg, use_skel= spec.causal_learn_use_skel, params=spec.causal_learn_params) if spec.causal_learn_params \
@@ -153,6 +165,7 @@ class Experiment:
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
             print(partition_sizes)
+            return np.zeros(6), partition_sizes
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 results = list(tqdm.tqdm(executor.map(func_partial, subproblems, chunksize=1), total=len(subproblems)))
             print("CD done")
@@ -169,17 +182,7 @@ class Experiment:
         out_data = np.zeros(6)
         out_data[0:5] = scores
         out_data[5] = total_time
-        
-        if save_vis:
-            print("Saving estimated graph as a gephy file")
-            G = nx.from_numpy_array(out_adj, create_using=nx.DiGraph)
-            partition_by_node = {}
-            for comm, nodes in partition.items():
-                for n in nodes:
-                    partition_by_node[n] = comm # note that this doesn't include overlaps
-            nx.set_node_attributes(G , partition_by_node, name='community')
-            nx.write_gexf(G, f"{save_path}/{spec.partition_fn}_estimated_graph.gexf")
-            
+
         return out_data, partition_sizes
     
         

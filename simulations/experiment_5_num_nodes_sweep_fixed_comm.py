@@ -9,19 +9,19 @@ from cd_v_partition.vis_experiment import vis_experiment
 import numpy as np
 import copy
 if __name__ == "__main__":
-    exp_5 = Experiment(1)
+    exp_5 = Experiment(4)
     size_of_comm = 100
     num_communities = 100
     large_num_nodes = int(num_communities*size_of_comm)
 
-    dir = "simulations/experiment_5_refactor_multi_algs_small_comms_100_sf"
+    dir = "simulations/experiment_5_refactor_multi_algs_small_comms_100_sf_sizes"
     sim_cfg = SimulationConfig(graph_per_spec=1,
                                experiment_id=dir,
-                               partition_fn=['expansive_causal'],#, 'edge_cover', 'expansive_causal'],#, 'no_partition'],
+                               partition_fn=['modularity', 'edge_cover', 'expansive_causal'],#, 'no_partition'],
                                num_samples=[int(1e4)],
                                graph_kind="scale_free", 
                                num_nodes=[large_num_nodes],
-                               causal_learn_fn=["NOTEARS"],#[ "NOTEARS", "GES", "PC","RFCI-PAG"],
+                               causal_learn_fn=["GES"],#[ "NOTEARS", "GES", "PC","RFCI-PAG"],
                                merge_fn=["screen"],
                                partition_resolution=5,
                                num_communities=num_communities,
@@ -39,8 +39,8 @@ if __name__ == "__main__":
     sim_cfg_pef.merge_fn = ["fusion"]
     sim_cfg_pef.merge_full_cand_set = [True]
     
-    exp_5.run(sim_cfg, random_state=1)
-    #exp_5.run(sim_cfg_pef, random_state=1)
+    #exp_5.run(sim_cfg, random_state=1)
+    exp_5.run(sim_cfg_pef, random_state=1)
     for cd_alg in sim_cfg.causal_learn_fn:
         vis_experiment(5, dir, sim_cfg.partition_fn,
                        cd_alg, sim_cfg.graph_per_spec, "num_nodes", sim_cfg.num_nodes)

@@ -502,7 +502,7 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
             subgraph = nx.DiGraph()
             subgraph.add_nodes_from(node_ids)
         else:
-            subgraph = nx.from_numpy_array(adj, create_using=nx.DiGraph)
+            subgraph = nx.from_numpy_array(adj,edge_attr="weight", create_using=nx.DiGraph)
             subgraph = nx.relabel_nodes(
                 subgraph,
                 mapping=dict(zip(np.arange(len(node_ids)), node_ids)),
