@@ -165,7 +165,7 @@ class Experiment:
             partition_sizes = [len(p) for p in partition.values()]
             print(f"Biggest partition size {max(partition_sizes)}")
             print(partition_sizes)
-            return np.zeros(6), partition_sizes
+            #return np.zeros(6), partition_sizes
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 results = list(tqdm.tqdm(executor.map(func_partial, subproblems, chunksize=1), total=len(subproblems)))
             print("CD done")

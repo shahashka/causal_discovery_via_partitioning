@@ -28,14 +28,15 @@ def remove_edges_not_in_ss(
         nx.DiGraph: target_graph with only edges appearing in ss_graph
     """
     # specify edge orientation to avoid issues with orderings of tuples
-    ss_edge_set = set(ss_graph.out_edges())
-    target_edge_set = set(target_graph.out_edges())
+    ss_edge_set = set(ss_graph.edges())
+    target_edge_set = set(target_graph.edges())
     # find edges in global_graph that are present in ss_graph
     target_edges_in_superstructure = list(target_edge_set.intersection(ss_edge_set))
+    weights = [target_graph.edges[e[0],e[1]]['weight'] for e in target_edges_in_superstructure]
     # reset all edges in global_graph
     target_graph.remove_edges_from(list(target_graph.edges()))
     # add back edges from global_edges_in_superstructure
-    target_graph.add_edges_from(target_edges_in_superstructure)
+    target_graph.add_edges_from(target_edges_in_superstructure, weight=weights)
     return target_graph
 
 def no_partition_postprocess(
@@ -197,6 +198,7 @@ def screen_projections(
     # Take the union over graphs
     local_cd_graphs = _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats)
     global_graph = _union_with_overlaps(local_cd_graphs)
+    print(f"SCREEN PROJECTIONS AFTER UNION {len(nx.get_edge_attributes(global_graph, 'weight'))}")
 
     # Remove all edges not present in superstructure
     ss_graph = nx.from_numpy_array(ss, create_using=nx.DiGraph)
@@ -218,6 +220,7 @@ def screen_projections(
                     not adj_comm[row, col] and not adj_comm[col, row]
                 ) and global_graph.has_edge(i, j):
                     global_graph.remove_edge(i, j)
+    print(f"SCREEN PROJECTIONS BEFORE FINITE LIM {len(nx.get_edge_attributes(global_graph, 'weight'))}")
 
     # resolve bidirected edges and delete cycles using RIC score
     if finite_lim:
@@ -228,7 +231,7 @@ def screen_projections(
             ss_subset,
             data,
         )
-
+    print(f"SCREEN PROJECTIONS END {len(nx.get_edge_attributes(global_graph, 'weight'))}")
     return global_graph
 
 
@@ -503,10 +506,9 @@ def _convert_local_adj_mat_to_graph(partition, local_cd_adj_mats):
             subgraph.add_nodes_from(node_ids)
         else:
             subgraph = nx.from_numpy_array(adj,edge_attr="weight", create_using=nx.DiGraph)
-            subgraph = nx.relabel_nodes(
+            nx.relabel_nodes(
                 subgraph,
                 mapping=dict(zip(np.arange(len(node_ids)), node_ids)),
-                copy=True,
             )
         local_cd_graphs.append(subgraph)
     return local_cd_graphs
