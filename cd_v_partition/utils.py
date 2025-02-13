@@ -5,7 +5,7 @@ import itertools
 import math
 import os
 from pathlib import Path
-import random 
+import random
 
 import causaldag as cd
 import cdt
@@ -17,6 +17,7 @@ from numpy.random import RandomState
 from sklearn.metrics import roc_curve, confusion_matrix
 import scipy
 from typing import Callable, Union, List
+
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
     if random_state is None:
@@ -30,8 +31,16 @@ def load_random_state(random_state: RandomState | int | None = None) -> RandomSt
             "Illegal value for `load_random_state()` Must be either an instance of "
             "`RandomState`, an integer to seed with, or None."
         )
+
+
 # override graphical_models.rand.directed_random_graph to take in a random state
-def directed_random_graph(nnodes: int, random_graph_model: Callable, random_state: RandomState, size=1, as_list=False) -> Union[DAG, List[DAG]]:
+def directed_random_graph(
+    nnodes: int,
+    random_graph_model: Callable,
+    random_state: RandomState,
+    size=1,
+    as_list=False,
+) -> Union[DAG, List[DAG]]:
     if size == 1:
         # generate a random undirected graph
         edges = random_graph_model(nnodes).edges
@@ -56,40 +65,48 @@ def directed_random_graph(nnodes: int, random_graph_model: Callable, random_stat
         return [d] if as_list else d
     else:
         return [directed_random_graph(nnodes, random_graph_model) for _ in range(size)]
+
+
 # Override GaussDAG.sample to take in random state
-def sample(gaussdag: GaussDAG, random_state:RandomState, nsamples: int = 1) -> np.array:
-        """
-        Return `nsamples` samples from the graph.
+def sample(
+    gaussdag: GaussDAG, random_state: RandomState, nsamples: int = 1
+) -> np.array:
+    """
+    Return `nsamples` samples from the graph.
 
-        Parameters
-        ----------
-        nsamples:
-            Number of samples.
+    Parameters
+    ----------
+    nsamples:
+        Number of samples.
 
-        Returns
-        -------
-        (nsamples x nnodes) matrix of samples.
+    Returns
+    -------
+    (nsamples x nnodes) matrix of samples.
 
-        Examples
-        --------
-        TODO
-        """
-        samples = np.zeros((nsamples, len(gaussdag._nodes)))
-        noise = np.zeros((nsamples, len(gaussdag._nodes)))
-        for ix, (bias, var) in enumerate(zip(gaussdag._biases, gaussdag._variances)):
-            noise[:, ix] = random_state.normal(loc=bias, scale=var ** .5, size=nsamples)
-        t = gaussdag.topological_sort()
-        for node in t:
-            ix = gaussdag._node2ix[node]
-            parents = gaussdag._parents[node]
-            if len(parents) != 0:
-                parent_ixs = [gaussdag._node2ix[p] for p in gaussdag._parents[node]]
-                parent_vals = samples[:, parent_ixs]
-                samples[:, ix] = np.sum(parent_vals * gaussdag._weight_mat[parent_ixs, node], axis=1) + noise[:, ix]
-            else:
-                samples[:, ix] = noise[:, ix]
-        return samples
-    
+    Examples
+    --------
+    TODO
+    """
+    samples = np.zeros((nsamples, len(gaussdag._nodes)))
+    noise = np.zeros((nsamples, len(gaussdag._nodes)))
+    for ix, (bias, var) in enumerate(zip(gaussdag._biases, gaussdag._variances)):
+        noise[:, ix] = random_state.normal(loc=bias, scale=var**0.5, size=nsamples)
+    t = gaussdag.topological_sort()
+    for node in t:
+        ix = gaussdag._node2ix[node]
+        parents = gaussdag._parents[node]
+        if len(parents) != 0:
+            parent_ixs = [gaussdag._node2ix[p] for p in gaussdag._parents[node]]
+            parent_vals = samples[:, parent_ixs]
+            samples[:, ix] = (
+                np.sum(parent_vals * gaussdag._weight_mat[parent_ixs, node], axis=1)
+                + noise[:, ix]
+            )
+        else:
+            samples[:, ix] = noise[:, ix]
+    return samples
+
+
 def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False):
     r"""
     Helper function to convert an adjacency matrix into an edge list. Optionally include weights so that
@@ -190,7 +207,9 @@ def tpr_fpr_score(
     fpr, tpr, _ = roc_curve(y_true.flatten(), y_pred.flatten())
     return tpr[1], fpr[1]
 
-def get_confusion_matrix(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+
+def get_confusion_matrix(
+    y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
 ) -> tuple[int, int, int, int]:
     if type(y_pred) == nx.DiGraph:
         y_pred = nx.adjacency_matrix(y_pred)
@@ -200,11 +219,11 @@ def get_confusion_matrix(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | n
         y_true = y_true.todense()
     y_pred = np.array(y_pred != 0, dtype=int).flatten()
     y_true = np.array(y_true != 0, dtype=int).flatten()
-    tn, fp, fn, tp  = confusion_matrix(y_true, y_pred).ravel()
-    return {'tn':tn, 'fp': fp, 'fn': fn, 'tp':tp}
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    return {"tn": tn, "fp": fp, "fn": fn, "tp": tp}
 
-def shd(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
-) -> int:
+
+def shd(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph) -> int:
     if type(y_pred) == nx.DiGraph:
         y_pred = nx.adjacency_matrix(y_pred)
         y_pred = y_pred.todense()
@@ -213,8 +232,9 @@ def shd(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
         y_true = y_true.todense()
     y_pred = np.array(y_pred != 0, dtype=int).flatten()
     y_true = np.array(y_true != 0, dtype=int).flatten()
-    return np.sum(np.abs(y_true-y_pred))
-    
+    return np.sum(np.abs(y_true - y_pred))
+
+
 def get_scores(
     alg_names: list[str],
     networks: list[np.ndarray] | list[nx.DiGraph],
@@ -262,8 +282,6 @@ def get_scores(
         #     )
         # )
         return shd, sid, auc, tpr_fpr[0], tpr_fpr[1]
-
-
 
 
 def get_random_graph_data(
@@ -369,7 +387,7 @@ def get_data_from_graph(
     var: np.ndarray = None,
     save: bool = False,
     outdir: Path | str = None,
-    random_state: int | RandomState = 42
+    random_state: int | RandomState = 42,
 ):
     """
     Get data set from a predefined graph using the Gaussian DAG generative model (same as get_random_graph_data)
@@ -508,16 +526,24 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     delta = [s - p for (s, p) in zip(scores_s, scores_p)]
     return delta
 
+
 # TODO implement random_state
-def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, 
-                   rho: int = 0.01, random_state: RandomState | int = 0):
+def create_k_comms(
+    graph_type: str,
+    n: int,
+    m_list: list[int],
+    p_list: list[int],
+    k: int,
+    rho: int = 0.01,
+    random_state: RandomState | int = 0,
+):
     """Create a random network with k communities with the specified graph type and parameters. Create this by
-    generating k disjoint communities adn using preferential attachment. Remove any cycles to 
+    generating k disjoint communities adn using preferential attachment. Remove any cycles to
     make this a DAG
 
     Args:
         graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
-        n (int): number of nodes per community 
+        n (int): number of nodes per community
         m_list (list[int]): number of edges to attach from a new node to existing nodes (scale_free) or number of
                             nearest neighbors connected in ring (small_world)
         p_list (list[float]): probability of edge creation (erdos_renyi) or rewiring (small_world)
@@ -541,7 +567,13 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         else:
             p = p_list[i]
         comm_k = get_random_graph_data(
-            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
+            graph_type=graph_type,
+            num_nodes=n,
+            nsamples=0,
+            iv_samples=0,
+            p=p,
+            m=m,
+            seed=random_state,
         )[0][0]
 
         comms.append(nx.DiGraph(comm_k))
@@ -570,7 +602,9 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
                 for i in range(n):
                     node_label = t * n + i
                     if len(list(comm_graph.predecessors(node_label))) == 0:
-                        num_connected = random_state.choice(np.arange(A), size=1, p=probs)
+                        num_connected = random_state.choice(
+                            np.arange(A), size=1, p=probs
+                        )
                         dest = random_state.choice(np.arange(t * n), size=num_connected)
                         connections = [(node_label, d) for d in dest]
                         comm_graph.add_edges_from(connections)
@@ -581,18 +615,27 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
             init_partition[i] = list(np.arange(i * n, (i + 1) * n))
         comm_graph = _remove_cycles(comm_graph)
     else:
-        init_partition=None
+        init_partition = None
         comm_graph = comms[0]
-    
+
     return init_partition, comm_graph
 
-def stochastic_block_model(n: int, p_list: list[int], k: int, 
-                   rho: int = 0.01, random_state: RandomState | int = 0):
-    sizes = k*[n]
-    prob_matrix = rho*np.ones((k,k))
-    np.fill_diagonal(prob_matrix,p_list)
-    G = nx.stochastic_block_model(sizes=sizes, p=prob_matrix, directed=True, seed=random_state)
+
+def stochastic_block_model(
+    n: int,
+    p_list: list[int],
+    k: int,
+    rho: int = 0.01,
+    random_state: RandomState | int = 0,
+):
+    sizes = k * [n]
+    prob_matrix = rho * np.ones((k, k))
+    np.fill_diagonal(prob_matrix, p_list)
+    G = nx.stochastic_block_model(
+        sizes=sizes, p=prob_matrix, directed=True, seed=random_state
+    )
     return G
+
 
 def _remove_cycles(G):
     # find and remove cycles
@@ -612,11 +655,14 @@ def _remove_cycles(G):
     except:
         return G
 
-def correlation_superstructure(data: pd.DataFrame, seed: int|RandomState, num_iterations:int = 100) -> np.ndarray:
+
+def correlation_superstructure(
+    data: pd.DataFrame, seed: int | RandomState, num_iterations: int = 100
+) -> np.ndarray:
     """Creates a superstructure by calculating the correlation matrix from the data.
 
     A cutoff value is chosen using permutation testing: randomly shuffling the data amtrix and
-    recalculating the correlation matrix over a specified number of iterations. The upper bound of the 95% confidence interval 
+    recalculating the correlation matrix over a specified number of iterations. The upper bound of the 95% confidence interval
     for the maximum value in each shuffled matrix is used as the threshold for the superstructure
 
     Args:
@@ -628,25 +674,31 @@ def correlation_superstructure(data: pd.DataFrame, seed: int|RandomState, num_it
         corr_mat (np.ndarray): an adjacency matrix for the superstructure we've created
     """
     random_state = load_random_state(seed)
-    data = data.drop(columns=['target'])
-    corr_mat = data.corr('pearson').to_numpy()
+    data = data.drop(columns=["target"])
+    corr_mat = data.corr("pearson").to_numpy()
     np.fill_diagonal(corr_mat, 0)
     random_corr_coef = []
     # Permutation testing
     for _ in range(num_iterations):
         shuffled_array = np.zeros(data.shape)
-        for row in np.arange(data.shape[0]): # randomly shuffle each row
+        for row in np.arange(data.shape[0]):  # randomly shuffle each row
             shuffled_array[row] = random_state.permutation(data.iloc[row])
         shuffled_final_data_set = pd.DataFrame(data=shuffled_array)
-        shuffle_corr_mat = shuffled_final_data_set.corr('pearson')
+        shuffle_corr_mat = shuffled_final_data_set.corr("pearson")
         shuffle_corr_mat = shuffle_corr_mat.to_numpy()
         np.fill_diagonal(shuffle_corr_mat, 0)
-        random_corr_coef.append(np.max(shuffle_corr_mat)) # find the max value (excluding diagonal)
-    ci_interval = scipy.stats.t.interval(0.95, len(random_corr_coef)-1, loc=np.mean(random_corr_coef),
-                                          scale=scipy.stats.sem(random_corr_coef))
-    cutoff = ci_interval[1] # upper bound of CI is used a the threshold
-    corr_mat[corr_mat<=cutoff] = 0
-    corr_mat[corr_mat>cutoff] = 1
+        random_corr_coef.append(
+            np.max(shuffle_corr_mat)
+        )  # find the max value (excluding diagonal)
+    ci_interval = scipy.stats.t.interval(
+        0.95,
+        len(random_corr_coef) - 1,
+        loc=np.mean(random_corr_coef),
+        scale=scipy.stats.sem(random_corr_coef),
+    )
+    cutoff = ci_interval[1]  # upper bound of CI is used a the threshold
+    corr_mat[corr_mat <= cutoff] = 0
+    corr_mat[corr_mat > cutoff] = 1
     return corr_mat
 
 
@@ -675,6 +727,7 @@ def artificial_superstructure(
 
     return nx.adjacency_matrix(G_super).toarray()
 
+
 def pick_k_random_edges(k, nodes):
     return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
 
@@ -688,7 +741,7 @@ def directed_heirarchical_graph(num_nodes, seed):
             beta=0.3,
             delta_in=0.0,
             delta_out=0.0,
-            seed=seed
+            seed=seed,
         )
     )
     # find and remove cycles

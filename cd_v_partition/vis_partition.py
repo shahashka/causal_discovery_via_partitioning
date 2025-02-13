@@ -20,7 +20,9 @@ def create_partition_plot(
     nodes: list[str],
     partition: dict[int, list[int]],
     save_name: Path | str,
-    ax = None, node_size=1, edge_width=2
+    ax=None,
+    node_size=1,
+    edge_width=2,
 ):
     """
     Create plot of overlapping partitions with patches.
@@ -34,15 +36,13 @@ def create_partition_plot(
     Returns:
         ...
     """
-    node_to_partition = dict(
-        zip(nodes, [[] for _ in np.arange(len(nodes))])
-    )
+    node_to_partition = dict(zip(nodes, [[] for _ in np.arange(len(nodes))]))
     for key, value in partition.items():
         for node in value:
             node_to_partition[node] += [key]
     pos, overlaps = _partition_layout(G, node_to_partition)
 
-    if ax is None: 
+    if ax is None:
         _, ax = plt.subplots()
     cm = pylab.get_cmap("plasma")
     colors = []
@@ -184,7 +184,7 @@ def _position_partitions(g, partition, **kwargs):
 
     # find layout for partitions
     pos_partitions = nx.spring_layout(
-        hypergraph, k=10*len(g.nodes()) / np.sqrt(len(partitions)), **kwargs
+        hypergraph, k=10 * len(g.nodes()) / np.sqrt(len(partitions)), **kwargs
     )
 
     # set node positions to position of partition

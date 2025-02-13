@@ -9,9 +9,11 @@ Edge: TypeAlias = tuple[Any, Any]
 
 Partition: TypeAlias = dict[int, Iterable[Node]]
 
+
 class TrueGraph(NamedTuple):
     nodes: list[Node]
     edges: list[Edge]
+
 
 class Result(NamedTuple):
     shd: int
@@ -20,8 +22,10 @@ class Result(NamedTuple):
     tpr: float
     fpr: float
     time: float
-    
+
+
 GraphKind = Literal["erdos_renyi", "small_world", "scale_free", "hierarchical", "ecoli"]
+
 
 @dataclass
 class GeneratedGraph:
