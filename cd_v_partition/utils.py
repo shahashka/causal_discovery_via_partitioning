@@ -4,15 +4,15 @@ from __future__ import annotations
 import itertools
 import math
 import os
+import random
 from pathlib import Path
-import random 
 
 import causaldag as cd
 import cdt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from graphical_models import rand, GaussDAG
+from graphical_models import GaussDAG, rand
 from numpy.random import RandomState
 from sklearn.metrics import roc_curve
 
@@ -285,7 +285,7 @@ def get_data_from_graph(
     var: np.ndarray = None,
     save: bool = False,
     outdir: Path | str = None,
-    random_state: int | RandomState = 42
+    random_state: int | RandomState = 42,
 ):
     """
     Get data set from a predefined graph using the Gaussian DAG generative model (same as get_random_graph_data)
@@ -424,16 +424,24 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     delta = [s - p for (s, p) in zip(scores_s, scores_p)]
     return delta
 
+
 # TODO implement random_state
-def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int], k: int, 
-                   rho: int = 0.01, random_state: RandomState | int = 0):
+def create_k_comms(
+    graph_type: str,
+    n: int,
+    m_list: list[int],
+    p_list: list[int],
+    k: int,
+    rho: int = 0.01,
+    random_state: RandomState | int = 0,
+):
     """Create a random network with k communities with the specified graph type and parameters. Create this by
-    generating k disjoint communities adn using preferential attachment. Remove any cycles to 
+    generating k disjoint communities adn using preferential attachment. Remove any cycles to
     make this a DAG
 
     Args:
         graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
-        n (int): number of nodes per community 
+        n (int): number of nodes per community
         m_list (list[int]): number of edges to attach from a new node to existing nodes (scale_free) or number of
                             nearest neighbors connected in ring (small_world)
         p_list (list[float]): probability of edge creation (erdos_renyi) or rewiring (small_world)
@@ -456,7 +464,13 @@ def create_k_comms(graph_type: str, n: int, m_list: list[int], p_list: list[int]
         else:
             p = p_list[i]
         comm_k = get_random_graph_data(
-            graph_type=graph_type, num_nodes=n, nsamples=0, iv_samples=0, p=p, m=m, seed=random_state
+            graph_type=graph_type,
+            num_nodes=n,
+            nsamples=0,
+            iv_samples=0,
+            p=p,
+            m=m,
+            seed=random_state,
         )[0][0]
 
         comms.append(nx.DiGraph(comm_k))
@@ -516,6 +530,7 @@ def _remove_cycles(G):
     except:
         return G
 
+
 def artificial_superstructure(
     G_star_adj_mat, frac_retain_direction=0.1, frac_extraneous=0.5
 ):
@@ -541,6 +556,7 @@ def artificial_superstructure(
 
     return nx.adjacency_matrix(G_super).toarray()
 
+
 def pick_k_random_edges(k, nodes):
     return list(zip(random.choices(nodes, k=k), random.choices(nodes, k=k)))
 
@@ -554,7 +570,7 @@ def directed_heirarchical_graph(num_nodes, seed):
             beta=0.3,
             delta_in=0.0,
             delta_out=0.0,
-            seed=seed
+            seed=seed,
         )
     )
     # find and remove cycles

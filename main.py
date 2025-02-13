@@ -1,5 +1,5 @@
 import argparse
-from concurrent.futures import as_completed, ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from tqdm import tqdm
 

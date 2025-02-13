@@ -5,10 +5,52 @@ import mkdocs_gen_files
 
 nav = mkdocs_gen_files.Nav()
 
+
+def comparator(a: Path, b: Path):
+    are_siblings = a.parent == b.parent
+    if are_siblings:
+        alphabetically_first = sorted([a.stem, b.stem])[0]
+        return -1 if a.stem == alphabetically_first else 1
+    else:
+        return -1
+
+
+def cmp_to_key(my_comparator):
+    """Convert a comparator function into a key class for sorting."""
+
+    class K(object):
+        def __init__(self, obj, *args):
+            self.obj = obj
+
+        def __lt__(self, other):
+            return my_comparator(self.obj, other.obj) < 0
+
+        def __gt__(self, other):
+            return my_comparator(self.obj, other.obj) > 0
+
+        def __eq__(self, other):
+            return my_comparator(self.obj, other.obj) == 0
+
+        def __le__(self, other):
+            return my_comparator(self.obj, other.obj) <= 0
+
+        def __ge__(self, other):
+            return my_comparator(self.obj, other.obj) >= 0
+
+        def __ne__(self, other):
+            return my_comparator(self.obj, other.obj) != 0
+
+    return K
+
+
 project_dir = "cd_v_partition"
 reference_dir = "reference"
+sorted_paths = sorted(
+    Path(project_dir).rglob("**/*.py"),
+    key=cmp_to_key(comparator),
+)
 
-for path in sorted(Path(project_dir).rglob("**/*.py")):
+for path in sorted_paths:
     module_path = path.with_suffix("")
     doc_path = path.relative_to(project_dir).with_suffix(".md")
     full_doc_path = Path(reference_dir, doc_path)

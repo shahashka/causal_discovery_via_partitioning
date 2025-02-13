@@ -8,11 +8,11 @@ from cd_v_partition.configs import SimulationSpec
 from cd_v_partition.fusion import fusion
 from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.utils import (
-    get_random_graph_data,
-    edge_to_adj,
     adj_to_dag,
-    evaluate_partition,
     delta_causality,
+    edge_to_adj,
+    evaluate_partition,
+    get_random_graph_data,
 )
 from cd_v_partition.vis_partition import create_partition_plot
 

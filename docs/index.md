@@ -1,17 +1,41 @@
-# Welcome to MkDocs
+# Causal Discovery with Scalable Graph Partitioning
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+This repository contains the code for our novel causal discovery algorithm, designed
+to handle high-dimensional problems efficiently. Causal discovery involves identifying
+cause-and-effect relationships in data, typically by searching over *directed acyclic
+graphs* (DAGs). For large datasets, this process becomes computationally intractable.
 
-## Commands
+Our approach introduces a **causal graph partitioning** method that allows for
+divide-and-conquer strategies with theoretical guarantees. By leveraging a
+**superstructure**—a set of learned or predefined candidate hypotheses—we can partition
+the search space and significantly speed up discovery while preserving accuracy.
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+The algorithm is validated on synthetic biological networks and scales to networks
+with up to $10^4$ variables, making it suitable for complex tasks like gene regulatory
+network inference.
 
-## Project layout
+## Getting Started
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+Simulations with our code can be run through the CLI as follows:
+```bash
+python -m causal_partitioning.simulate \
+    --num-variables 100 \
+    --num-samples 1000 \
+    --num-edges 10 \
+    --num-partitions 10 \
+    --num-iterations 100 \
+    --output-dir ./output
+```
+
+
+## Citing Causal Partitioning
+If you use our code, algorithms, or anything related to our work, we would greatly appreciate
+if you cite the following [paper](https://arxiv.org/pdf/2406.06348):
+```bibtex
+@article{shah2024causal,
+  title={Causal Discovery over High-Dimensional Structured Hypothesis Spaces with Causal Graph Partitioning},
+  author={Shah, Ashka and DePavia, Adela and Hudson, Nathaniel and Foster, Ian and Stevens, Rick},
+  journal={arXiv preprint arXiv:2406.06348},
+  year={2024}
+}
+```

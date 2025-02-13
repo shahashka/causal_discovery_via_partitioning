@@ -1,14 +1,13 @@
-import numpy as np
-from pathlib import Path
-import pandas as pd
-
+import warnings
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable, TypeAlias
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-import warnings
+
 # Define metric constants.
 NDIM = 6
 SHD, SID, AUC, TPR, FPR, TIME = range(NDIM)
@@ -30,7 +29,8 @@ ERROR_BAR = "ci"
 ERROR_STYLE = "band"
 ALG_MAP = {
     "expansive_causal": "Expansive Causal",
-    "no_partition": "No Partition", "no partition": "No Partition",
+    "no_partition": "No Partition",
+    "no partition": "No Partition",
     "PEF": "PEF",
     "modularity": "Disjoint",
     "edge_cover": "Edge Cover",
@@ -41,7 +41,7 @@ COLOR_MAP = {
     "PEF": "green",
     "Disjoint": "grey",
     "Edge Cover": "red",
-} 
+}
 MARKER_MAP = {
     "Expansive Causal": "X",
     "No Partition": "o",
@@ -49,6 +49,8 @@ MARKER_MAP = {
     "Disjoint": "P",
     "Edge Cover": "s",
 }
+
+
 def load_iteration(data: np.ndarray, **kwargs) -> list[Record]:
     """Loads a single iteration (or Monte-Carlo) run from a result file.
 
@@ -79,9 +81,14 @@ def load_iteration(data: np.ndarray, **kwargs) -> list[Record]:
 
     return records
 
-def read_chkpoints(dir: Path | str, eval_algs: list[str], cd_alg:str,
-                   num_trials: int, 
-                   save_sweep_values:Any) -> pd.DataFrame:
+
+def read_chkpoints(
+    dir: Path | str,
+    eval_algs: list[str],
+    cd_alg: str,
+    num_trials: int,
+    save_sweep_values: Any,
+) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -103,7 +110,9 @@ def read_chkpoints(dir: Path | str, eval_algs: list[str], cd_alg:str,
             inds, dirs = [], []
             # Make sure we iterate through specs in sequential orer
             for _, spec_path in enumerate(out_path.iterdir()):
-                spec_id = int(spec_path.name.split('_')[1]) # grab the spec id from the folder
+                spec_id = int(
+                    spec_path.name.split("_")[1]
+                )  # grab the spec id from the folder
                 inds.append(spec_id)
                 dirs.append(spec_path)
             inds, dirs = zip(*sorted(zip(inds, dirs)))
@@ -112,16 +121,24 @@ def read_chkpoints(dir: Path | str, eval_algs: list[str], cd_alg:str,
                     out_path = spec_path / f"trial_{trial_id}/chkpoint.txt"
                     if out_path.exists():
                         results[trial_id][spec_id] = np.loadtxt(out_path)
-        # Populate records for each trial across specs 
+        # Populate records for each trial across specs
         for t, trial in enumerate(results):
             rec = load_iteration(trial, trial=t, method=alg)
             records.extend(rec)
     return pd.DataFrame.from_records(records)
-        
-def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:str,num_trials: int, 
-                   save_sweep_param: str, save_sweep_values:Any):
+
+
+def vis_experiment(
+    experiment_id: int,
+    dir: str,
+    eval_algs: list[str],
+    cd_alg: str,
+    num_trials: int,
+    save_sweep_param: str,
+    save_sweep_values: Any,
+):
     """Read checkpoints and visualize plots for scores from an experiment
-    
+
     Plots the SHD, TPR and Time along the specified axis for the specified evaluation
     algorithms
 
@@ -134,13 +151,8 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
         save_sweep_param (str): The name of the sweep parameter (x-axis label for plots)
         save_sweep_values (Any): The values for the sweep parameter (x-axis values for plots)
     """
-    df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values )
-    df = df.replace({
-        "param": {
-            i: val 
-            for (i, val) in enumerate(save_sweep_values)
-        }
-    })
+    df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values)
+    df = df.replace({"param": {i: val for (i, val) in enumerate(save_sweep_values)}})
     df = df.rename(columns={"param": save_sweep_param})
     df = df[df.value != 0]
     df = df.reset_index()
@@ -149,33 +161,75 @@ def vis_experiment(experiment_id: int, dir: str, eval_algs: list[str], cd_alg:st
     hue_order, marker_order = dict(), dict()
     match experiment_id:
         case 1:
-            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs],
-                    "num_samples", "# Samples", "log") 
+            vis_gen(
+                Path(dir),
+                cd_alg,
+                df,
+                [ALG_MAP[e] for e in eval_algs],
+                "num_samples",
+                "# Samples",
+                "log",
+            )
         case 2:
-            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs],
-                    "inter_edge_prob", "Inter-community Edge Prob. ($\\rho$)", "linear" )
+            vis_gen(
+                Path(dir),
+                cd_alg,
+                df,
+                [ALG_MAP[e] for e in eval_algs],
+                "inter_edge_prob",
+                "Inter-community Edge Prob. ($\\rho$)",
+                "linear",
+            )
         case 3:
-            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs], 
-                    "frac_extraneous_edges", "Fraction of Extraneous Edges", "linear" )
+            vis_gen(
+                Path(dir),
+                cd_alg,
+                df,
+                [ALG_MAP[e] for e in eval_algs],
+                "frac_extraneous_edges",
+                "Fraction of Extraneous Edges",
+                "linear",
+            )
         case 4:
-            vis_gen(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs], 
-                    "alpha", "$\\alpha$", "linear" )
+            vis_gen(
+                Path(dir),
+                cd_alg,
+                df,
+                [ALG_MAP[e] for e in eval_algs],
+                "alpha",
+                "$\\alpha$",
+                "linear",
+            )
         case 5:
-            vis_5(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs]) 
+            vis_5(Path(dir), cd_alg, df, [ALG_MAP[e] for e in eval_algs])
         case 6:
             print(df)
         case _:
-            raise ValueError(f"`{experiment_id=}` is an illegal value.`")  
+            raise ValueError(f"`{experiment_id=}` is an illegal value.`")
 
-def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
-            eval_algs: list[str], x_param: str, x_label: str, x_scale: str): 
+
+def vis_gen(
+    dir: Path | str,
+    cd_alg: str,
+    exp: pd.DataFrame,
+    eval_algs: list[str],
+    x_param: str,
+    x_label: str,
+    x_scale: str,
+):
     tpr = exp.query("metric == 'TPR'")
     shd = exp.query("metric == 'SHD'")
     args = dict(
-        x=x_param, y="value", hue="method", style="method", 
-        markers=MARKER_MAP, markersize=10, err_style=ERROR_STYLE, errorbar=ERROR_BAR,
-        palette=COLOR_MAP, 
-        hue_order=eval_algs, 
+        x=x_param,
+        y="value",
+        hue="method",
+        style="method",
+        markers=MARKER_MAP,
+        markersize=10,
+        err_style=ERROR_STYLE,
+        errorbar=ERROR_BAR,
+        palette=COLOR_MAP,
+        hue_order=eval_algs,
         style_order=eval_algs,
     )
 
@@ -185,7 +239,13 @@ def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
         sns.lineplot(shd, ax=ax[1], **args)
         ax[0].set(xscale=x_scale)
         ax[1].set(xscale=x_scale)
-        ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, 1.6), ncol=3, title="Algorithm", frameon=False)
+        ax[0].legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.6),
+            ncol=3,
+            title="Algorithm",
+            frameon=False,
+        )
         try:
             ax[1].get_legend().remove()
         except:
@@ -197,14 +257,21 @@ def vis_gen(dir: Path | str, cd_alg:str, exp: pd.DataFrame,
         plt.subplots_adjust(hspace=0.05)
         plt.savefig(dir / f"{cd_alg}_tpr_shd.png", bbox_inches="tight")
         plt.clf()
-        
-def vis_5(dir: Path | str, cd_alg:str, exp5: pd.DataFrame, eval_algs: list[str]):
-    time = exp5.query("metric == 'TIME'") # and num_nodes >= 10")
+
+
+def vis_5(dir: Path | str, cd_alg: str, exp5: pd.DataFrame, eval_algs: list[str]):
+    time = exp5.query("metric == 'TIME'")  # and num_nodes >= 10")
     args = dict(
-        x="num_nodes", y="value", hue="method", style="method", 
-        markers=MARKER_MAP, markersize=10, err_style=ERROR_STYLE, errorbar=ERROR_BAR,
-        palette=COLOR_MAP, 
-        hue_order=eval_algs, 
+        x="num_nodes",
+        y="value",
+        hue="method",
+        style="method",
+        markers=MARKER_MAP,
+        markersize=10,
+        err_style=ERROR_STYLE,
+        errorbar=ERROR_BAR,
+        palette=COLOR_MAP,
+        hue_order=eval_algs,
         style_order=eval_algs,
     )
     with sns.plotting_context("paper", font_scale=1.5):
@@ -216,12 +283,12 @@ def vis_5(dir: Path | str, cd_alg:str, exp5: pd.DataFrame, eval_algs: list[str])
         plt.setp(ax.get_legend().get_title(), weight="bold")
         plt.savefig(dir / f"{cd_alg}_timing.png", bbox_inches="tight")
         plt.clf()
-        
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         # tmp = exp5.query("metric == 'TIME' and num_nodes == 10_000")
         # tpr = exp5.query("metric == 'TPR'  and num_nodes == 10_000")
-        
+
         tmp = exp5.query("metric == 'TIME' and num_nodes == 1000")
         tpr = exp5.query("metric == 'TPR'  and num_nodes == 1000")
 

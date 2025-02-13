@@ -1,25 +1,25 @@
 # Run superstructure creation, partition, local discovery and screening
 # for a base case network with assumed community structure
-from cd_v_partition.utils import (
-    get_random_graph_data,
-    get_data_from_graph,
-    evaluate_partition,
-    delta_causality,
-)
-from cd_v_partition.causal_discovery import pc, weight_colliders, sp_gies
-from cd_v_partition.overlapping_partition import oslom_algorithm, partition_problem
-from cd_v_partition.vis_partition import create_partition_plot
-from cd_v_partition.fusion import fusion
+import argparse
+import functools
+import itertools
+import time
+from concurrent.futures import ProcessPoolExecutor
 
 import networkx as nx
 import numpy as np
 import pandas as pd
-import argparse
-import itertools
-import functools
-import time
 
-from concurrent.futures import ProcessPoolExecutor
+from cd_v_partition.causal_discovery import pc, sp_gies, weight_colliders
+from cd_v_partition.fusion import fusion
+from cd_v_partition.overlapping_partition import oslom_algorithm, partition_problem
+from cd_v_partition.utils import (
+    delta_causality,
+    evaluate_partition,
+    get_data_from_graph,
+    get_random_graph_data,
+)
+from cd_v_partition.vis_partition import create_partition_plot
 
 
 def get_args():
@@ -238,7 +238,7 @@ def _construct_tiling(net, num_tiles):
     Returns:
         nx.DiGraph: the final directed graph with community structure
     """
-    if num_tiles==1:
+    if num_tiles == 1:
         return net
     num_nodes = len(list(net.nodes()))
     degree_sequence = sorted((d for _, d in net.in_degree()), reverse=True)

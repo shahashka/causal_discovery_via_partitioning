@@ -1,25 +1,26 @@
 # Experiment 6: Synthetic e.coli networks, num samples 1e5, artificial ss with frac_extraneoues = 0.5
 # Modularity partitioning
-import numpy as np
-import pandas as pd
-from cd_v_partition.utils import (
-    get_data_from_graph,
-    adj_to_edge,
-    artificial_superstructure,
-)
-from cd_v_partition.overlapping_partition import (
-    PEF_partition,
-    rand_edge_cover_partition,
-    expansive_causal_partition,
-    modularity_partition, hierarchical_partition
-)
-
 import functools
-from concurrent.futures import ProcessPoolExecutor
 import os
 import time
+from concurrent.futures import ProcessPoolExecutor
+
+import numpy as np
+import pandas as pd
 from common_funcs import run_causal_discovery_partition, run_causal_discovery_serial
 
+from cd_v_partition.overlapping_partition import (
+    PEF_partition,
+    expansive_causal_partition,
+    hierarchical_partition,
+    modularity_partition,
+    rand_edge_cover_partition,
+)
+from cd_v_partition.utils import (
+    adj_to_edge,
+    artificial_superstructure,
+    get_data_from_graph,
+)
 
 
 def run_ecoli_alg(
@@ -28,7 +29,7 @@ def run_ecoli_alg(
     data_dir = "./datasets/bionetworks/ecoli/synthetic_copies"
     frac_extraneoues = 0.1
     G_star = np.loadtxt("{}/net_{}.txt".format(data_dir, net_id))
-    #G_star = G_star[0:100][:,0:100] # for debugging
+    # G_star = G_star[0:100][:,0:100] # for debugging
     nodes = np.arange(G_star.shape[0])
 
     G_star_edges = adj_to_edge(G_star, list(nodes), ignore_weights=True)
@@ -40,16 +41,12 @@ def run_ecoli_alg(
         bias=None,
         var=None,
     )[-1]
-    if algorithm=='pef':
-        screen=False
+    if algorithm == "pef":
+        screen = False
     dir_name = (
-        "./{}/{}/screen_projections/net_{}/".format(
-            experiment_dir, algorithm, net_id
-        )
+        "./{}/{}/screen_projections/net_{}/".format(experiment_dir, algorithm, net_id)
         if screen
-        else "./{}/{}/fusion/net_{}/".format(
-            experiment_dir, algorithm, net_id
-        )
+        else "./{}/{}/fusion/net_{}/".format(experiment_dir, algorithm, net_id)
     )
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
@@ -72,24 +69,22 @@ def run_ecoli_alg(
 
     else:
         start = time.time()
-        partition = hierarchical_partition(
-            superstructure, max_community_size=0.1
-        )
+        partition = hierarchical_partition(superstructure, max_community_size=0.1)
         tm = time.time() - start
 
-        if algorithm=='expansive_causal':
+        if algorithm == "expansive_causal":
             start = time.time()
             partition = expansive_causal_partition(superstructure, partition)
             tm += time.time() - start
-        elif algorithm=='edge_cover':
+        elif algorithm == "edge_cover":
             start = time.time()
             partition = rand_edge_cover_partition(superstructure, partition)
             tm += time.time() - start
-        elif algorithm=='pef':
+        elif algorithm == "pef":
             start = time.time()
             partition = PEF_partition(df)
             tm = time.time() - start
-            
+
         biggest_partition = max(len(p) for p in partition.values())
         print("Biggest partition is {}".format(biggest_partition))
 

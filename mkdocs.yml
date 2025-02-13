@@ -20,6 +20,9 @@ theme:
       - search.suggest
       - toc.follow
 
+watch:
+  - cd_v_partition/
+
 extra_css:
   - stylesheets/extra.css
 

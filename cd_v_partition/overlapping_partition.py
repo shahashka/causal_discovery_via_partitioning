@@ -1,22 +1,28 @@
 from __future__ import annotations
 
 import subprocess
-import networkx as nx
-from pathlib import Path
 import warnings
-import numpy as np
-import pandas as pd
-from scipy.cluster.hierarchy import linkage, cut_tree
+from pathlib import Path
 from typing import Any
 
+import networkx as nx
+import numpy as np
+import pandas as pd
+from scipy.cluster.hierarchy import cut_tree, linkage
+
+
 def modularity_partition(
-    adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, cutoff: int = 1, best_n: int = None
+    adj_mat: np.ndarray,
+    data: pd.DataFrame,
+    resolution: int = 1,
+    cutoff: int = 1,
+    best_n: int = None,
 ):
     """Creates disjoint partition by greedily maximizing modularity. Using networkx built-in implementaiton.
 
     Args:
         adj_mat (np.ndarray): the adjacency matrix for the superstructure
-        data (pd.DataFrame): unused parameter 
+        data (pd.DataFrame): unused parameter
         resolution (float): resolution parameter, trading off intra- versus inter-group edges.
         cutoff (int): lower limit on number of communities before termination
         best_n (int): upper limit on number of communities before termination
@@ -35,8 +41,13 @@ def modularity_partition(
         partition[idx] = list(c)
     return partition
 
+
 def expansive_causal_partition(
-    adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, cutoff: int = 1, best_n: int = None
+    adj_mat: np.ndarray,
+    data: pd.DataFrame,
+    resolution: int = 1,
+    cutoff: int = 1,
+    best_n: int = None,
 ):
     """Creates a causal partition by adding the outer-boundary of each cluster to that cluster.
 
@@ -44,14 +55,16 @@ def expansive_causal_partition(
     cluster to create a causal partition
     Args:
         adj_mat (np.ndarray): the adjacency matrix for the superstructure
-        data (Any): unused parameter 
+        data (Any): unused parameter
         resolution (float): resolution parameter, trading off intra- versus inter-group edges.
         cutoff (int): lower limit on number of communities before termination
         best_n (int): upper limit on number of communities before termination
     Returns:
         dict: the causal partition as a dictionary {comm_id : [nodes]}
     """
-    partition = modularity_partition(adj_mat, data=data, resolution=resolution, cutoff=cutoff, best_n=best_n)
+    partition = modularity_partition(
+        adj_mat, data=data, resolution=resolution, cutoff=cutoff, best_n=best_n
+    )
     G = nx.from_numpy_array(adj_mat)
 
     causal_partition = dict()
@@ -62,7 +75,12 @@ def expansive_causal_partition(
     return causal_partition
 
 
-def rand_edge_cover_partition(adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, cutoff: int = 1, best_n: int = None
+def rand_edge_cover_partition(
+    adj_mat: np.ndarray,
+    data: pd.DataFrame,
+    resolution: int = 1,
+    cutoff: int = 1,
+    best_n: int = None,
 ):
     """Creates a random edge covering partition.
 
@@ -71,20 +89,22 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, data: pd.DataFrame, resolutio
     adds any shared endpoints to the same community
     Args:
         adj_mat (np.ndarray): Adjacency matrix for the graph
-        data (pd.DataFrame): unused parameter 
+        data (pd.DataFrame): unused parameter
         resolution (float): resolution parameter, trading off intra- versus inter-group edges.
         cutoff (int): lower limit on number of communities before termination
         best_n (int): upper limit on number of communities before termination
     Returns:
         dict: the overlapping partition as a dictionary {comm_id : [nodes]}
     """
-    partition = modularity_partition(adj_mat, data=data, resolution=resolution, cutoff=cutoff, best_n=best_n)
+    partition = modularity_partition(
+        adj_mat, data=data, resolution=resolution, cutoff=cutoff, best_n=best_n
+    )
     graph = nx.from_numpy_array(adj_mat)
 
     def edge_coverage_helper(i, j, comm, cut_edges, node_to_comm):
-        if comm not in node_to_comm[i] :
+        if comm not in node_to_comm[i]:
             node_to_comm[i] += [comm]
-        if comm not in node_to_comm[j] :
+        if comm not in node_to_comm[j]:
             node_to_comm[j] += [comm]
         cut_edges.remove((i, j))
         return node_to_comm, cut_edges
@@ -121,7 +141,9 @@ def rand_edge_cover_partition(adj_mat: np.ndarray, data: pd.DataFrame, resolutio
                 edge_cover_partition[c] = [n]
     return edge_cover_partition
 
+
 """ BEGIN UNUSED PARTITION ALGS"""
+
 
 def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5):
     """Creates disjoint partition via heirarchical community detection
@@ -147,7 +169,6 @@ def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5)
         # if an error gets thrown here bc community_iterator ends, it means the algorithm
         # didn't produce any partitions with sufficiently small clusters
     return
-
 
 
 def oslom_algorithm(
@@ -204,7 +225,9 @@ def oslom_algorithm(
         partition[len(lines)] = homeless_nodes
     return partition
 
+
 """ END UNUSED PARTITION ALGS"""
+
 
 def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame):
     """Split the graph structure and dataset according to the given graph partition
@@ -226,8 +249,15 @@ def partition_problem(partition: dict, structure: np.ndarray, data: pd.DataFrame
         sub_problems.append((sub_structure, sub_data))
     return sub_problems
 
-def PEF_partition( adj_mat: np.ndarray, data: pd.DataFrame, resolution: int = 1, 
-                  cutoff: int = 1, best_n: int = None, min_size_frac: float = 0.05):
+
+def PEF_partition(
+    adj_mat: np.ndarray,
+    data: pd.DataFrame,
+    resolution: int = 1,
+    cutoff: int = 1,
+    best_n: int = None,
+    min_size_frac: float = 0.05,
+):
     """Perform the modified hierarchical clustering on the data, as described in
     `Learning Big Gaussian Bayesian Networks: Partition, Estimation and Fusion'
     Args:

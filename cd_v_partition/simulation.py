@@ -1,6 +1,6 @@
 from concurrent.futures import as_completed
 
-from cd_v_partition.configs.config import SimulationConfig
+from cd_v_partition.configs.base import SimulationConfig
 
 
 class Simulation:

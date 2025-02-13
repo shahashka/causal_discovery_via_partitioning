@@ -7,5 +7,5 @@
 module use /soft/modulefiles
 module load conda
 conda activate /home/shahashka/miniconda3/envs/cd_part2
-cd /home/shahashka/causal_discovery_via_partitioning 
-python simulations/experiment_6_ecoli_nets.py 
+cd /home/shahashka/causal_discovery_via_partitioning
+python simulations/experiment_6_ecoli_nets.py

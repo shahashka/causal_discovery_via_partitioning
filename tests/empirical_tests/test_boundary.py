@@ -1,11 +1,11 @@
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-
-from cd_v_partition.utils import get_scores, get_data_from_graph
-from cd_v_partition.overlapping_partition import partition_problem
-from cd_v_partition.causal_discovery import sp_gies, pc
-import matplotlib.pyplot as plt
 from test_causal_partition import create_two_comms
+
+from cd_v_partition.causal_discovery import pc, sp_gies
+from cd_v_partition.overlapping_partition import partition_problem
+from cd_v_partition.utils import get_data_from_graph, get_scores
 
 
 def get_wrong_edges(est_adj, true_adj):
