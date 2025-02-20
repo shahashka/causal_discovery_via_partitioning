@@ -128,7 +128,7 @@ def _create_patches(node_positions, ax, subset, color):
     bottom = np.c_[xx, np.full_like(yy, ymin)]
 
     xy3 = np.concatenate([left, top, right, bottom], axis=0)
-    z3 = np.zeros((len(xy3)))
+    z3 = np.zeros(len(xy3))
 
     xy = np.concatenate([xy1, xy2, xy3], axis=0)
     z = np.concatenate([z1, z2, z3])

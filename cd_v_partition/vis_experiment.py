@@ -2,9 +2,8 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 
-from collections import defaultdict
 from pathlib import Path
-from typing import Any, Iterable, TypeAlias
+from typing import Any, TypeAlias
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -13,7 +12,6 @@ import warnings
 # Define metric constants.
 NDIM = 6
 SHD, SID, AUC, TPR, FPR, TIME = range(NDIM)
-# SHD, AUC, TPR, FPR, TIME = range(NDIM - 1)
 METRICS: dict[str, int] = {
     "SHD": SHD,
     "SID": SID,

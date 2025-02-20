@@ -16,7 +16,8 @@ from graphical_models import GaussDAG, DAG
 from numpy.random import RandomState
 from sklearn.metrics import roc_curve, confusion_matrix
 import scipy
-from typing import Callable, Union, List
+from typing import Union, List
+from collections.abc import Callable
 
 
 def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
@@ -40,7 +41,7 @@ def directed_random_graph(
     random_state: RandomState,
     size=1,
     as_list=False,
-) -> Union[DAG, List[DAG]]:
+) -> DAG | list[DAG]:
     if size == 1:
         # generate a random undirected graph
         edges = random_graph_model(nnodes).edges
@@ -371,8 +372,8 @@ def get_random_graph_data(
     if save:
         if not os.path.isdir(outdir):
             os.makedirs(outdir)
-        df.to_csv("{}/data.csv".format(outdir), index=False)
-        with open("{}/ground.txt".format(outdir), "w") as f:
+        df.to_csv(f"{outdir}/data.csv", index=False)
+        with open(f"{outdir}/ground.txt", "w") as f:
             for edge in dag.arcs:
                 f.write(str(edge) + "\n")
     return (dag.arcs, nodes_inds, bias, var), df
@@ -433,8 +434,8 @@ def get_data_from_graph(
     if save:
         if not os.path.isdir(outdir):
             os.makedirs(outdir)
-        df.to_csv("{}/data.csv".format(outdir), index=False)
-        with open("{}/ground.txt".format(outdir), "w") as f:
+        df.to_csv(f"{outdir}/data.csv", index=False)
+        with open(f"{outdir}/ground.txt", "w") as f:
             for edge in edges:
                 f.write(str(edge) + "\n")
     return (edges, nodes, bias, var), df
@@ -496,13 +497,13 @@ def evaluate_partition(partition, G, nodes):
             if e[0] in p and e[1] in p:
                 is_covered = True
         covered += 1 if is_covered else 0
-    print("Percent of edges covered by partition: {}".format(covered / len(G.edges)))
+    print(f"Percent of edges covered by partition: {covered / len(G.edges)}")
 
     # Modularity of partitions
     mod_overlap = _modularity_overlapping(
         partition, nodes, nx.adjacency_matrix(G, nodelist=nodes)
     )
-    print("Modularity for Overlapping partitions: {}".format(mod_overlap))
+    print(f"Modularity for Overlapping partitions: {mod_overlap}")
 
 
 def delta_causality(est_graph_serial, est_graph_partition, true_graph):
@@ -642,7 +643,7 @@ def _remove_cycles(G):
     G.remove_edges_from(nx.selfloop_edges(G))
     try:
         cycle_list = nx.find_cycle(G, orientation="original")
-        print("Number of cycles found is {}".format(len(cycle_list)))
+        print(f"Number of cycles found is {len(cycle_list)}")
         while len(cycle_list) > 0:
             edge_data = cycle_list[-1]
             G.remove_edge(edge_data[0], edge_data[1])

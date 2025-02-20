@@ -1,7 +1,8 @@
 import itertools
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator, Literal
+from typing import Any, Literal
+from collections.abc import Iterator
 from omegaconf import OmegaConf, MISSING
 
 ExecutorKind = Literal["parsl", "process", "thread"]

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Iterable, Literal, NamedTuple, TypeAlias
+from typing import Any, Literal, NamedTuple, TypeAlias
+from collections.abc import Iterable
 
 from numpy import ndarray
 from pandas import DataFrame

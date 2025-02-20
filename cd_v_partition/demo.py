@@ -57,7 +57,7 @@ def tutorial(spec: SimulationSpec):
         superstructure_net,
         nodes,
         rand_partition,
-        "{}/tutorial_partition.png".format(outdir),
+        f"{outdir}/tutorial_partition.png",
     )
 
     # Call the causal learner on subsets of the data F({A(X_s)}) and sub-structures

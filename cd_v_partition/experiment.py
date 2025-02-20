@@ -1,6 +1,7 @@
 from concurrent.futures import as_completed, ProcessPoolExecutor, Future
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 import time
 import functools
 import os
@@ -17,7 +18,7 @@ from cd_v_partition.causal_discovery import (
     ges_local_learn,
     rfci_local_learn,
     rfci_pag_local_learn,
-    damga_local_learn,
+    dagma_local_learn,
 )
 from cd_v_partition.fusion import (
     fusion,
@@ -307,7 +308,7 @@ class Experiment:
             case "RFCI":
                 return rfci_local_learn
             case "NOTEARS":
-                return damga_local_learn
+                return dagma_local_learn
             case "GPS":
                 raise NotImplementedError(
                     f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`"

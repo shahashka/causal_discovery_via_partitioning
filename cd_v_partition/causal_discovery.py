@@ -30,11 +30,13 @@ GPU_AVAILABLE = os.path.exists("./Skeleton.so")
 
 
 def pc_local_learn(
-    subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
+    subproblem: tuple[np.ndarray, pd.DataFrame],
+    use_skel: bool,
 ) -> np.ndarray:
     """PC algorithm for a subproblem
 
     Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
+
     Args:
         subproblem (tuple[np.ndarray, pd.DataFrame]): Tuple (local skeleton, local observational data)
 
@@ -53,14 +55,16 @@ def pc_local_learn(
 
 
 def ges_local_learn(
-    subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
+    subproblem: tuple[np.ndarray, pd.DataFrame],
+    use_skel: bool,
 ) -> np.ndarray:
     """GES algorithm for subproblem
 
     Use the local skeleton to restrict the search space
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+        subproblem (tuple[np.ndarray, pd.DataFrame]): local skeleton, local observational data
+        use_skel (bool): Uses skeleton, if True; otherwise False.
 
     Returns:
         np.ndarray: local estimated adjacency matrix
@@ -77,15 +81,18 @@ def ges_local_learn(
 
 
 def rfci_local_learn(
-    subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
+    subproblem: tuple[np.ndarray, pd.DataFrame],
+    use_skel: bool,
 ) -> np.ndarray:
     """RFCI algorithm for a subproblem
 
     Converts the estimated PAG to a MAG, from which bi-directed edges are
-    removed resulting in a DAG.
-    Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
+    removed resulting in a DAG. Local skeleton is ignored for RFCI. Defaults to
+    alpha=1e-3, 8 cores
+
     Args:
         subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+        use_skel (bool): Uses skeleton, if True; otherwise False.
 
     Returns:
         np.ndarray: local estimated adjancency matrix
@@ -106,11 +113,13 @@ def rfci_local_learn(
 
 
 def rfci_pag_local_learn(
-    subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
+    subproblem: tuple[np.ndarray, pd.DataFrame],
+    use_skel: bool,
 ) -> np.ndarray:
     """RFCI algorithm for a subproblem
 
     Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
+
     Args:
         subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
 
@@ -128,15 +137,17 @@ def rfci_pag_local_learn(
     return pag
 
 
-def damga_local_learn(
-    subproblem: tuple[np.ndarray, pd.DataFrame], use_skel: bool
+def dagma_local_learn(
+    subproblem: tuple[np.ndarray, pd.DataFrame],
+    use_skel: bool,
 ) -> np.ndarray:
     """Dagma algorithm for a subproblem
 
     Faster version of NOTEARS with log-det acyclicity characterization
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+        subproblem (tuple[np.ndarray, pd.DataFrame]): local skeleton, local observational data
+        use_skel (bool): Uses skeleton, if True; otherwise False.
 
     Returns:
         np.ndarray: locally estimated adjancency matrix
@@ -161,7 +172,7 @@ def pc(
     alpha: float = 1e-3,
     num_cores: int = 8,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """
+    r"""
     Python wrapper for the PC algorithm.
 
     Args:
@@ -171,14 +182,16 @@ def pc(
             indexes from 1 for R convenience. For observational samples the corresponding
             target should be 0. For PC this column is ignored, but exists for uniformity with
             interventional learners like SP-GIES
-        alpha (float): Significance threshold to trim edges.
+        skel (np.ndarray): An optional initial skeleton with dimensions $p \times p$.
         outdir (Path | str): Directory to save adjacency matrix to.
+        alpha (float): Significance threshold to trim edges. Defaults to 1e-3.
         num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
+            Defaults to 8.
 
     Returns:
         A tuple containing two numpy arrays of dimensionality $p \times p$. The former
-        `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
-        significance level of each edge.
+            `np.ndarray` represents the adjacency matrix for the CPDAG; the latter
+            represents the significance level of each edge.
     """
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
     ro.r.assign("data", data)
@@ -199,7 +212,10 @@ def pc(
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'pc(suffStat,fixedGaps=fixed_gaps, p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores, verbose=FALSE)'
+    rcode = (
+        "pc(suffStat,fixedGaps=fixed_gaps, p=p,indepTest=gaussCItest,"
+        'skel.method="stable.fast",alpha=alpha, numCores=num_cores, verbose=FALSE)'
+    )
     pc_fit = ro.r(rcode)
     ro.r.assign("pc_fit", pc_fit)
 
@@ -234,14 +250,16 @@ def rfci(
             indexes from 1 for R convenience. For observational samples the corresponding
             target should be 0. For PC this column is ignored, but exists for uniformity with
             interventional learners like SP-GIES
-        alpha (float): Significance threshold to trim edges.
+        skel (np.ndarray): An optional initial skeleton with dimensions $p \times p$.
         outdir (Path | str): Directory to save adjacency matrix to.
+        alpha (float): Significance threshold to trim edges. Defaults to 1e-3.
         num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
+            Defaults to 8.
 
     Returns:
         A tuple containing two numpy arrays of dimensionality $p \times p$. The former
-        `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
-        significance level of each edge.
+            `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
+            significance level of each edge.
     """
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
     ro.r.assign("data", data)
@@ -262,7 +280,10 @@ def rfci(
     ro.r.assign("suffStat", suffStat)
     ro.r.assign("alpha", alpha)
     ro.r.assign("num_cores", num_cores)
-    rcode = 'rfci(suffStat,fixedGaps=fixed_gaps,p=p,indepTest=gaussCItest,skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    rcode = (
+        "rfci(suffStat,fixedGaps=fixed_gaps,p=p,indepTest=gaussCItest,"
+        'skel.method="stable.fast",alpha=alpha, numCores=num_cores)'
+    )
     rfci_fit = ro.r(rcode)
 
     ro.r.assign("rfci_fit", rfci_fit)
@@ -308,7 +329,9 @@ def mag2dag(mag: np.ndarray) -> np.ndarray:
 
 
 def cu_pc(
-    data: pd.DataFrame, outdir: Path | str, alpha: float = 1e-3
+    data: pd.DataFrame,
+    outdir: Path | str,
+    alpha: float = 1e-3,
 ) -> tuple[np.ndarray, np.ndarray] | None:
     r"""
     Python wrapper for cuPC. CUDA implementation of the PC algorithm
@@ -320,12 +343,12 @@ def cu_pc(
             indexes from 1 for R convenience. For observational samples the corresponding
             target should be 0. For PC this column is ignored, but exists for uniformity with
             interventional learners like SP-GIES
-        alpha (float): Significance threshold to trim edges.
         outdir (Path | str): The directory to save adjacency matrix to.
+        alpha (float): Significance threshold to trim edges. Defaults to 1e-3.
 
     Returns:
         Tuple of numpy arrays of dimension $p \times p$. The former array is the adjacency matrix
-        for the CPDAG; the latter represents the significance level of each edge.
+            for the CPDAG; the latter represents the significance level of each edge.
     """
     if not GPU_AVAILABLE:
         print("No compiled Skeleton.so file")
@@ -358,9 +381,10 @@ def cu_pc(
     p_values = ro.r(rcode)
 
     if outdir:
-        rcode = "write.csv(skel,row.names = FALSE, file = paste('{}/', 'cupc-adj_mat.csv',sep = ''))".format(
-            outdir
-        )
+        rcode = (
+            "write.csv(skel,row.names = FALSE, file = "
+            "paste('{}/', 'cupc-adj_mat.csv',sep = ''))"
+        ).format(outdir)
         ro.r(rcode)
     return skel, p_values
 
@@ -394,7 +418,7 @@ def sp_gies(
         multifactor_targets (list[list[Any]]): An optional list of lists for when there are
             multinode targets. In this case it is assumed that the 'target' column of the
             data DataFrame contains the index into this list.
-        adaptive (bool): # TODO
+        adaptive (bool): If `True`, uses the 'triples' for the adaptive argument for the GIES algorithm.
 
     Returns:
         Array representing the adjacency matrix for the final learned graph.
@@ -404,9 +428,7 @@ def sp_gies(
         adj_mat = np.ones(1)
         df = pd.DataFrame(data=adj_mat)
         if outdir:
-            df.to_csv(
-                "{}/sp-gies-adj_mat.csv".format(outdir), header=False, index=False
-            )
+            df.to_csv(f"{outdir}/sp-gies-adj_mat.csv", header=False, index=False)
         return adj_mat
 
     if skel is None:
@@ -437,10 +459,10 @@ def sp_gies(
 
     if len(targets) > 0:
         rcode = ",".join(
-            "c({})".format(unroll_target(i)) if type(i) == list else str(int(i))
+            f"c({unroll_target(i)})" if type(i) == list else str(int(i))
             for i in targets
         )
-        rcode = "append(list(integer(0)), list({}))".format(rcode)
+        rcode = f"append(list(integer(0)), list({rcode}))"
         T = ro.r(rcode)
         ro.r.assign("targets", T)
     else:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import networkx as nx
 from pathlib import Path
+import typing
 import warnings
 import numpy as np
 import pandas as pd
@@ -52,12 +53,14 @@ def expansive_causal_partition(
 
     First uses greedy modularity to create a disjoint partition, then adds the outer-boundary of each
     cluster to create a causal partition
+
     Args:
         adj_mat (np.ndarray): the adjacency matrix for the superstructure
         data (Any): unused parameter
         resolution (float): resolution parameter, trading off intra- versus inter-group edges.
         cutoff (int): lower limit on number of communities before termination
         best_n (int): upper limit on number of communities before termination
+
     Returns:
         dict: the causal partition as a dictionary {comm_id : [nodes]}
     """
@@ -86,12 +89,14 @@ def rand_edge_cover_partition(
     Uses greedy modularity to create a disjoint partition. Then, randomly chooses cut edges and
     randomly assigns endpoints to communities. Recursively
     adds any shared endpoints to the same community
+
     Args:
         adj_mat (np.ndarray): Adjacency matrix for the graph
         data (pd.DataFrame): unused parameter
         resolution (float): resolution parameter, trading off intra- versus inter-group edges.
         cutoff (int): lower limit on number of communities before termination
         best_n (int): upper limit on number of communities before termination
+
     Returns:
         dict: the overlapping partition as a dictionary {comm_id : [nodes]}
     """
@@ -171,7 +176,7 @@ def hierarchical_partition(adj_mat: np.ndarray, max_community_size: float = 0.5)
 
 
 def oslom_algorithm(
-    nodes,
+    nodes: typing.Iterable,
     dat_file: Path | str,
     oslom_dir: Path | str,
     structure_type: str | None = "dag",
@@ -191,24 +196,24 @@ def oslom_algorithm(
             Defaults to 'dag'.
 
     Returns:
-        dict: The estimated partition as a dictionary {comm_id : [nodes]}
+        The estimated partition as a dictionary {comm_id : [nodes]}
     """
     # Run the OSLOM code externally
     structure_type = structure_type if structure_type is not None else "dag"
     weight_flag = "-w" if "weight" in structure_type else "-uw"
     subprocess.run(
         [
-            "{}/oslom_undir".format(oslom_dir),
+            f"{oslom_dir}/oslom_undir",
             "-f",
             dat_file,
-            "{}".format(weight_flag),
+            f"{weight_flag}",
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT,
     )
 
     # Read the output partition file and return the partition as a dictionary
-    partition_file = "{}_oslo_files/tp".format(dat_file, structure_type)
+    partition_file = f"{dat_file}_oslo_files/tp"
     with open(partition_file, "rb") as f:
         lines = f.readlines()
     lines = lines[1::2]
@@ -259,9 +264,10 @@ def PEF_partition(
     cutoff: int = 1,
     best_n: int = None,
     min_size_frac: float = 0.05,
-):
+) -> dict:
     """Perform the modified hierarchical clustering on the data, as described in
     `Learning Big Gaussian Bayesian Networks: Partition, Estimation and Fusion'
+
     Args:
         adj_mat (np.ndarray): Adjacency matrix for the graph
         data (pd.DataFrame): the dataset, columns correspond to nodes in the graph
@@ -269,8 +275,9 @@ def PEF_partition(
         cutoff (int): unused parameter
         best_n (int): unuserd parameter
         min_size_frac (float): determines the minimimum returned cluster size
+
     Returns:
-        dict: The estimated partition as a dictionary {comm_id : [nodes]}
+        The estimated partition as a dictionary {comm_id : [nodes]}
     """
     ## Compute agglomerative clustering matrix
     # data_mat has shape num_nodes x num_samples
@@ -300,7 +307,7 @@ def PEF_partition(
 
     # For each level, find the clusters for that level
     partitions_list = []
-    dct = dict([(i, {i}) for i in range(data_mat.shape[0])])
+    dct = {i: {i} for i in range(data_mat.shape[0])}
     k_list.append(num_big_clusters(list(dct.values())))
     # get the partition where every node is in its own cluster
     partitions_list.append(list(dct.values()))

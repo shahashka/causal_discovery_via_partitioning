@@ -3,6 +3,7 @@ from concurrent.futures import as_completed
 from cd_v_partition.configs.config import SimulationConfig
 
 
+# TODO: Check if this class is being used at all.
 class Simulation:
     def __init__(
         self,

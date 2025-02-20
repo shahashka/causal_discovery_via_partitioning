@@ -483,7 +483,7 @@ def fusion_basic(
         if global_graph.has_edge(j, i):
             weight_ij = global_graph.get_edge_data(i, j)["weight"]
             weight_ji = global_graph.get_edge_data(j, i)["weight"]
-            print("Conflict found, weights: {} {}".format(weight_ij, weight_ji))
+            print(f"Conflict found, weights: {weight_ij} {weight_ji}")
             if weight_ij > weight_ji:
                 global_graph_resolved.remove_edge(j, i)
             else:

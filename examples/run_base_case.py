@@ -238,7 +238,7 @@ def _construct_tiling(net, num_tiles):
     Returns:
         nx.DiGraph: the final directed graph with community structure
     """
-    if num_tiles==1:
+    if num_tiles == 1:
         return net
     num_nodes = len(list(net.nodes()))
     degree_sequence = sorted((d for _, d in net.in_degree()), reverse=True)

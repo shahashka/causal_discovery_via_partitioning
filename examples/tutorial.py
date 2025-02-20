@@ -73,8 +73,8 @@ fused_A_X_s = fusion(rand_partition, results, data_obs)
 
 # Compare the results of the A(X_v) and F({A(X_s)})
 # You see the following printed for 'CD-serial' and 'CD-partition'
-# SHD: 'number of wrong edges' 
-# SID: 'ignore this one' 
-# AUC: 'auroc where edge is 1, no edge is 0', 
+# SHD: 'number of wrong edges'
+# SID: 'ignore this one'
+# AUC: 'auroc where edge is 1, no edge is 0',
 # TPR,FPR: ('true positive rate', 'false positive rate')
 delta_causality(A_X_v, fused_A_X_s, G_star)
