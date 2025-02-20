@@ -4,23 +4,24 @@ from __future__ import annotations
 import itertools
 import math
 import os
-from pathlib import Path
 import random
+from collections.abc import Callable
+from pathlib import Path
 
 import causaldag as cd
 import cdt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from graphical_models import GaussDAG, DAG
-from numpy.random import RandomState
-from sklearn.metrics import roc_curve, confusion_matrix
 import scipy
-from typing import Union, List
-from collections.abc import Callable
+from graphical_models import DAG, GaussDAG
+from numpy.random import RandomState
+from sklearn.metrics import confusion_matrix, roc_curve
 
 
-def load_random_state(random_state: RandomState | int | None = None) -> RandomState:
+def load_random_state(
+    random_state: RandomState | int | None = None,
+) -> RandomState:
     if random_state is None:
         return RandomState()
     elif isinstance(random_state, RandomState):
@@ -29,12 +30,11 @@ def load_random_state(random_state: RandomState | int | None = None) -> RandomSt
         return RandomState(random_state)
     else:
         raise ValueError(
-            "Illegal value for `load_random_state()` Must be either an instance of "
-            "`RandomState`, an integer to seed with, or None."
+            "Illegal value for `load_random_state()` Must be either an "
+            "instance of `RandomState`, an integer to seed with, or None."
         )
 
 
-# override graphical_models.rand.directed_random_graph to take in a random state
 def directed_random_graph(
     nnodes: int,
     random_graph_model: Callable,
@@ -42,6 +42,10 @@ def directed_random_graph(
     size=1,
     as_list=False,
 ) -> DAG | list[DAG]:
+    """
+    override graphical_models.rand.directed_random_graph to take in
+    a random state
+    """
     if size == 1:
         # generate a random undirected graph
         edges = random_graph_model(nnodes).edges
@@ -65,42 +69,51 @@ def directed_random_graph(
         d = DAG(nodes=set(range(nnodes)), arcs=arcs)
         return [d] if as_list else d
     else:
-        return [directed_random_graph(nnodes, random_graph_model) for _ in range(size)]
+        return [
+            directed_random_graph(nnodes, random_graph_model)
+            for _ in range(size)
+        ]
 
 
 # Override GaussDAG.sample to take in random state
 def sample(
-    gaussdag: GaussDAG, random_state: RandomState, nsamples: int = 1
+    gaussdag: GaussDAG,
+    random_state: RandomState,
+    nsamples: int = 1,
 ) -> np.array:
-    """
-    Return `nsamples` samples from the graph.
+    r"""
+    Return a number of samples (specified by `nsamples`) from the graph.
 
-    Parameters
-    ----------
-    nsamples:
-        Number of samples.
+    Args:
+        gaussdag (GaussDAG): Gaussian DAG to sample from.
+        random_state (RandomState): Used for seeding and reproducibility.
+        nsamples (int): Number of samples to return. Defaults to 1.
 
-    Returns
-    -------
-    (nsamples x nnodes) matrix of samples.
-
-    Examples
-    --------
-    TODO
+    Returns:
+        $nsamples \times nnodes$ matrix of samples.
     """
     samples = np.zeros((nsamples, len(gaussdag._nodes)))
     noise = np.zeros((nsamples, len(gaussdag._nodes)))
-    for ix, (bias, var) in enumerate(zip(gaussdag._biases, gaussdag._variances)):
-        noise[:, ix] = random_state.normal(loc=bias, scale=var**0.5, size=nsamples)
+    for ix, (bias, var) in enumerate(
+        zip(gaussdag._biases, gaussdag._variances)
+    ):
+        noise[:, ix] = random_state.normal(
+            loc=bias, scale=var**0.5, size=nsamples
+        )
     t = gaussdag.topological_sort()
     for node in t:
         ix = gaussdag._node2ix[node]
         parents = gaussdag._parents[node]
         if len(parents) != 0:
-            parent_ixs = [gaussdag._node2ix[p] for p in gaussdag._parents[node]]
+            parent_ixs = [
+                gaussdag._node2ix[p] for p in gaussdag._parents[node]
+            ]
             parent_vals = samples[:, parent_ixs]
             samples[:, ix] = (
-                np.sum(parent_vals * gaussdag._weight_mat[parent_ixs, node], axis=1)
+                np.sum(
+                    parent_vals * gaussdag._weight_mat[parent_ixs, node],
+                    axis=1,
+                )
                 + noise[:, ix]
             )
         else:
@@ -108,26 +121,34 @@ def sample(
     return samples
 
 
-def adj_to_edge(adj: np.ndarray, nodes: list[str], ignore_weights: bool = False):
+def adj_to_edge(
+    adj: np.ndarray, nodes: list[str], ignore_weights: bool = False
+):
     r"""
-    Helper function to convert an adjacency matrix into an edge list. Optionally include weights so that
-    the edge tuple is (i, j, weight).
+    Helper function to convert an adjacency matrix into an edge list.
+    Optionally include weights so that the edge tuple is (i, j, weight).
 
     Args:
         adj (np.ndarray): Adjacency  matrix of dimensionality $p \times p$.
-        nodes (list[str]): List of node names—in order corresponding to rows/cols of `adj`.
-        ignore_weights (bool): Ignore the weights if `True`; include them if `False`. Defaults to `False`.
+        nodes (list[str]): List of node names—in order corresponding to
+            rows/cols of `adj`.
+        ignore_weights (bool): Ignore the weights if `True`; include them if
+            `False`. Defaults to `False`.
 
     Returns:
         Edge list (of nonzero values) from the given adjacency matrix.
     """
     edges = []
-    for row, col in itertools.product(np.arange(adj.shape[0]), np.arange(adj.shape[1])):
+    for row, col in itertools.product(
+        np.arange(adj.shape[0]), np.arange(adj.shape[1])
+    ):
         if adj[row, col] != 0:
             if ignore_weights:
                 edges.append((nodes[row], nodes[col]))
             else:
-                edges.append((nodes[row], nodes[col], {"weight": adj[row, col]}))
+                edges.append(
+                    (nodes[row], nodes[col], {"weight": adj[row, col]})
+                )
     return edges
 
 
@@ -137,7 +158,8 @@ def adj_to_dag(adj: np.ndarray) -> nx.DiGraph:
 
     Args:
         adj (np.ndarray): Adjacency matrix of dimensionality $p \times p$.
-        nodes (list[str]): List of node names—in order corresponding to rows/cols of `adj`.
+        nodes (list[str]): List of node names—in order corresponding to
+            rows/cols of `adj`.
 
     Returns:
         Directed acyclic graph from the given adjacency matrix.
@@ -151,8 +173,10 @@ def edge_to_adj(edges: list[tuple], nodes: list[str]) -> np.ndarray:
     Helper function to convert an edge list into an adjacency matrix.
 
     Args:
-        edges (list[tuple]): List of (i,j) tuples corresponding to directed edges.
-        nodes (list[str]): List of node names in order corresponding to rows/cols of adj.
+        edges (list[tuple]): List of (i,j) tuples corresponding to directed
+            edges.
+        nodes (list[str]): List of node names in order corresponding to
+            rows/cols of adj.
 
     Returns:
         Adjacency matrix.
@@ -184,23 +208,27 @@ def tpr_fpr_score(
     y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
 ) -> tuple[float, float]:
     """
-    Calculate the true positive rate and false positive scores between a true graph and predicted graph using
-    sklearn.roc_curve. We choose the point correponding to the maximum threshold i.e if the adjacency matrix
-    only has 1s or 0s, the max threshold is 1 and the tpr corresponds to the number of correct 1s.
+    Calculate the true positive rate and false positive scores between a
+    true graph and predicted graph using sklearn.roc_curve. We choose the
+    point correponding to the maximum threshold i.e if the adjacency matrix
+    only has 1s or 0s, the max threshold is 1 and the tpr corresponds to the
+    number of correct 1s.
 
 
     Args:
-        y_true (np.ndarray | nx.DiGraph): Ground truth topology (either adjacency matrix or directed graph).
-        y_pred (np.ndarray | nx.DiGraph): Estimated topology (either adjacency matrix or directed graph).
+        y_true (np.ndarray | nx.DiGraph): Ground truth topology (either
+            adjacency matrix or directed graph).
+        y_pred (np.ndarray | nx.DiGraph): Estimated topology (either
+            adjacency matrix or directed graph).
 
     Returns:
-        Tuple of floats corresponding to true positive rate and false positive rate in ROC curve
-        at the maximum threshold value
+        Tuple of floats corresponding to true positive rate and false
+        positive rate in ROC curve at the maximum threshold value
     """
-    if type(y_pred) == nx.DiGraph:
+    if isinstance(y_pred, nx.DiGraph):
         y_pred = nx.adjacency_matrix(y_pred)
         y_pred = y_pred.todense()
-    if type(y_true) == nx.DiGraph:
+    if isinstance(y_true, nx.DiGraph):
         y_true = nx.adjacency_matrix(y_true)
         y_true = y_true.todense()
     y_pred = np.array(y_pred != 0, dtype=int).flatten()
@@ -212,10 +240,10 @@ def tpr_fpr_score(
 def get_confusion_matrix(
     y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
 ) -> tuple[int, int, int, int]:
-    if type(y_pred) == nx.DiGraph:
+    if isinstance(y_pred, nx.DiGraph):
         y_pred = nx.adjacency_matrix(y_pred)
         y_pred = y_pred.todense()
-    if type(y_true) == nx.DiGraph:
+    if isinstance(y_true, nx.DiGraph):
         y_true = nx.adjacency_matrix(y_true)
         y_true = y_true.todense()
     y_pred = np.array(y_pred != 0, dtype=int).flatten()
@@ -224,11 +252,13 @@ def get_confusion_matrix(
     return {"tn": tn, "fp": fp, "fn": fn, "tp": tp}
 
 
-def shd(y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph) -> int:
-    if type(y_pred) == nx.DiGraph:
+def shd(
+    y_true: np.ndarray | nx.DiGraph, y_pred: np.ndarray | nx.DiGraph
+) -> int:
+    if isinstance(y_pred, nx.DiGraph):
         y_pred = nx.adjacency_matrix(y_pred)
         y_pred = y_pred.todense()
-    if type(y_true) == nx.DiGraph:
+    if isinstance(y_true, nx.DiGraph):
         y_true = nx.adjacency_matrix(y_true)
         y_true = y_true.todense()
     y_pred = np.array(y_pred != 0, dtype=int).flatten()
@@ -243,26 +273,32 @@ def get_scores(
     get_sid: bool = False,
 ) -> tuple[float, float, float, float, float]:
     """
-    Calculate metrics Structural Hamming Distance (SHD), Structural Interventional Distance
-    (SID), AUC, TPR,FPR for a set of algorithms and networks. Also handles averaging over several
-    sets of networks (e.g the random comparison averages over several different generated graphs)
-    Default turn off sid, since it is computationally expensive.
+    Calculate metrics Structural Hamming Distance (SHD), Structural
+    Interventional Distance (SID), AUC, TPR,FPR for a set of algorithms and
+    networks. Also handles averaging over several sets of networks
+    (e.g the random comparison averages over several different generated
+    graphs)
 
     Args:
         alg_names (list[str]): list of algorithm names.
-        networks (list[np.ndarray] | list[nx.DiGraph]): list of estimated graphs corresponding to algorithm names.
+        networks (list[np.ndarray] | list[nx.DiGraph]): list of estimated
+            graphs corresponding to algorithm names.
         ground_truth (np.ndarray | nx.DiGraph): the true graph to compare to.
-        get_sid (bool) : flag to calculate SID which is computationally expensive, returned SID is 0 if this is `False`.
+        get_sid (bool) : flag to calculate SID which is computationally
+            expensive, returned SID is 0 if this is `False`.
 
     Returns:
         floats corresponding to SHD, SID, AUC, (TPR, FPR)
+
+    Notes:
+        By default, we turn off sid, since it is computationally expensive.
     """
-    if type(ground_truth) == nx.DiGraph:
+    if isinstance(ground_truth, nx.DiGraph):
         ground_truth = nx.adjacency_matrix(
             ground_truth, nodelist=np.arange(len(ground_truth.nodes()))
         ).todense()
     for name, net in zip(alg_names, networks):
-        if type(net) == nx.DiGraph:
+        if isinstance(net, nx.DiGraph):
             net = nx.adjacency_matrix(
                 net, nodelist=np.arange(len(net.nodes()))
             ).todense()
@@ -295,45 +331,58 @@ def get_random_graph_data(
     seed: int | RandomState = 42,
     save: bool = False,
     outdir: Path | str = None,
-    # TODO: Add return type,  -> tuple[tuple[set[tuple], list[int], float, float], pd.DataFrame]:
-):
+) -> tuple[tuple[set[tuple], list[int], float, float], pd.DataFrame]:
     """
-    Create a random Gaussian DAG and corresponding observational and interventional dataset.
-    Note that the generated topology with Networkx undirected, using graphical_models a causal ordering
-    is imposed on this graph which makes it a DAG. Each node has a randomly sampled
-    bias and variance from which Gaussian data is generated (children are sums of their parents)
-    Save a data.csv file containing the observational and interventional data samples and target column
-    Save a ground.txt file containing the edge list of the generated graph.
+    Create a random Gaussian DAG and corresponding observational and
+    interventional dataset. Note that the generated topology with Networkx
+    undirected, using graphical_models a causal ordering is imposed on this
+    graph which makes it a DAG. Each node has a randomly sampled bias and
+    variance from which Gaussian data is generated (children are sums of
+    their parents). Save a data.csv file containing the observational and
+    interventional data samples and target column Save a ground.txt file
+    containing the edge list of the generated graph.
 
     Parameters:
-        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
-        num_nodes (int): number of nodes in the generated graph
-        nsamples (int): number of observational samples to generate
-        iv_samples (int) : number of interventional samples to generate
-        p (float): probability of edge creation (erdos_renyi) or rewiring (small_world)
-        m (int): number of edges to attach from a new node to existing nodes (scale_free) or number of
-            nearest neighbors connected in ring (small_world)
-        seed (int): random seed
-        save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
-        outdir (str): directory to save the data to if save is True
+        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or
+            small_world (Watts-Strogatz).
+        num_nodes (int): number of nodes in the generated graph.
+        nsamples (int): number of observational samples to generate.
+        iv_samples (int) : number of interventional samples to generate.
+        p (float): probability of edge creation (erdos_renyi) or
+            rewiring (small_world).
+        m (int): number of edges to attach from a new node to existing
+            nodes (scale_free) or number of nearest neighbors connected
+            in ring (small_world).
+        seed (int): random seed.
+        save (bool): flag to save the dataset (data.csv) and graph
+            (ground.txt).
+        outdir (str): directory to save the data to if save is `True`.
     Returns:
-        arcs (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
-            var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
-            observational, interventional data and target indices)
+        arcs (list of edges), nodes (list of node indices), bias
+            (bias terms for Gaussian generative model), var
+            (variance terms for Gaussian generative model), df
+            (pandas DataFrame containing sampled observational,
+            interventional data and target indices)
     """
     random_state = load_random_state(seed)
     if graph_type == "erdos_renyi":
-        random_graph_model = lambda nnodes: nx.erdos_renyi_graph(nnodes, p=p, seed=seed)
+        random_graph_model = lambda nnodes: nx.erdos_renyi_graph(  # noqa: E731
+            nnodes, p=p, seed=seed
+        )
     elif "scale_free":
-        random_graph_model = lambda nnodes: nx.barabasi_albert_graph(
-            nnodes, m=m, seed=random_state
+        random_graph_model = (
+            lambda nnodes: nx.barabasi_albert_graph(  # noqa: E731
+                nnodes, m=m, seed=random_state
+            )
         )
     elif "small_world":
-        random_graph_model = lambda nnodes: nx.watts_strogatz_graph(
-            nnodes, k=m, p=p, seed=random_state
+        random_graph_model = (
+            lambda nnodes: nx.watts_strogatz_graph(  # noqa: E731
+                nnodes, k=m, p=p, seed=random_state
+            )
         )
     elif graph_type == "hierarchical":
-        random_graph_model = lambda nnodes: nx.Graph(
+        random_graph_model = lambda nnodes: nx.Graph(  # noqa: E731
             nx.scale_free_graph(
                 nnodes,
                 alpha=0.2,
@@ -362,7 +411,8 @@ def get_random_graph_data(
         i_data = []
         for ind, i in enumerate(nodes_inds):
             samples = bn.sample_interventional(
-                cd.Intervention({i: cd.ConstantIntervention(val=0)}), iv_samples
+                cd.Intervention({i: cd.ConstantIntervention(val=0)}),
+                iv_samples,
             )
             samples = pd.DataFrame(samples, columns=nodes_inds)
             samples["target"] = ind + 1
@@ -391,24 +441,28 @@ def get_data_from_graph(
     random_state: int | RandomState = 42,
 ):
     """
-    Get data set from a predefined graph using the Gaussian DAG generative model (same as get_random_graph_data)
-    Save a data.csv file containing the observational and interventional data samples and target vector
+    Get data set from a predefined graph using the Gaussian DAG generative
+    model (same as get_random_graph_data) Save a data.csv file containing
+    the observational and interventional data samples and target vector
     Save a ground.txt file containing the edge list of the generated graph
-    Save a data.csv file containing the observational and interventional data samples and target column
-    Save a ground.txt file containing the edge list of the generated graph.
+    Save a data.csv file containing the observational and interventional
+    data samples and target column. Save a ground.txt file containing the
+    edge list of the generated graph.
 
     Args:
         nodes (list[str]): list of node names
-        edges (list[tuple]): list of directed edge tuples (i,j) where i and j are in nodes
+        edges (list[tuple]): list of directed edge tuples (i,j) where i and
+            j are in nodes
         nsamples (int): number of observational samples to generate
         iv_samples (int) : number of interventional samples to generate
         save (bool): flag to save the dataset (data.csv) and graph (ground.txt)
         outdir (Path | str): directory to save the data to if save is True
 
     Returns:
-        edges (list of edges), nodes (list of node indices), bias (bias terms for Gaussian generative model),
-            var (variance terms for Gaussian generative model) , df (pandas DataFrame containing sampled
-            observational, interventional data and target indices)
+        edges (list of edges), nodes (list of node indices), bias (bias terms
+            for Gaussian generative model), var (variance terms for Gaussian
+            generative model), df (pandas DataFrame containing sampled
+            observational, interventional data and target indices).
     """
     random_state = load_random_state(random_state)
     if bias is None or var is None:
@@ -424,7 +478,8 @@ def get_data_from_graph(
         i_data = []
         for ind, i in enumerate(nodes):
             samples = bn.sample_interventional(
-                cd.Intervention({i: cd.ConstantIntervention(val=0)}), iv_samples
+                cd.Intervention({i: cd.ConstantIntervention(val=0)}),
+                iv_samples,
             )
             samples = pd.DataFrame(samples, columns=nodes)
             samples["target"] = ind + 1
@@ -441,9 +496,11 @@ def get_data_from_graph(
     return (edges, nodes, bias, var), df
 
 
-# Partitions is a dictionary with key,values <partition id>: <list of nodes in partition>
+# Partitions is a dictionary with key,values <partition id>:
+# <list of nodes in partition>
 # From this paper https://arxiv.org/abs/0910.5072
-# Ranges from 1 to -1. Positive values are better, 1 indicates fully connected graph
+# Ranges from 1 to -1. Positive values are better, 1 indicates fully
+# connected graph
 def _modularity_overlapping(partitions, nodes, A):
     A = A.todense()  # Sparse matrix indexing support is poor
 
@@ -452,11 +509,15 @@ def _modularity_overlapping(partitions, nodes, A):
         node_mod = np.zeros(len(part_nodes))
         for ind, i in enumerate(part_nodes):
             within_cluster = np.sum([A[i, j] for j in part_nodes if j != i])
-            intra_cluster = np.sum([A[i, j] for j in nodes if j not in part_nodes])
+            intra_cluster = np.sum(
+                [A[i, j] for j in nodes if j not in part_nodes]
+            )
             d_i = D[i]
             s_i = S[i]
             node_mod[ind] += (
-                (within_cluster - intra_cluster) / (d_i * s_i) if d_i != 0 else 0
+                (within_cluster - intra_cluster) / (d_i * s_i)
+                if d_i != 0
+                else 0
             )
         return n_edges / (math.comb(n_nodes, 2) * n_nodes) * sum(node_mod)
 
@@ -475,14 +536,17 @@ def _modularity_overlapping(partitions, nodes, A):
 
     mod_by_cluster = np.zeros(K)
     for i, part in enumerate(partitions.items()):
-        mod_by_cluster[i] = mod_cluster(part, nodes, A, S, D, n_edges[i], n_nodes[i])
+        mod_by_cluster[i] = mod_cluster(
+            part, nodes, A, S, D, n_edges[i], n_nodes[i]
+        )
 
     return 1 / K * sum(mod_by_cluster)
 
 
 def evaluate_partition(partition, G, nodes):
-    """Evaluate the partition over a graph with the edge coverage and overlapping
-    modularity scores
+    """
+    Evaluate the partition over a graph with the edge coverage and overlapping
+    modularity scores.
 
     Args:
         partition (dict): keys are community ids, values are lists of nodes
@@ -507,20 +571,28 @@ def evaluate_partition(partition, G, nodes):
 
 
 def delta_causality(est_graph_serial, est_graph_partition, true_graph):
-    """Calculate the difference in scores (SHD, AUC, SID, TPR_FPR) between
-    the serial estimated grpah and the partitioned estimated graph. The difference
-    is calculated as serial_score - partition_score.
+    """
+    Calculate the difference in scores (SHD, AUC, SID, TPR_FPR) between
+    the serial estimated grpah and the partitioned estimated graph. The
+    difference is calculated as serial_score - partition_score.
 
     Args:
-        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from running the causal
-            discovery algorithm on the entire data and node set
-        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph from running the causal
-            discovery algorithm on the partitioned data and node sets
-        true_graph (np.ndarray or nx.DiGraph): the ground truth graph to compare to
+        est_graph_serial (np.ndarray or nx.DiGraph): the estimated graph from
+            running the causal discovery algorithm on the entire data and node
+            set
+        est_graph_partition (np.ndarray or nx.DiGraph): the estimated graph
+            from running the causal discovery algorithm on the partitioned
+            data and node sets
+        true_graph (np.ndarray or nx.DiGraph): the ground truth graph to
+            compare to
 
     Returns:
-        list (float, float, float, float, float): Delta SHD, AUC, SID, TPR, FPR. Note that the sign
-            here is relative to the serial implmentation (we do not take the aboslute value)
+        list (float, float, float, float, float): Delta SHD, AUC, SID,
+            TPR, FPR.
+
+    Notes:
+        The sign here is relative to the serial implmentation (we do not
+        take the aboslute value)
     """
     scores_s = get_scores(["CD serial"], [est_graph_serial], true_graph)
     scores_p = get_scores(["CD partition"], [est_graph_partition], true_graph)
@@ -537,33 +609,39 @@ def create_k_comms(
     k: int,
     rho: int = 0.01,
     random_state: RandomState | int = 0,
-):
-    """Create a random network with k communities with the specified graph type and parameters. Create this by
-    generating k disjoint communities adn using preferential attachment. Remove any cycles to
-    make this a DAG
+) -> tuple[dict, nx.DiGraph]:
+    """
+    Create a random network with k communities with the specified graph type
+    and parameters. Create this by generating k disjoint communities and
+    using preferential attachment. Remove any cycles to make this a DAG
 
     Args:
-        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or small_world (Watts-Strogatz)
+        graph_type (str): erdos_renyi, scale_free (Barabasi-Albert) or
+            small_world (Watts-Strogatz)
         n (int): number of nodes per community
-        m_list (list[int]): number of edges to attach from a new node to existing nodes (scale_free) or number of
-                            nearest neighbors connected in ring (small_world)
-        p_list (list[float]): probability of edge creation (erdos_renyi) or rewiring (small_world)
+        m_list (list[int]): number of edges to attach from a new node to
+            existing nodes (scale_free) or number of nearest neighbors
+            connected in ring (small_world)
+        p_list (list[float]): probability of edge creation (erdos_renyi) or
+            rewiring (small_world)
         k (int): number of communities
-        rho (int, optional): Parameter to tune the strength of community structure. This is the fraction of total possible edges
-                            between communities. Defaults to 0.01
+        rho (int, optional): Parameter to tune the strength of community
+            structure. This is the fraction of total possible edges between
+            communities. Defaults to 0.01
 
     Returns:
-        tuple(dict, nx.DiGraph): a dictionary storing the community partitions, the graph of the connected communities
+        Tuple containing the following: (1) a dictionary storing the
+        community partitions and (2) the graph of the connected communities.
     """
     random_state = load_random_state(random_state)
 
     comms = []
     for i in np.arange(k):
-        if type(m_list) == int:
+        if isinstance(m_list, int):
             m = m_list
         else:
             m = m_list[i]
-        if type(p_list) == int:
+        if isinstance(p_list, int):
             p = p_list
         else:
             p = p_list[i]
@@ -580,23 +658,26 @@ def create_k_comms(
         comms.append(nx.DiGraph(comm_k))
     if len(comms) > 1:
         # connect the communities using preferential attachment
-        degree_sequence = sorted((d for _, d in comms[0].in_degree()), reverse=True)
+        degree_sequence = sorted(
+            (d for _, d in comms[0].in_degree()), reverse=True
+        )
         dmax = max(degree_sequence)
 
         # First add all communities as disjoint graphs
         comm_graph = nx.disjoint_union_all(comms)
 
         # Each node is preferentially attached to other nodes
-        # The number of attached nodes is given by a probability distribution over
-        # A = 1, 2 ... min(dmax,4) where the probability is equal to the in_degree=A/number of nodes
-        # in the community
+        # The number of attached nodes is given by a probability
+        # distribution over A = 1, 2 ... min(dmax,4) where the probability is
+        # equal to the in_degree=A/number of nodes in the community
         A = np.min([dmax, 2])
         in_degree_a = [sum(np.array(degree_sequence) == a) for a in range(A)]
         leftover = n - sum(in_degree_a)
         in_degree_a[-1] += leftover
         probs = np.array(in_degree_a) / (n)
 
-        # Add connections from one community to the previous communities based on probability distribution
+        # Add connections from one community to the previous communities
+        # based on probability distribution
         num_edges = rho * n**2 * k
         while num_edges > 0:
             for t in range(1, k):
@@ -606,7 +687,9 @@ def create_k_comms(
                         num_connected = random_state.choice(
                             np.arange(A), size=1, p=probs
                         )
-                        dest = random_state.choice(np.arange(t * n), size=num_connected)
+                        dest = random_state.choice(
+                            np.arange(t * n), size=num_connected
+                        )
                         connections = [(node_label, d) for d in dest]
                         comm_graph.add_edges_from(connections)
                         num_edges -= num_connected
@@ -647,32 +730,41 @@ def _remove_cycles(G):
         while len(cycle_list) > 0:
             edge_data = cycle_list[-1]
             G.remove_edge(edge_data[0], edge_data[1])
-            # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle when all cycles have been removed
+
+            # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle
+            # when all cycles have been removed
             try:
                 cycle_list = nx.find_cycle(G, orientation="original")
-            except:
+            except BaseException:
                 break
+
         return G
-    except:
+
+    except BaseException:
         return G
 
 
 def correlation_superstructure(
     data: pd.DataFrame, seed: int | RandomState, num_iterations: int = 100
 ) -> np.ndarray:
-    """Creates a superstructure by calculating the correlation matrix from the data.
+    """
+    Creates a superstructure by calculating the correlation matrix from
+    the data.
 
-    A cutoff value is chosen using permutation testing: randomly shuffling the data amtrix and
-    recalculating the correlation matrix over a specified number of iterations. The upper bound of the 95% confidence interval
-    for the maximum value in each shuffled matrix is used as the threshold for the superstructure
+    A cutoff value is chosen using permutation testing: randomly shuffling the
+    data amtrix and recalculating the correlation matrix over a specified
+    number of iterations. The upper bound of the 95% confidence interval
+    for the maximum value in each shuffled matrix is used as the threshold
+    for the superstructure.
 
     Args:
-        data (pd.DataFrame) : sampled data set, each column is a random variable
+        data (pd.DataFrame) : sampled data set, each column is a random
+            variable
         num_iterations (int) : number of iterations for permutation testing
 
 
     Returns:
-        corr_mat (np.ndarray): an adjacency matrix for the superstructure we've created
+        an adjacency matrix for the superstructure we've created
     """
     random_state = load_random_state(seed)
     data = data.drop(columns=["target"])
@@ -704,18 +796,23 @@ def correlation_superstructure(
 
 
 def artificial_superstructure(
-    G_star_adj_mat, frac_retain_direction=0.1, frac_extraneous=0.5
-):
-    """Creates a superstructure by discarding some of the directions in edges of G_star and adding
-    extraneous edges.
+    G_star_adj_mat: np.ndarray,
+    frac_retain_direction: float = 0.1,
+    frac_extraneous: float = 0.5,
+) -> np.ndarray:
+    """
+    Creates a superstructure by discarding some of the directions in edges of
+    G_star and adding extraneous edges.
 
     Args:
         G_star_adj_mat (np.ndarray): the adjacency matrix for the target graph
-        frac_retain_direction (float): what percentage of edges will retain their direction information
-        frac_extraneous (float): adds frac_extraneous*m many additional edges, for m the number of edges in G_star
+        frac_retain_direction (float): what percentage of edges will retain
+            their direction information
+        frac_extraneous (float): adds frac_extraneous*m many additional
+            edges, for m the number of edges in G_star
 
     Returns:
-        super_adj_mat (np.ndarray): an adjacency matrix for the superstructure we've created
+        An adjacency matrix for the superstructure we've created
     """
     G_star = nx.from_numpy_array(G_star_adj_mat, create_using=nx.DiGraph())
 
@@ -724,7 +821,9 @@ def artificial_superstructure(
     # add extraneous edges
     m = G_star.number_of_edges()
     nodes = list(G_star.nodes())
-    G_super.add_edges_from(pick_k_random_edges(k=int(frac_extraneous * m), nodes=nodes))
+    G_super.add_edges_from(
+        pick_k_random_edges(k=int(frac_extraneous * m), nodes=nodes)
+    )
 
     return nx.adjacency_matrix(G_super).toarray()
 
@@ -745,15 +844,20 @@ def directed_heirarchical_graph(num_nodes, seed):
             seed=seed,
         )
     )
+
     # find and remove cycles
     G.remove_edges_from(nx.selfloop_edges(G))
     cycle_list = nx.find_cycle(G, orientation="original")
+
     while len(cycle_list) > 0:
         edge_data = cycle_list[-1]
         G.remove_edge(edge_data[0], edge_data[1])
-        # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle when all cycles have been removed
+
+        # nx.find_cycle will throw an error nx.exception.NetworkXNoCycle when
+        # all cycles have been removed
         try:
             cycle_list = nx.find_cycle(G, orientation="original")
-        except:
+        except BaseException:
             break
+
     return G

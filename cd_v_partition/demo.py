@@ -8,11 +8,11 @@ from cd_v_partition.config import SimulationSpec
 from cd_v_partition.fusion import fusion
 from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.utils import (
-    get_random_graph_data,
-    edge_to_adj,
     adj_to_dag,
-    evaluate_partition,
     delta_causality,
+    edge_to_adj,
+    evaluate_partition,
+    get_random_graph_data,
 )
 from cd_v_partition.vis_partition import create_partition_plot
 
@@ -60,7 +60,8 @@ def tutorial(spec: SimulationSpec):
         f"{outdir}/tutorial_partition.png",
     )
 
-    # Call the causal learner on subsets of the data F({A(X_s)}) and sub-structures
+    # Call the causal learner on subsets of the data F({A(X_s)})
+    # and sub-structures
     num_partitions = 2
     nthreads = 2  # each thread handles one partition
 
@@ -70,7 +71,11 @@ def tutorial(spec: SimulationSpec):
     chunksize = max(1, num_partitions // nthreads)
 
     with ProcessPoolExecutor(max_workers=nthreads) as executor:
-        for result in executor.map(func_partial, subproblems, chunksize=chunksize):
+        for result in executor.map(
+            func_partial,
+            subproblems,
+            chunksize=chunksize,
+        ):
             results.append(result)
 
     # Merge the subset learned graphs

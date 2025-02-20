@@ -1,13 +1,11 @@
-import numpy as np
-from pathlib import Path
-import pandas as pd
-
+import warnings
 from pathlib import Path
 from typing import Any, TypeAlias
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-import warnings
 
 # Define metric constants.
 NDIM = 6
@@ -52,15 +50,18 @@ MARKER_MAP = {
 
 
 def load_iteration(data: np.ndarray, **kwargs) -> list[Record]:
-    """Loads a single iteration (or Monte-Carlo) run from a result file.
+    """
+    Loads a single iteration (or Monte-Carlo) run from a result file.
 
     Args:
-        data (np.ndarray): The ``numpy`` array that represents a single iteration of data.
-            This is effectively a row-vector in terms of dimensionality.
+        data (np.ndarray): The ``numpy`` array that represents a single
+            iteration of data. This is effectively a row-vector in terms of
+            dimensionality.
 
     Returns:
-        list[Record]: A lit of records (i.e., ``dict[str, Any]``), with the 5 metrics of interest
-            (i.e., SHD, SId, AUC, TPR, and FPR) and the provided ``kwargs``.
+        A list of records (i.e., ``dict[str, Any]``), with the 5  metrics of
+        interest (i.e., SHD, SId, AUC, TPR, and FPR) and the provided
+        ``kwargs``.
     """
     shd = data[:, SHD]
     sid = data[:, SID]
@@ -151,34 +152,38 @@ def vis_experiment(
 ):
     """Read checkpoints and visualize plots for scores from an experiment
 
-    Plots the SHD, TPR and Time along the specified axis for the specified evaluation
-    algorithms
+    Plots the SHD, TPR and Time along the specified axis for the specified
+    evaluation algorithms
 
     Args:
-        experiment_id (int): index of experiment, used to specify format of plot
+        experiment_id (int): index of experiment, used to specify format
+            of plot
         dir (str): path to the save directory for the experiment
         eval_algs (list[str]): List of partitioning algorithms
         cd_alg (str): Name of the causal discovery algorithm e.g, GES
         num_trials (int): Number of trials/graphs per spec
-        save_sweep_param (str): The name of the sweep parameter (x-axis label for plots)
-        save_sweep_values (Any): The values for the sweep parameter (x-axis values for plots)
+        save_sweep_param (str): The name of the sweep parameter
+            (x-axis label for plots)
+        save_sweep_values (Any): The values for the sweep parameter
+            (x-axis values for plots)
     """
     df = read_chkpoints(dir, eval_algs, cd_alg, num_trials, save_sweep_values)
     sizes = read_sizes(dir, eval_algs, cd_alg)
     for e, s in zip(eval_algs, sizes):
         plt.hist(s, label=e)
-    plt.title(f"Partition sizes by algorithm")
+    plt.title("Partition sizes by algorithm")
     plt.legend()
     plt.savefig(f"{dir}/size_hist.png")
     plt.clf()
 
-    df = df.replace({"param": {i: val for (i, val) in enumerate(save_sweep_values)}})
+    df = df.replace(
+        {"param": {i: val for (i, val) in enumerate(save_sweep_values)}}
+    )
     df = df.rename(columns={"param": save_sweep_param})
     df = df[df.value != 0]
     df = df.reset_index()
     df.replace({"method": ALG_MAP}, inplace=True)
     df.to_csv(f"{dir}/scores_{experiment_id}_{cd_alg}.csv")
-    hue_order, marker_order = dict(), dict()
     match experiment_id:
         case 1:
             vis_gen(
@@ -266,10 +271,12 @@ def vis_gen(
             title="Algorithm",
             frameon=False,
         )
+
         try:
             ax[1].get_legend().remove()
-        except:
+        except BaseException:
             pass
+
         ax[0].set_ylabel("TPR", weight="bold")
         ax[1].set_ylabel("SHD", weight="bold")
         ax[1].set_xlabel(x_label, weight="bold")
@@ -279,7 +286,9 @@ def vis_gen(
         plt.clf()
 
 
-def vis_5(dir: Path | str, cd_alg: str, exp5: pd.DataFrame, eval_algs: list[str]):
+def vis_5(
+    dir: Path | str, cd_alg: str, exp5: pd.DataFrame, eval_algs: list[str]
+):
     time = exp5.query("metric == 'TIME'")  # and num_nodes >= 10")
     args = dict(
         x="num_nodes",

@@ -1,6 +1,6 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal, NamedTuple, TypeAlias
-from collections.abc import Iterable
 
 from numpy import ndarray
 from pandas import DataFrame
@@ -25,7 +25,9 @@ class Result(NamedTuple):
     time: float
 
 
-GraphKind = Literal["erdos_renyi", "small_world", "scale_free", "hierarchical", "ecoli"]
+GraphKind = Literal[
+    "erdos_renyi", "small_world", "scale_free", "hierarchical", "ecoli"
+]
 
 
 @dataclass

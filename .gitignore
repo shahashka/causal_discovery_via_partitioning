@@ -1,6 +1,10 @@
 # macOS system
 .DS_Store
 
+# IDE-specific dirs
+.idea
+.vscode
+
 # Compressed data
 *.gz
 *-ubyte

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 # Causal discovery methods: cuPC, SP-GIES, etc... each with a specific set of
-# assumptions that are assumed to be satisfied on subgraph. Runs local causal discovery on
-# subgraphs to be merged later.
+# assumptions that are assumed to be satisfied on subgraph. Runs local causal
+# discovery on subgraphs to be merged later.
 import itertools
 import logging
 import os
@@ -11,15 +11,18 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 from dagma.linear import DagmaLinear
+from rpy2.rinterface_lib.callbacks import logger as rpy2_logger
 
 CUPC_DIR = Path("./cupc/cuPC.R")
 
 rpy2_logger.setLevel(logging.ERROR)  # will display errors, but not warnings
-import rpy2.robjects as ro
-import rpy2.robjects.numpy2ri
-from rpy2.robjects.packages import importr, SignatureTranslatedAnonymousPackage
+import rpy2.robjects as ro  # noqa: E402
+import rpy2.robjects.numpy2ri  # noqa: E402
+from rpy2.robjects.packages import (  # noqa: E402
+    SignatureTranslatedAnonymousPackage,
+    importr,
+)
 
 rpy2.robjects.numpy2ri.activate()
 
@@ -38,7 +41,8 @@ def pc_local_learn(
     Local skeleton is ignored for PC. Defaults alpha=1e-3, 8 cores
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): Tuple (local skeleton, local observational data)
+        subproblem (tuple[np.ndarray, pd.DataFrame]): Tuple (local skeleton,
+            local observational data)
 
     Returns:
         np.ndarray: local estimated adjancency matrix
@@ -63,7 +67,8 @@ def ges_local_learn(
     Use the local skeleton to restrict the search space
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): local skeleton, local observational data
+        subproblem (tuple[np.ndarray, pd.DataFrame]): local skeleton, local
+            observational data
         use_skel (bool): Uses skeleton, if True; otherwise False.
 
     Returns:
@@ -91,7 +96,8 @@ def rfci_local_learn(
     alpha=1e-3, 8 cores
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local
+            observational data)
         use_skel (bool): Uses skeleton, if True; otherwise False.
 
     Returns:
@@ -121,7 +127,8 @@ def rfci_pag_local_learn(
     Local skeleton is ignored for RFCI. Defaults to alpha=1e-3, 8 cores
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local observational data)
+        subproblem (tuple[np.ndarray, pd.DataFrame]): (local skeleton, local
+            observational data)
 
     Returns:
         np.ndarray: local estimated adjancency matrix
@@ -146,7 +153,8 @@ def dagma_local_learn(
     Faster version of NOTEARS with log-det acyclicity characterization
 
     Args:
-        subproblem (tuple[np.ndarray, pd.DataFrame]): local skeleton, local observational data
+        subproblem (tuple[np.ndarray, pd.DataFrame]): local skeleton, local
+            observational data
         use_skel (bool): Uses skeleton, if True; otherwise False.
 
     Returns:
@@ -176,22 +184,24 @@ def pc(
     Python wrapper for the PC algorithm.
 
     Args:
-        data (pd.DataFrame): DataFrame containing observational and interventional samples.
-            Must contain a column named 'target' which specifies the index of the node that
-            was intervened on to obtain the sample (assumes single interventions only). This
-            indexes from 1 for R convenience. For observational samples the corresponding
-            target should be 0. For PC this column is ignored, but exists for uniformity with
-            interventional learners like SP-GIES
-        skel (np.ndarray): An optional initial skeleton with dimensions $p \times p$.
+        data (pd.DataFrame): DataFrame containing observational and
+            interventional samples. Must contain a column named 'target' which
+            specifies the index of the node that was intervened on to obtain
+            the sample (assumes single interventions only). This indexes from
+            1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for
+            uniformity with interventional learners like SP-GIES
+        skel (np.ndarray): An optional initial skeleton with dimensions
+            $p \times p$.
         outdir (Path | str): Directory to save adjacency matrix to.
         alpha (float): Significance threshold to trim edges. Defaults to 1e-3.
-        num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
-            Defaults to 8.
+        num_cores (int): Number of cpu cores to use during skeleton step of
+            the PC algorithm. Defaults to 8.
 
     Returns:
-        A tuple containing two numpy arrays of dimensionality $p \times p$. The former
-            `np.ndarray` represents the adjacency matrix for the CPDAG; the latter
-            represents the significance level of each edge.
+        A tuple containing two numpy arrays of dimensionality $p \times p$.
+            The former `np.ndarray` represents the adjacency matrix for the
+            CPDAG; the latter represents the significance level of each edge.
     """
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
     ro.r.assign("data", data)
@@ -214,7 +224,8 @@ def pc(
     ro.r.assign("num_cores", num_cores)
     rcode = (
         "pc(suffStat,fixedGaps=fixed_gaps, p=p,indepTest=gaussCItest,"
-        'skel.method="stable.fast",alpha=alpha, numCores=num_cores, verbose=FALSE)'
+        'skel.method="stable.fast",alpha=alpha, numCores=num_cores, '
+        "verbose=FALSE)"
     )
     pc_fit = ro.r(rcode)
     ro.r.assign("pc_fit", pc_fit)
@@ -228,7 +239,10 @@ def pc(
 
     if outdir:
         d = str(outdir)
-        rcode = f"write.csv(pdag,row.names = FALSE, file = paste('{d}/', 'pc-adj_mat.csv',sep = ''))"
+        rcode = (
+            f"write.csv(pdag,row.names = FALSE, file = paste('{d}/',"
+            " 'pc-adj_mat.csv',sep = ''))"
+        )
         ro.r(rcode)
     return pdag, p_values
 
@@ -244,22 +258,24 @@ def rfci(
     Python wrapper for the RFCI algorithm (faster version of FCI).
 
     Args:
-        data (pd.DataFrame): DataFrame containing observational and interventional samples.
-            Must contain a column named 'target' which specifies the index of the node that
-            was intervened on to obtain the sample (assumes single interventions only). This
-            indexes from 1 for R convenience. For observational samples the corresponding
-            target should be 0. For PC this column is ignored, but exists for uniformity with
-            interventional learners like SP-GIES
-        skel (np.ndarray): An optional initial skeleton with dimensions $p \times p$.
+        data (pd.DataFrame): DataFrame containing observational and
+            interventional samples. Must contain a column named 'target' which
+            specifies the index of the node that was intervened on to obtain
+            the sample (assumes single interventions only). This indexes from 1
+            for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for
+            uniformity with interventional learners like SP-GIES
+        skel (np.ndarray): An optional initial skeleton with dimensions
+            $p \times p$.
         outdir (Path | str): Directory to save adjacency matrix to.
         alpha (float): Significance threshold to trim edges. Defaults to 1e-3.
-        num_cores (int): Number of cpu cores to use during skeleton step of pc algorithm.
-            Defaults to 8.
+        num_cores (int): Number of cpu cores to use during skeleton step of
+            the PC algorithm. Defaults to 8.
 
     Returns:
-        A tuple containing two numpy arrays of dimensionality $p \times p$. The former
-            `np.ndarray` represents the adjacency matrix for the CPDAG; the latter represents the
-            significance level of each edge.
+        A tuple containing two numpy arrays of dimensionality $p \times p$. The
+            former `np.ndarray` represents the adjacency matrix for the CPDAG;
+            the latter represents the significance level of each edge.
     """
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
     ro.r.assign("data", data)
@@ -295,7 +311,10 @@ def rfci(
     mag = ro.r(rcode)
     if outdir:
         d = str(outdir)
-        rcode = f"write.csv(pag,row.names = FALSE, file = paste('{d}/', 'rfci-adj_mat.csv',sep = ''))"
+        rcode = (
+            f"write.csv(pag,row.names = FALSE, file = paste('{d}/',"
+            " 'rfci-adj_mat.csv',sep = ''))"
+        )
         ro.r(rcode)
     # Return both the mag and the pag
     # the mag is created by removing
@@ -307,10 +326,11 @@ def mag2dag(mag: np.ndarray) -> np.ndarray:
     Convert a MAG adjacency matrix to a DAG by removing bidirected edges
 
     Args:
-        mag (np.ndarray): Adjancency matrix for MAG, contains directed and bidirected edges
+        mag (np.ndarray): Adjancency matrix for MAG, contains directed and
+            bidirected edges
 
     Returns:
-        np.ndarray: Adjacency for corresponding DAG without bidirected edges
+        Adjacency for corresponding DAG without bidirected edges
     """
     # In the MAG representation (output of pag2mag) the edges mean:
     # mag[i,j] = 0 iff no edge btw i,j
@@ -337,18 +357,20 @@ def cu_pc(
     Python wrapper for cuPC. CUDA implementation of the PC algorithm
 
     Args:
-        data (pd.DataFrame): DataFrame containing observational and interventional samples.
-            Must contain a column named 'target' which specifies the index of the node that
-            was intervened on to obtain the sample (assumes single interventions only). This
-            indexes from 1 for R convenience. For observational samples the corresponding
-            target should be 0. For PC this column is ignored, but exists for uniformity with
-            interventional learners like SP-GIES
+        data (pd.DataFrame): DataFrame containing observational and
+            interventional samples. Must contain a column named 'target' which
+            specifies the index of the node that was intervened on to obtain
+            the sample (assumes single interventions only). This indexes from
+            1 for R convenience. For observational samples the corresponding
+            target should be 0. For PC this column is ignored, but exists for
+            uniformity with interventional learners like SP-GIES
         outdir (Path | str): The directory to save adjacency matrix to.
         alpha (float): Significance threshold to trim edges. Defaults to 1e-3.
 
     Returns:
-        Tuple of numpy arrays of dimension $p \times p$. The former array is the adjacency matrix
-            for the CPDAG; the latter represents the significance level of each edge.
+        Tuple of numpy arrays of dimension $p \times p$. The former array is
+            the adjacency matrix for the CPDAG; the latter represents the
+            significance level of each edge.
     """
     if not GPU_AVAILABLE:
         print("No compiled Skeleton.so file")
@@ -370,7 +392,12 @@ def cu_pc(
     suffStat = ro.r(rcode)
     ro.r.assign("suffStat", suffStat)
 
-    cuPC_fit = cupc.cu_pc(ro.r["suffStat"], p=ro.r["p"], alpha=alpha, u2pd="rand")
+    cuPC_fit = cupc.cu_pc(
+        ro.r["suffStat"],
+        p=ro.r["p"],
+        alpha=alpha,
+        u2pd="rand",
+    )
     ro.r.assign("cuPC_fit", cuPC_fit)
 
     rcode = 'as(cuPC_fit@graph, "matrix")'
@@ -399,26 +426,32 @@ def sp_gies(
     adaptive: bool = True,
 ):
     r"""
-    Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge set to GIES learner
+    Python wrapper for SP-GIES. Uses skeleton estimation to restrict edge
+    set to GIES learner
 
     Args:
-        data (pd.DataFrame): DataFrame containing observational and interventional samples.
-            Must contain a column named 'target' which specifies the index of the node that
-            was intervened on to obtain the sample (assumes single interventions only). This
-            indexes from 1 for R convenience. For observational samples the corresponding
+        data (pd.DataFrame): DataFrame containing observational and
+            interventional samples. Must contain a column named 'target' which
+            specifies the index of the node that was intervened on to obtain
+            the sample (assumes single interventions only). This indexes from
+            1 for R convenience. For observational samples the corresponding
             target should be 0.
-        outdir (Path | str): The directory to save the final adjacency matrix named
-            `sp-gies-adj_mat.csv`. Set to None to skip saving files.
+        outdir (Path | str): The directory to save the final adjacency matrix
+            named `sp-gies-adj_mat.csv`. Set to None to skip saving files.
         alpha (float): Significance threshold to trim edges.
-        skel (np.ndarray): An optional initial skeleton with dimensions $p \times p$.
-        use_pc (bool): A flag to indicate if skeleton estimation should be done with the PC. If `False`
-            and no skel is specified, then assumed no skeleton i.e., reverts to GIES algorithm.
-            Will use the GPU accelerated version of the PC if available, otherwise reverts to pcalg
-            implementation of PC.
-        multifactor_targets (list[list[Any]]): An optional list of lists for when there are
-            multinode targets. In this case it is assumed that the 'target' column of the
-            data DataFrame contains the index into this list.
-        adaptive (bool): If `True`, uses the 'triples' for the adaptive argument for the GIES algorithm.
+        skel (np.ndarray): An optional initial skeleton with dimensions
+            $p \times p$.
+        use_pc (bool): A flag to indicate if skeleton estimation should be done
+            with the PC. If `False` and no skel is specified, then assumed no
+            skeleton i.e., reverts to GIES algorithm. Will use the GPU
+            accelerated version of the PC if available, otherwise reverts to
+            pcalg implementation of PC.
+        multifactor_targets (list[list[Any]]): An optional list of lists for
+            when there are multinode targets. In this case it is assumed that
+            the 'target' column of the data DataFrame contains the index into
+            this list.
+        adaptive (bool): If `True`, uses the 'triples' for the adaptive
+            argument for the GIES algorithm.
 
     Returns:
         Array representing the adjacency matrix for the final learned graph.
@@ -428,7 +461,11 @@ def sp_gies(
         adj_mat = np.ones(1)
         df = pd.DataFrame(data=adj_mat)
         if outdir:
-            df.to_csv(f"{outdir}/sp-gies-adj_mat.csv", header=False, index=False)
+            df.to_csv(
+                f"{outdir}/sp-gies-adj_mat.csv",
+                header=False,
+                index=False,
+            )
         return adj_mat
 
     if skel is None:
@@ -442,9 +479,13 @@ def sp_gies(
 
     fixed_gaps = np.array((skel == 0), dtype=int)
     target_index = data.loc[:, "target"].to_numpy()
-    targets = (
-        multifactor_targets if multifactor_targets else np.unique(target_index)[1:]
-    )  # Remove 0 the observational target
+
+    # Remove 0 the observational target
+    if multifactor_targets:
+        targets = multifactor_targets
+    else:
+        targets = np.unique(target_index)[1:]
+
     # TODO with interventional data do the names and target_ids match?
     target_index_R = target_index + 1  # R indexes from 1
     data = data.drop(columns=["target"]).to_numpy(dtype=float)
@@ -459,7 +500,7 @@ def sp_gies(
 
     if len(targets) > 0:
         rcode = ",".join(
-            f"c({unroll_target(i)})" if type(i) == list else str(int(i))
+            f"c({unroll_target(i)})" if isinstance(i, list) else str(int(i))
             for i in targets
         )
         rcode = f"append(list(integer(0)), list({rcode}))"
@@ -478,7 +519,10 @@ def sp_gies(
     ro.r.assign("fixed_gaps", FG)
     if data.shape[1] > 1:
         score = ro.r.new(
-            "GaussL0penIntScore", ro.r["data"], ro.r["targets"], ro.r["target_index"]
+            "GaussL0penIntScore",
+            ro.r["data"],
+            ro.r["targets"],
+            ro.r["target_index"],
         )
         ro.r.assign("score", score)
         if adaptive:
@@ -492,12 +536,16 @@ def sp_gies(
             )
         else:
             result = pcalg.gies(
-                ro.r["score"], fixedGaps=ro.r["fixed_gaps"], targets=ro.r["targets"]
+                ro.r["score"],
+                fixedGaps=ro.r["fixed_gaps"],
+                targets=ro.r["targets"],
             )
 
         ro.r.assign("result", result)
 
-        rcode = "result$repr$weight.mat()"  # weight: ith column contains the regression coefficients of the ith stuctural equation
+        # weight: ith column contains the regression coefficients of the
+        #       ith stuctural equation
+        rcode = "result$repr$weight.mat()"
         adj_mat = ro.r(rcode)
     else:
         adj_mat = np.zeros((1, 1))
@@ -505,20 +553,21 @@ def sp_gies(
     if outdir:
         rcode = (
             "write.csv(adj_mat, row.names = FALSE,"
-            ' file = paste("{}/", "sp-gies-adj_mat.csv", sep=""))'.format(outdir)
-        )
+            ' file = paste("{}/", "sp-gies-adj_mat.csv", sep=""))'
+        ).format(outdir)
         ro.r(rcode)
     return adj_mat
 
 
 def weight_colliders(adj_mat: np.ndarray, weight: int = 1):
     r"""
-    Find and add weights to collider sets in a given adjacency matrix. Collider sets are x->y<-z
-    when there is no edge between $(x,z)$.
+    Find and add weights to collider sets in a given adjacency matrix.
+    Collider sets are x->y<-z when there is no edge between $(x,z)$.
 
     Args:
         adj_mat (np.ndarray): $p \times p$ adjacency matrix.
-        weight (int): Edges that are part of a collider set are weighted with this weight.
+        weight (int): Edges that are part of a collider set are weighted with
+            this weight.
 
     Returns:
         An array representing the weighted adjacency matrix.

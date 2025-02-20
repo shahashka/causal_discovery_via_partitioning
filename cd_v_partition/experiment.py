@@ -1,39 +1,38 @@
-from concurrent.futures import as_completed, ProcessPoolExecutor, Future
-from pathlib import Path
-from typing import Any
-from collections.abc import Callable
-import time
 import functools
 import os
+import time
+from collections.abc import Callable
+from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from pathlib import Path
+
+import networkx as nx
 import numpy as np
-import pandas as pd
 import tqdm
 from numpy.random import RandomState
-import networkx as nx
-from cd_v_partition.vis_partition import create_partition_plot
+
 import cd_v_partition.utils as utils
 from cd_v_partition.causal_discovery import (
+    dagma_local_learn,
+    ges_local_learn,
     pc,
     pc_local_learn,
-    ges_local_learn,
     rfci_local_learn,
     rfci_pag_local_learn,
-    dagma_local_learn,
 )
+from cd_v_partition.config import SimulationConfig, SimulationSpec
 from cd_v_partition.fusion import (
     fusion,
-    screen_projections,
     no_partition_postprocess,
+    screen_projections,
     screen_projections_pag2cpdag,
 )
 from cd_v_partition.overlapping_partition import (
-    partition_problem,
-    expansive_causal_partition,
-    rand_edge_cover_partition,
-    modularity_partition,
     PEF_partition,
+    expansive_causal_partition,
+    modularity_partition,
+    partition_problem,
+    rand_edge_cover_partition,
 )
-from cd_v_partition.config import SimulationConfig, SimulationSpec
 from cd_v_partition.typing import GeneratedGraph, GraphKind, TrueGraph
 
 
@@ -58,7 +57,9 @@ class Experiment:
             raise ValueError("Experiment member `workers` must be >= 1.")
 
     def run_concurrent(
-        self, cfg: SimulationConfig, random_state: RandomState | int | None = None
+        self,
+        cfg: SimulationConfig,
+        random_state: RandomState | int | None = None,
     ):
         random_state = utils.load_random_state(random_state)
         # date = datetime.datetime.now()
@@ -67,7 +68,11 @@ class Experiment:
             for trial in range(cfg.graph_per_spec):
                 seed = trial
                 for spec_id, spec in enumerate(cfg):
-                    fut = executor.submit(self.run_simulation, spec, random_state=seed)
+                    fut = executor.submit(
+                        self.run_simulation,
+                        spec,
+                        random_state=seed,
+                    )
                     futures[fut] = (
                         spec_id,
                         trial,
@@ -79,7 +84,8 @@ class Experiment:
             for fut in as_completed(futures):
                 spec_id, trial, p_alg, cd_alg = futures[fut]
                 outdir = Path(
-                    f"{cfg.experiment_id}/{p_alg}/{cd_alg}/spec_{spec_id}/trial_{trial}/"
+                    f"{cfg.experiment_id}/{p_alg}/{cd_alg}/"
+                    f"spec_{spec_id}/trial_{trial}/"
                 )
                 if not outdir.exists():
                     outdir.mkdir(parents=True)
@@ -88,12 +94,12 @@ class Experiment:
                 np.savetxt(outdir / "chkpoint.txt", fut.result()[0])
                 np.savetxt(outdir / "sizes.txt", fut.result()[1])
 
-                # spec.to_yaml(outdir / '..'/ 'spec.yaml')         # TODO this is hanging
-                # print('done yaml save')
                 progressbar.update()
 
     def run_serial(
-        self, cfg: SimulationConfig, random_state: RandomState | int | None = None
+        self,
+        cfg: SimulationConfig,
+        random_state: RandomState | int | None = None,
     ):
         random_state = utils.load_random_state(random_state)
         # date = datetime.datetime.now()
@@ -106,7 +112,8 @@ class Experiment:
             for spec_id, spec in enumerate(cfg):
                 scores = self.run_simulation(spec, random_state=seed)
                 outdir = Path(
-                    f"{cfg.experiment_id}/{spec.partition_fn}/{spec.causal_learn_fn}/spec_{spec_id}/trial_{trial}/"
+                    f"{cfg.experiment_id}/{spec.partition_fn}/"
+                    f"{spec.causal_learn_fn}/spec_{spec_id}/trial_{trial}/"
                 )
                 if not outdir.exists():
                     outdir.mkdir(parents=True)
@@ -117,7 +124,9 @@ class Experiment:
                 progressbar.update()
 
     def run_simulation(
-        self, spec: SimulationSpec, random_state: RandomState | int | None = None
+        self,
+        spec: SimulationSpec,
+        random_state: RandomState | int | None = None,
     ) -> np.ndarray:
         random_state = utils.load_random_state(random_state)
 
@@ -133,7 +142,10 @@ class Experiment:
             inter_edge_prob=spec.inter_edge_prob,  # rho
             random_state=random_state,
         )
-        G_star = utils.edge_to_adj(list(gen_graph.edges), nodes=gen_graph.nodes)
+        G_star = utils.edge_to_adj(
+            list(gen_graph.edges),
+            nodes=gen_graph.nodes,
+        )
         # GENERATE THE SUPERSTRUCTURE
         if spec.use_pc_algorithm:
             print(f"ALPHA {spec.alpha}")
@@ -180,12 +192,17 @@ class Experiment:
                 resolution=spec.partition_resolution,
                 best_n=spec.partition_best_n,
             )
+
             # Learn in parallel
             func_partial = functools.partial(
                 causal_discovery_alg, use_skel=spec.causal_learn_use_skel
             )
             results = []
-            subproblems = partition_problem(partition, super_struct, gen_graph.samples)
+            subproblems = partition_problem(
+                partition,
+                super_struct,
+                gen_graph.samples,
+            )
             workers = min(len(subproblems), os.cpu_count())
             # workers=1 # Serial for debuggign
             print(f"Launching {workers} workers for partitioned run")
@@ -200,18 +217,6 @@ class Experiment:
                         total=len(subproblems),
                     )
                 )
-                # futures = []
-                # for i,s in enumerate(subproblems):
-                #     fut = executor.submit(func_partial, s)
-                #     futures.append(fut)
-
-                # progressbar = tqdm.tqdm(total=len(subproblems))
-                # results = []
-                # for fut in as_completed(futures):
-                #     results.append(fut.result())
-                #     progressbar.update()
-                # for result in executor.map(func_partial, subproblems, chunksize=1):
-                #     results.append(result)
 
             print("CD done")
             # Merge
@@ -296,7 +301,8 @@ class Experiment:
             case "PEF":
                 return PEF_partition
             case _:
-                raise ValueError(f"`{spec.partition_fn=}` is an illegal value.`")
+                msg = f"`{spec.partition_fn=}` is an illegal value.`"
+                raise ValueError(msg)
 
     @classmethod
     def get_causal_discovery_alg(cls, spec: SimulationSpec) -> Callable:
@@ -310,13 +316,13 @@ class Experiment:
             case "NOTEARS":
                 return dagma_local_learn
             case "GPS":
-                raise NotImplementedError(
-                    f"`{spec.causal_learn_fn=}` has not beenn implemented yet.`"
-                )
+                e = f"`{spec.causal_learn_fn=}` hasn't been implemented yet.`"
+                raise NotImplementedError(e)
             case "RFCI-PAG":
                 return rfci_pag_local_learn
             case _:
-                raise ValueError(f"`{spec.causal_learn_fn=}` is an illegal value.`")
+                e = f"`{spec.causal_learn_fn=}` is an illegal value.`"
+                raise ValueError(e)
 
     @classmethod
     def get_merge_alg(cls, spec: SimulationSpec) -> Callable:

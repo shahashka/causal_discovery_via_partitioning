@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from pathlib import Path
+
 from setuptools import setup
 from setuptools.config import read_configuration
 

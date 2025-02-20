@@ -1,9 +1,10 @@
 import itertools
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
-from collections.abc import Iterator
-from omegaconf import OmegaConf, MISSING
+
+from omegaconf import MISSING, OmegaConf
 
 ExecutorKind = Literal["parsl", "process", "thread"]
 
@@ -62,14 +63,15 @@ class SimulationSpec:
 
 @dataclass
 class SimulationConfig:
-    # Parameters only used to initialize the executor used to launch jobs across compute.
+    # Parameters only used to initialize the executor used to launch jobs
+    # across compute.
     executor_kind: ExecutorKind = MISSING
     executor_args: dict[str, Any] = MISSING
     graph_per_spec: int = 1
-    # eval_algorithms: list[str] = MISSING # These are the partitioning functions, all need to be run for each spec
+
+    # These are the partitioning functions, all need to be run for each spec
+    # eval_algorithms: list[str] = MISSING
     experiment_id: str = MISSING
-    # sweep_param: str = MISSING
-    # sweep_values:list[float | int] = MISSING
 
     # Parameters included in a ``SimulationSpec`` instance.
 
@@ -79,7 +81,9 @@ class SimulationConfig:
     num_nodes: list[int] = field(default_factory=lambda: [25])
     num_samples: list[int] = field(default_factory=lambda: [int(10**4)])
     inter_edge_prob: list[float] = field(default_factory=lambda: [0.01])
-    comm_edge_prob: list[list[float]] = field(default_factory=lambda: [[0.5, 0.5]])
+    comm_edge_prob: list[list[float]] = field(
+        default_factory=lambda: [[0.5, 0.5]],
+    )
     comm_pop: list[list[float]] = field(default_factory=lambda: [[1, 2]])
     num_communities: int = field(default_factory=lambda: [2])
 
@@ -92,7 +96,9 @@ class SimulationConfig:
     # Merge params
     merge_fn: list[str] = field(default_factory=lambda: ["screen"])
     merge_ss_subset_flag: list[bool] = field(default_factory=lambda: [True])
-    merge_finite_sample_flag: list[bool] = field(default_factory=lambda: [False])
+    merge_finite_sample_flag: list[bool] = field(
+        default_factory=lambda: [False],
+    )
     merge_full_cand_set: list[bool] = field(default_factory=lambda: [False])
 
     # CD learn params
@@ -116,11 +122,15 @@ class SimulationConfig:
         """
         d = vars(self)
 
-        lists = {key: val for key, val in d.items() if isinstance(val, list)}
-        consts = {key: val for key, val in d.items() if not isinstance(val, list)}
+        lists = {k: v for k, v in d.items() if isinstance(v, list)}
+        consts = {k: v for k, v in d.items() if not isinstance(v, list)}
 
         list_keys, list_values = zip(*lists.items())
-        spec_iter = [dict(zip(list_keys, p)) for p in itertools.product(*list_values)]
+
+        spec_iter = []
+        for p in itertools.product(*list_values):
+            spec_iter.append(dict(zip(list_keys, p)))
+
         for spec in spec_iter:
             spec.update(**consts)
             del spec["executor_kind"]
