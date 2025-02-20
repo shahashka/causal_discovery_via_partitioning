@@ -4,7 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 
 from cd_v_partition.causal_discovery import pc, sp_gies
-from cd_v_partition.configs import SimulationSpec
+from cd_v_partition.config import SimulationSpec
 from cd_v_partition.fusion import fusion
 from cd_v_partition.overlapping_partition import partition_problem
 from cd_v_partition.utils import (
