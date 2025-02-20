@@ -33,7 +33,7 @@ from cd_v_partition.overlapping_partition import (
     partition_problem,
     rand_edge_cover_partition,
 )
-from cd_v_partition.typing import GeneratedGraph, GraphKind, TrueGraph
+from cd_v_partition.types import GeneratedGraph, GraphKind, TrueGraph
 
 
 class Experiment:
