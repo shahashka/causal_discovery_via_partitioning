@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 from pathlib import Path
+
 from setuptools import setup
 from setuptools.config import read_configuration
 
