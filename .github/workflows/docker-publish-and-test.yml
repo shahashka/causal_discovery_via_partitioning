@@ -31,8 +31,10 @@ jobs:
       id-token: write
 
     steps:
-      - name: Delete huge unnecessary tools folder
-        run: rm -rf /opt/hostedtoolcache
+      - name: Delete unnecessary files 
+        run: |
+          rm -rf /opt/hostedtoolcache
+          rm -rf /usr/share/dotnet
 
       - name: Checkout repository
         uses: actions/checkout@v4
