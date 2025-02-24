@@ -1,7 +1,7 @@
 # causal_discovery_via_partitioning
 
 <p align="center" markdown="1">
-    <img src="https://img.shields.io/badge/Python-3.10-blue.svg" alt="Python Version" height="18">
+    <img src="https://img.shields.io/badge/Python-3.8-blue.svg" alt="Python Version" height="18">
     <a href="https://arxiv.org/abs/2406.06348"><img src="https://img.shields.io/badge/arXiv-2406.06348-green)" alt="arXiv" height="18"></a>
 </p>
 
@@ -20,10 +20,10 @@ This repository has an R dependency because we use causal discovery algorithms f
 docker pull ghcr.io/shahashka/causal_discovery_via_partitioning:main
 ```
 # Usage
-See ```demo.py``` for an example of usage. To execute this code, run the following:
+See our [tutorial](examples/tutorial.py) for an example of usage. To execute this code, run the following:
 
 ```bash
-docker run --rm -it ghcr.io/shahashka/causal_discovery_via_partitioning:main python demo.py
+docker run --rm -it ghcr.io/shahashka/causal_discovery_via_partitioning:main python examples/tutorial.py
 ```
 
 # Citation
