@@ -25,7 +25,7 @@ See our [tutorial](examples/tutorial.py) for an example of usage. To execute thi
 ```bash
 docker run --rm -it ghcr.io/shahashka/causal_discovery_via_partitioning:main python examples/tutorial.py
 ```
-
+To setup large scale experiments with parameter sweeps over the causal learning algorithms, partitioning algorithms or other parameters, use our ```Experiment''' class which easily enables parallel runs for each configuration! See an example [experiment](simulations/experiment_1_sample_sweep.py).
 # Citation
 
 If you find our study helpful, please consider citing us as:
