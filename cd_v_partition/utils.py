@@ -567,7 +567,7 @@ def evaluate_partition(partition, G, nodes):
     mod_overlap = _modularity_overlapping(
         partition, nodes, nx.adjacency_matrix(G, nodelist=nodes)
     )
-    print(f"Modularity for Overlapping partitions: {mod_overlap}")
+    print(f"Modularity of partition: {mod_overlap}")
 
 
 def delta_causality(est_graph_serial, est_graph_partition, true_graph):
@@ -600,7 +600,6 @@ def delta_causality(est_graph_serial, est_graph_partition, true_graph):
     return delta
 
 
-# TODO implement random_state
 def create_k_comms(
     graph_type: str,
     n: int,

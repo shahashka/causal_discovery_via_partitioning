@@ -98,6 +98,7 @@ def screen_projections_pag2cpdag(
     data: np.ndarray = None,
     full_cand_set: bool = False,
 ) -> nx.DiGraph:
+    
     # The pag represetation has following edge to number mapping
     # pag[i,j] = 0 iff no edge btw i,j
     # pag[i,j] = 1 iff i *-o j
@@ -193,9 +194,8 @@ def screen_projections(
     full_cand_set: bool = False,
 ) -> nx.DiGraph:
     """
-    Fuse subgraphs by taking the union and resolving conflicts by favoring no
-    edge over directed edge. Leave bidirected edges as is. This is the method
-    used for 'infinite' data limit problems.
+    Merge DAG subgraphs by taking the union and resolving conflicts by favoring no
+    edge over directed edge. 
 
     Args:
         ss (np.ndarray): adjacency matrix for the super structure
