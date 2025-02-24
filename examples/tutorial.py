@@ -19,15 +19,14 @@ from cd_v_partition.vis_partition import create_partition_plot
 from cd_v_partition.fusion import screen_projections, no_partition_postprocess
 
 # This tutorial walks you through setting up a divide-and-conquer framework for estimating
-# a causal graph given data using a causal parition. The code is defined by the following 5 steps.
+# a causal graph given data using a causal parition. The code is defined by the following 6 steps.
 #
-# In this example, we generate the data from a known causal graph following a linear Gaussian additive noise model. (I)
-# From the generated data, we estimate a superstructure over the full node set using the PC algorithm. (II)
-# The superstructure is used to partition the vertex set into a causal partition according to the properties outlined in the paper. (III)
-# The data set is then split according to the partition, and a local graph is estimated using the selected causal learner. (IV)
-# The local graphs are merged into a final estimated graph over the full vertex set using the Screen method outlined in the paper. (V)
-#
-# The estimated graph is evaluated using the SHD, AUC, TPR and FPR compared to the known causal graph.
+# (I) We generate the data from a known causal graph following a linear Gaussian additive noise model.
+# (II) From the generated data, we estimate a superstructure over the full node set using the PC algorithm. 
+# (III) The superstructure is used to partition the vertex set into a causal partition according to the properties outlined in the paper. 
+# (IV) The data set is then split according to the partition, and local graphs are estimated using the GES causal learner.
+# (V) The local graphs are merged into a final estimated graph over the full vertex set using the Screen method outlined in the paper.
+# (VI) The estimated graph is evaluated using the SHD, AUC, TPR and FPR compared to the known causal graph.
 #
 # For setting up larger simulations runs, where you want to compare different partitioning algorithms, causal learning algorithms, graph_types, etc..
 # over several trials see our experiments in the simulations/ folder. 
@@ -144,15 +143,17 @@ merged_A_X_s = screen_projections(
     finite_lim=True,
 )
 
-# Evaluation
-# Call the causal learner on the full data A(X_v) and superstructure. This is the "No Partition" result
-# from the paper.
+# (VI)
+# Call the causal learner on the full data A(X_v) and superstructure. 
+# This is the "No Partition" result from the paper.
 A_X_v = ges_local_learn(
     (superstructure, df), use_skel=True
 )  # Use the superstructure as a skeleton for GES learner
 A_X_v = no_partition_postprocess(
     ss=superstructure, est_adj_mat=A_X_v, ss_subset=True
 )  # drop edges outside superstructure
+
+# Get the SHD, AUC, TPR, FPR for each graph compared to the true causal graph 
 scores = get_scores(
     ["Expansive Causal partition"], [merged_A_X_s], G_star, get_sid=False
 )
