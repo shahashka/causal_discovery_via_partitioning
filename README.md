@@ -31,11 +31,11 @@ To setup large scale experiments with parameter sweeps over the causal learning 
 If you find our study helpful, please consider citing us as:
 
 ```
-@article{shah2024causal,
-  title={Causal discovery over high-dimensional structured hypothesis spaces with causal graph partitioning},
-  author={Shah, Ashka and DePavia, Adela and Hudson, Nathaniel and Foster, Ian and Stevens, Rick},
-  journal={arXiv preprint arXiv:2406.06348},
-  year={2024}
+@article{shah2025causal,
+  title = {Causal Discovery over High-Dimensional Structured Hypothesis Spaces with Causal Graph Partitioning},
+  author = {Shah, Ashka and DePavia, Adela and Hudson, Nathaniel and Foster, Ian and Stevens, Rick},
+  journal = {Transactions on Machine Learning Research (TMLR)},
+  year = {2025},
 }
 
 ```
