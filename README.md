@@ -8,14 +8,15 @@
 <p align="center">
   <a href="#setup">Setup</a> •
   <a href="#usage">Usage</a> •
-  <a href="#citation">Citation</a>
+  <a href="#citation">Citation</a> •
+  <a href="https://shahashka.github.io/causal_discovery_via_partitioning/" target="_blank">Documentation</a>
 </p>
 This is an implementation of a divide-and-conquer framework for causal discovery using a novel causal partition from the paper "Causal Discovery over High-Dimensional Structured Hypothesis Spaces with Causal Graph Partitioning" published in TMLR March, 2025.
 
 A causal partition is a graph partition of a hypothesis space, defined by a superstructure, into overlapping variable sets. A causal partition allows for merging locally estimated graphs without an additional learning step, and provably recovers the Markov Equivalence Class of the true DAG. We can efficiently create a causal partition from any disjoint partition. This means that a causal partition can be an extension to any graph partitioning algorithm.
 
 # Setup
-This repository has an R dependency because we use causal discovery algorithms from the R package ```pcalg```. As a result, installation is slightly more complicated than usual. To assist with this, we provide a docker image that can be downloaded and installed as follows: 
+This repository has an R dependency because we use causal discovery algorithms from the R package ```pcalg```. As a result, installation is slightly more complicated than usual. To assist with this, we provide a docker image that can be downloaded and installed as follows:
 ```bash
 docker pull ghcr.io/shahashka/causal_discovery_via_partitioning:main
 ```
