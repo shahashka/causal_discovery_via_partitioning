@@ -35,7 +35,7 @@ hypothesis spaces.
 
 ### Citing Our Work
 
-If you use any code or outputs of this work, please the paper via the following BibTeX:
+If you use any code or outputs of this work, please cite the paper via the following BibTeX:
 
 ```bibtex
 @article{shah2025causal,
