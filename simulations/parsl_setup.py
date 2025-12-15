@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor
+#from parsl.executors.ipp import IPyParallelExecutor
 from parsl.launchers import MpiExecLauncher
 from parsl.addresses import address_by_interface, address_by_hostname
 from parsl.providers import PBSProProvider
 from parsl.monitoring.monitoring import MonitoringHub
-
 from parsl.launchers import SingleNodeLauncher
 from parsl.providers import LocalProvider
+from parsl.executors.high_throughput.executor import DEFAULT_LAUNCH_CMD
+CONTAINERIZED_LAUNCH_CMD = "apptainer run --bind /eagle/projects/FoundEpidem/shahashka /eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning_main.sif " + DEFAULT_LAUNCH_CMD
 def get_parsl_config() -> Config:
     """Initialize Parsl config.
 
@@ -21,14 +23,14 @@ def get_parsl_config() -> Config:
     # NOTE(MS): replace these
     #env = "/eagle/projects/argonne_tpc/mansisak/ci-nn/env/"
     #run_dir = "/eagle/projects/argonne_tpc/mansisak/ci-nn/"
-    env = "/eagle/projects/FoundEpidem/shahashka/ci_nn/"
-    run_dir = "/eagle/projects/FoundEpidem/shahashka/ci-nn/"
+    env = "/eagle/projects/FoundEpidem/shahashka/env"
+    run_dir = "/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning/"
     user_opts = {
         "worker_init": f"""
 module use /soft/modulefiles
 module load conda
-conda activate {env} 
 cd {run_dir} 
+conda activate causal_discovery
 # Print to stdout to for easier debugging
 module list
 nvidia-smi
@@ -38,8 +40,8 @@ pwd""",
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",  # specify any PBS options here, like filesystems
         "account": "FoundEpidem",
         "queue": "preemptable",  # e.g.: "prod","debug, "preemptable", "debug-scaling" (see https://docs.alcf.anl.gov/polaris/running-jobs/)
-        "walltime": "02:00:00", #HH:MM:SS
-        "nodes_per_block": 4,  # think of a block as one job on polaris, so to run on the main queues, set this >= 10
+        "walltime": "24:00:00", #HH:MM:SS
+        "nodes_per_block": 3,  # think of a block as one job on polaris, so to run on the main queues, set this >= 10
         "available_accelerators": 4,  # Each Polaris node has 4 GPUs, setting this ensures one worker per GPU
     }
     provider=PBSProProvider(
@@ -72,6 +74,7 @@ pwd""",
                 #address=address_by_interface("bond0"),
                 cpu_affinity="block-reverse",
                 prefetch_capacity=0,
+                launch_cmd=CONTAINERIZED_LAUNCH_CMD
             )
         ],
         monitoring=MonitoringHub(
@@ -92,13 +95,13 @@ def get_parsl_config_debug() -> Config:
     # NOTE(MS): replace these
     #env = "/eagle/projects/argonne_tpc/mansisak/ci-nn/env/"
     #run_dir = "/eagle/projects/argonne_tpc/mansisak/ci-nn/"
-    env = "/eagle/projects/FoundEpidem/shahashka/ci_nn/"
-    run_dir = "/eagle/projects/FoundEpidem/shahashka/ci-nn/"
+    #env = "/eagle/projects/FoundEpidem/shahashka/env"
+    run_dir = "/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning/"
     user_opts = {
         "worker_init": f"""
 module use /soft/modulefiles
 module load conda
-conda activate {env} 
+#conda activate causal_discovery
 cd {run_dir} 
 # Print to stdout to for easier debugging
 module list
@@ -117,9 +120,11 @@ pwd""",
     config = Config(
         executors=[
             HighThroughputExecutor(
-            label='ci_results',
+            #IPyParallelExecutor(
+            label='benchmark_scale',
             available_accelerators=4,  # number of GPUs
             max_workers_per_node=4,
+            #container_image='/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning_main.sif',
             provider=LocalProvider(
                     init_blocks=1,
                     max_blocks=1,
@@ -127,6 +132,7 @@ pwd""",
                     worker_init=user_opts['worker_init']
                 ),
             cpu_affinity="block-reverse",
+            launch_cmd=CONTAINERIZED_LAUNCH_CMD
                 )
 	],
     monitoring=MonitoringHub(

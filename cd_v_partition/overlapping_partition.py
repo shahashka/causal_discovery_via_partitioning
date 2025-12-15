@@ -9,7 +9,57 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage
+from collections import deque
 
+def bounded_graph_clustering(superstructure: np.ndarray, max_cluster_size: int):
+    """
+    Cluster an undirected NetworkX graph with a hard maximum cluster size.
+
+    Parameters
+    ----------
+    G : nx.Graph
+        Undirected graph
+    max_cluster_size : int
+        Maximum allowed size of each cluster
+
+    Returns
+    -------
+    clusters : list of sets
+        Each set contains nodes in one cluster
+    """
+    G = nx.from_numpy_array(superstructure)
+
+    unassigned = set(G.nodes())
+    clusters = []
+
+    # Optional: process higher-degree nodes first
+    nodes_by_degree = sorted(G.nodes(), key=lambda n: G.degree(n), reverse=True)
+
+    for seed in nodes_by_degree:
+        if seed not in unassigned:
+            continue
+
+        cluster = set()
+        queue = deque([seed])
+
+        while queue and len(cluster) < max_cluster_size:
+            node = queue.popleft()
+            if node not in unassigned:
+                continue
+
+            cluster.add(node)
+            unassigned.remove(node)
+
+            # Add neighbors greedily
+            for nbr in G.neighbors(node):
+                if nbr in unassigned and len(cluster) < max_cluster_size:
+                    queue.append(nbr)
+
+        clusters.append(cluster)
+
+        if not unassigned:
+            break
+    return dict(zip(np.arange(len(clusters), clusters)))
 
 def modularity_partition(
     adj_mat: np.ndarray,

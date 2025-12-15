@@ -44,7 +44,8 @@ if __name__ == '__main__':
 
     # NOTE(MS): this is how you vary arg inputs into your expeirment
     args = []
-    num_nodes = [1000,10000,100000]
+    #num_nodes = [10,100,1000,10000]
+    num_nodes=[10]
     cd_methods = ["GES", "PC", "NOTEARS"]
     worker_id = 0
     for p in num_nodes:
@@ -53,8 +54,9 @@ if __name__ == '__main__':
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-            args.append({"worker_id":worker_id, "cd_method":cd, "p":p, "seed":p, "outdir":outdir})
+            args.append({"worker_id":worker_id, "cd":cd, "p":p, "seed":p, "outdir":outdir})
             worker_id += 1
+            print(worker_id)
     # for arg in args:
     #     run_experiment(**arg)
     with parsl.load(config):
@@ -65,3 +67,10 @@ if __name__ == '__main__':
         for future in futures:
             print(f'Waiting for {future}', file=sys.stderr)
             print(f'Got result {future.result()}',  file=sys.stderr)
+
+
+
+
+
+
+
