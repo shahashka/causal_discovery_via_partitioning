@@ -12,7 +12,8 @@ from parsl.monitoring.monitoring import MonitoringHub
 from parsl.launchers import SingleNodeLauncher
 from parsl.providers import LocalProvider
 from parsl.executors.high_throughput.executor import DEFAULT_LAUNCH_CMD
-CONTAINERIZED_LAUNCH_CMD = "apptainer run --bind /eagle/projects/FoundEpidem/shahashka /eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning_main.sif " + DEFAULT_LAUNCH_CMD
+CONTAINERIZED_LAUNCH_CMD = "apptainer run --bind /eagle/projects/FoundEpidem/shahashka /eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning_main_w_entrypoint.sif " + DEFAULT_LAUNCH_CMD
+#CONTAINERIZED_LAUNCH_CMD= 'apptainer run --bind /eagle/projects/FoundEpidem/shahashka /eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning_main_w_entrypoint.sif which process_worker_pool.py'
 def get_parsl_config() -> Config:
     """Initialize Parsl config.
 
@@ -23,14 +24,14 @@ def get_parsl_config() -> Config:
     # NOTE(MS): replace these
     #env = "/eagle/projects/argonne_tpc/mansisak/ci-nn/env/"
     #run_dir = "/eagle/projects/argonne_tpc/mansisak/ci-nn/"
-    env = "/eagle/projects/FoundEpidem/shahashka/env"
+    #env = "/eagle/projects/FoundEpidem/shahashka/env"
     run_dir = "/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning/"
     user_opts = {
         "worker_init": f"""
 module use /soft/modulefiles
-module load conda
+module load spack-pe-base/0.10.1  
+module load apptainer
 cd {run_dir} 
-conda activate causal_discovery
 # Print to stdout to for easier debugging
 module list
 nvidia-smi
@@ -39,8 +40,8 @@ hostname
 pwd""",
         "scheduler_options": "#PBS -l filesystems=home:eagle:grand",  # specify any PBS options here, like filesystems
         "account": "FoundEpidem",
-        "queue": "preemptable",  # e.g.: "prod","debug, "preemptable", "debug-scaling" (see https://docs.alcf.anl.gov/polaris/running-jobs/)
-        "walltime": "24:00:00", #HH:MM:SS
+        "queue": "debug-scaling",  # e.g.: "prod","debug, "preemptable", "debug-scaling" (see https://docs.alcf.anl.gov/polaris/running-jobs/)
+        "walltime": "01:00:00", #HH:MM:SS
         "nodes_per_block": 3,  # think of a block as one job on polaris, so to run on the main queues, set this >= 10
         "available_accelerators": 4,  # Each Polaris node has 4 GPUs, setting this ensures one worker per GPU
     }
@@ -65,9 +66,10 @@ pwd""",
                 )
 
     config = Config(
+        run_dir="/eagle/projects/FoundEpidem/shahashka/runinfo",
         executors=[
             HighThroughputExecutor(
-                label='ci_results',
+                label='benchmark_scale',
                 available_accelerators=4,  # number of GPUs
                 max_workers_per_node=4,
                 provider=provider,
@@ -100,8 +102,8 @@ def get_parsl_config_debug() -> Config:
     user_opts = {
         "worker_init": f"""
 module use /soft/modulefiles
-module load conda
-#conda activate causal_discovery
+module load spack-pe-base/0.10.1  
+module load apptainer
 cd {run_dir} 
 # Print to stdout to for easier debugging
 module list
@@ -118,6 +120,7 @@ pwd""",
     
     }
     config = Config(
+        run_dir="/eagle/projects/FoundEpidem/shahashka/runinfo",
         executors=[
             HighThroughputExecutor(
             #IPyParallelExecutor(

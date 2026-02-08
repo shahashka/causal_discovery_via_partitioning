@@ -4,7 +4,7 @@ import parsl
 import sys
 import os
 @python_app
-def run_experiment(worker_id, cd, p, seed, outdir): 
+def run_experiment(worker_id, cd, p, repeat, seed, outdir): 
     import sys
     # caution: path[0] is reserved for script path (or '' in REPL)
     sys.path.insert(1, '/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning/')
@@ -17,13 +17,14 @@ def run_experiment(worker_id, cd, p, seed, outdir):
     import logging
     warnings.simplefilter("ignore") 
     logger = logging.getLogger(__name__)
+    #outdir="/tmp"
     logging.basicConfig(
         filename=f"{outdir}/worker_{worker_id}.stderr",  # Specify the log file name
         level=logging.DEBUG,  # Set the logging level (e.g., INFO, DEBUG, WARNING, ERROR, CRITICAL)
         format='%(asctime)s - %(levelname)s - %(message)s' # Define the log message format
     )
 
-    logger.debug(f"Run experiment {p}, {cd}")
+    logger.debug(f"Run experiment {p}, {cd}, {r}")
 
     exp = Experiment(1)
     
@@ -39,26 +40,26 @@ def run_experiment(worker_id, cd, p, seed, outdir):
     exp.run(sim_cfg, random_state=seed)
 
 if __name__ == '__main__':
-    config = get_parsl_config_debug()
-    # parsl.load(config)
-
+    #config = get_parsl_config_debug()
+    config = get_parsl_config()
     # NOTE(MS): this is how you vary arg inputs into your expeirment
     args = []
-    #num_nodes = [10,100,1000,10000]
-    num_nodes=[10]
+    num_nodes = [10,100,1000,10000]
+    #num_nodes=[10]
     cd_methods = ["GES", "PC", "NOTEARS"]
+    num_repeats = 1
     worker_id = 0
-    for p in num_nodes:
-        for cd in cd_methods:
-            outdir = f"/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning/{cd}_{p}"
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
+    for r in range(num_repeats):
+        for p in num_nodes:
+            for cd in cd_methods:
+                outdir = f"/eagle/projects/FoundEpidem/shahashka/causal_discovery_via_partitioning/{cd}_{p}_{r}"
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir)
 
-            args.append({"worker_id":worker_id, "cd":cd, "p":p, "seed":p, "outdir":outdir})
-            worker_id += 1
-            print(worker_id)
-    # for arg in args:
-    #     run_experiment(**arg)
+                args.append({"worker_id":worker_id, "cd":cd, "p":p, "seed":p, "repeat":r, "outdir":outdir})
+                worker_id += 1
+                print(worker_id)
+
     with parsl.load(config):
         # Launch experiments as parsl tasks
         futures = [run_experiment(**arg) for arg in args]
