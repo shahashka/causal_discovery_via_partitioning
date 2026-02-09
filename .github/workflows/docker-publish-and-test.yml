@@ -33,8 +33,8 @@ jobs:
     steps:
       - name: Free disk space (Docker only)
         run: |
-          docker system prune -af
-          docker volume prune -f
+          sudo docker system prune -af
+          sudo docker volume prune -f
       # - name: Delete unnecessary files 
       #   run: |
       #     sudo docker rmi $(docker image ls -aq) >/dev/null 2>&1 || true
